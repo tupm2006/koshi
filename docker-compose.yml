@@ -1,0 +1,39 @@
+services:
+  koshi-backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: koshi-backend
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=sqlite:///./data/koshi.db
+      - JWT_SECRET=koshi_super_secret_jwt_key_2026_academic_spec
+      - AI_API_URL=https://api.openai.com/v1/chat/completions
+      - AI_API_KEY=${AI_API_KEY:-}
+      - AI_MODEL_NAME=gpt-4o-mini
+      - OLLAMA_URL=http://host.docker.internal:11434/v1/chat/completions
+    volumes:
+      - koshi-data:/app/data
+    networks:
+      - koshi-internal
+
+  koshi-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: koshi
+    restart: unless-stopped
+    depends_on:
+      - koshi-backend
+    networks:
+      - koshi-internal
+      - proxy-net
+
+volumes:
+  koshi-data:
+
+networks:
+  koshi-internal:
+    driver: bridge
+  proxy-net:
+    external: true

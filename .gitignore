@@ -7,6 +7,15 @@ node_modules
 dist
 build
 
+# Python
+backend/venv/
+backend/data/
+backend/.pytest_cache/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
 # Environment / Local
 .env
 .env.local

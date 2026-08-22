@@ -3,7 +3,12 @@
   import { taskStore } from './stores/taskStore.svelte';
   import { createKeyboardHandler } from './lib/keyboard.svelte';
   import TaskTable from './components/TaskTable.svelte';
+  import KanbanBoard from './components/KanbanBoard.svelte';
   import AIDecomposerModal from './components/AIDecomposerModal.svelte';
+  import WeeklySummaryModal from './components/WeeklySummaryModal.svelte';
+  import MeetingMinutesModal from './components/MeetingMinutesModal.svelte';
+  import WorkloadAssignModal from './components/WorkloadAssignModal.svelte';
+  import AuthModal from './components/AuthModal.svelte';
   import GitDiffModal from './components/GitDiffModal.svelte';
   import DAGVisualizerModal from './components/DAGVisualizerModal.svelte';
   import ShortcutsHelpModal from './components/ShortcutsHelpModal.svelte';
@@ -11,6 +16,11 @@
   import MobileBottomNav from './components/MobileBottomNav.svelte';
   import {
     Sparkles,
+    FileText,
+    Users,
+    Shield,
+    LayoutGrid,
+    List,
     GitPullRequest,
     GitFork,
     Keyboard,
@@ -18,11 +28,16 @@
     Plus,
     Search,
     Flame,
-    X
+    X,
+    Server
   } from 'lucide-svelte';
 
   // Modal visibility states
   let isAIDecomposerOpen = $state(false);
+  let isWeeklySummaryOpen = $state(false);
+  let isMeetingMinutesOpen = $state(false);
+  let isWorkloadAssignOpen = $state(false);
+  let isAuthModalOpen = $state(false);
   let isGitDiffOpen = $state(false);
   let isDAGOpen = $state(false);
   let isShortcutsHelpOpen = $state(false);
@@ -84,46 +99,97 @@
 
 <main class="min-h-screen min-h-[100dvh] flex flex-col bg-[#090a0f] text-zinc-200 safe-top pb-24 md:pb-6 font-sans">
   <!-- Minimal Top Navigation Bar -->
-  <header class="border-b border-zinc-800/60 bg-zinc-950/60 backdrop-blur-md sticky top-0 z-30 px-3 md:px-4 py-2">
-    <div class="w-full flex items-center justify-between gap-3">
-      <!-- Minimal Brand -->
-      <div class="flex items-center gap-2.5">
+  <header class="border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-30 px-3 md:px-4 py-2">
+    <div class="w-full flex items-center justify-between gap-2">
+      <!-- Brand & Auth Pill -->
+      <div class="flex items-center gap-2">
         <h1 class="text-xs font-bold tracking-wider text-zinc-100 font-mono">KOSHI</h1>
-        <span class="text-[10px] font-mono text-zinc-500 border border-zinc-800 px-1 py-0.5 rounded">
-          {taskStore.filteredTasks.length}/{taskStore.tasks.length}
-        </span>
+        
+        <!-- View Toggle (Table / Kanban) -->
+        <button
+          type="button"
+          class="flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[10px] font-mono text-zinc-300 cursor-pointer"
+          onclick={() => taskStore.toggleViewMode()}
+          title="Toggle Table / Kanban View"
+        >
+          {#if taskStore.viewMode === 'TABLE'}
+            <LayoutGrid class="w-3 h-3 text-indigo-400" />
+            <span>Kanban</span>
+          {:else}
+            <List class="w-3 h-3 text-sky-400" />
+            <span>Table</span>
+          {/if}
+        </button>
+
+        <!-- Auth Status Pill -->
+        <button
+          type="button"
+          class="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-mono cursor-pointer {taskStore.currentUser ? 'bg-indigo-950/40 border-indigo-800 text-indigo-300' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300'}"
+          onclick={() => (isAuthModalOpen = true)}
+        >
+          <Shield class="w-3 h-3" />
+          <span>{taskStore.currentUser ? `${taskStore.currentUser.role}: ${taskStore.currentUser.full_name}` : 'Guest / Sign In'}</span>
+        </button>
       </div>
 
       <!-- Header Action Controls -->
-      <div class="flex items-center gap-1.5 md:gap-2">
+      <div class="flex items-center gap-1 md:gap-1.5">
+        <!-- Mandated AI Feature A: Weekly Summary -->
         <button
-          class="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs font-mono cursor-pointer transition"
+          type="button"
+          class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-indigo-300 text-xs font-mono cursor-pointer transition"
+          onclick={() => (isWeeklySummaryOpen = true)}
+          title="Weekly Summary (Feature A)"
+        >
+          <Sparkles class="w-3 h-3 text-indigo-400" />
+          <span>Summary</span>
+        </button>
+
+        <!-- Mandated AI Feature B: Meeting Minutes -->
+        <button
+          type="button"
+          class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-sky-300 text-xs font-mono cursor-pointer transition"
+          onclick={() => (isMeetingMinutesOpen = true)}
+          title="Meeting Minutes (Feature B)"
+        >
+          <FileText class="w-3 h-3 text-sky-400" />
+          <span>Minutes</span>
+        </button>
+
+        <!-- Mandated AI Feature C: Workload & Assignment -->
+        <button
+          type="button"
+          class="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-amber-300 text-xs font-mono cursor-pointer transition"
+          onclick={() => (isWorkloadAssignOpen = true)}
+          title="Team Workload & Smart Assignment (Feature C)"
+        >
+          <Users class="w-3 h-3 text-amber-400" />
+          <span>Workload</span>
+        </button>
+
+        <!-- Goal Decomposer AI -->
+        <button
+          type="button"
+          class="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs font-mono cursor-pointer transition"
           onclick={() => (isAIDecomposerOpen = true)}
           title="AI Decomposer (a)"
         >
           <Sparkles class="w-3 h-3 text-zinc-400" />
-          <span>AI <kbd class="text-zinc-500 text-[10px]">a</kbd></span>
+          <span>Decompose</span>
         </button>
 
         <button
-          class="hidden md:inline-flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs font-mono cursor-pointer transition"
-          onclick={() => (isGitDiffOpen = true)}
-          title="Git Diff (g)"
-        >
-          <GitPullRequest class="w-3 h-3 text-zinc-400" />
-          <span>Diff <kbd class="text-zinc-500 text-[10px]">g</kbd></span>
-        </button>
-
-        <button
-          class="hidden md:inline-flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs font-mono cursor-pointer transition"
+          type="button"
+          class="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs font-mono cursor-pointer transition"
           onclick={() => (isDAGOpen = true)}
           title="DAG Critical Path (v)"
         >
-          <GitFork class="w-3 h-3 text-zinc-400" />
-          <span>DAG <kbd class="text-zinc-500 text-[10px]">v</kbd></span>
+          <GitFork class="w-3 h-3" />
+          <span>DAG</span>
         </button>
 
         <button
+          type="button"
           class="inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs font-mono cursor-pointer transition"
           onclick={() => (isExportImportOpen = true)}
           title="JSON Backup"
@@ -132,14 +198,7 @@
         </button>
 
         <button
-          class="inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs font-mono cursor-pointer transition"
-          onclick={() => (isShortcutsHelpOpen = true)}
-          title="Shortcuts (?)"
-        >
-          <Keyboard class="w-3 h-3" />
-        </button>
-
-        <button
+          type="button"
           class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-mono font-medium cursor-pointer transition"
           onclick={() => (isCreateModalOpen = true)}
           title="Create Task (c)"
@@ -165,6 +224,7 @@
       />
       {#if taskStore.filter.searchQuery}
         <button
+          type="button"
           class="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 cursor-pointer p-0.5"
           onclick={() => taskStore.setSearchQuery('')}
         >
@@ -177,6 +237,7 @@
     <div class="flex items-center gap-1 text-xs font-mono overflow-x-auto no-scrollbar py-0.5">
       {#each (['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'] as const) as st}
         <button
+          type="button"
           class="px-2 py-0.5 rounded transition cursor-pointer shrink-0 {taskStore.filter.status === st && !taskStore.filter.onlyCriticalPath ? 'bg-zinc-800 text-zinc-100 font-medium' : 'text-zinc-500 hover:text-zinc-300'}"
           onclick={() => {
             if (taskStore.filter.onlyCriticalPath) taskStore.toggleCriticalPathOnly();
@@ -188,6 +249,7 @@
       {/each}
 
       <button
+        type="button"
         class="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded transition cursor-pointer shrink-0 {taskStore.filter.onlyCriticalPath ? 'bg-rose-950/40 text-rose-300 border border-rose-800/50' : 'text-zinc-500 hover:text-zinc-300'}"
         onclick={() => taskStore.toggleCriticalPathOnly()}
         title="Toggle Critical Path Only"
@@ -198,9 +260,13 @@
     </div>
   </section>
 
-  <!-- Main Edge-to-Edge Task Table -->
-  <section class="w-full flex-1 overflow-x-auto">
-    <TaskTable onOpenCreate={() => (isCreateModalOpen = true)} />
+  <!-- Main View (Table vs Kanban Board) -->
+  <section class="w-full flex-1 flex flex-col overflow-x-auto">
+    {#if taskStore.viewMode === 'TABLE'}
+      <TaskTable onOpenCreate={() => (isCreateModalOpen = true)} />
+    {:else}
+      <KanbanBoard onOpenCreate={() => (isCreateModalOpen = true)} />
+    {/if}
   </section>
 
   <!-- Subtle Footer with Telemetry at Bottom Right -->
@@ -213,17 +279,21 @@
       <span><kbd class="px-1 py-0.2 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">1-4</kbd> Priority</span>
     </div>
 
-    <!-- Telemetry & Reset in Low-Opacity Monospace Text -->
-    <div class="flex items-center gap-3 text-slate-600 font-mono text-xs ml-auto">
-      <span>RAM: &lt;15MB</span>
+    <!-- Backend & Telemetry in Monospace Text -->
+    <div class="flex items-center gap-2 text-slate-500 font-mono text-[11px] ml-auto">
+      <span class="flex items-center gap-1">
+        <Server class="w-3 h-3 {taskStore.isBackendConnected ? 'text-emerald-400' : 'text-zinc-600'}" />
+        <span>{taskStore.isBackendConnected ? 'FastAPI Connected' : 'Local IndexedDB'}</span>
+      </span>
       <span>•</span>
-      <span>Latency: {taskStore.lastLatencyMs || '&lt;0.5'}ms</span>
+      <span>Latency: {taskStore.lastLatencyMs || '<0.5'}ms</span>
       <span>•</span>
       <button
-        class="hover:text-slate-400 underline cursor-pointer"
+        type="button"
+        class="hover:text-slate-300 underline cursor-pointer"
         onclick={() => taskStore.resetToDefault()}
       >
-        Reset sample tasks
+        Reset sample
       </button>
     </div>
   </footer>
@@ -240,6 +310,22 @@
   />
 
   <!-- Modals -->
+  {#if isWeeklySummaryOpen}
+    <WeeklySummaryModal onClose={() => (isWeeklySummaryOpen = false)} />
+  {/if}
+
+  {#if isMeetingMinutesOpen}
+    <MeetingMinutesModal onClose={() => (isMeetingMinutesOpen = false)} />
+  {/if}
+
+  {#if isWorkloadAssignOpen}
+    <WorkloadAssignModal onClose={() => (isWorkloadAssignOpen = false)} />
+  {/if}
+
+  {#if isAuthModalOpen}
+    <AuthModal onClose={() => (isAuthModalOpen = false)} />
+  {/if}
+
   {#if isAIDecomposerOpen}
     <AIDecomposerModal onClose={() => (isAIDecomposerOpen = false)} />
   {/if}
@@ -265,7 +351,7 @@
       <div class="glass-panel w-full max-w-md rounded-xl p-4 shadow-2xl border border-zinc-800 text-zinc-200 flex flex-col">
         <div class="flex items-center justify-between pb-2 border-b border-zinc-800">
           <h2 class="text-xs font-mono font-semibold">JSON Backup & Restore</h2>
-          <button class="p-1 text-zinc-500 hover:text-zinc-300 cursor-pointer" onclick={() => (isExportImportOpen = false)}>
+          <button type="button" class="p-1 text-zinc-500 hover:text-zinc-300 cursor-pointer" onclick={() => (isExportImportOpen = false)}>
             <X class="w-3.5 h-3.5" />
           </button>
         </div>
@@ -273,6 +359,7 @@
           <div class="flex items-center justify-between p-2 rounded bg-zinc-900 border border-zinc-800">
             <span class="font-mono text-zinc-400">Export state file</span>
             <button
+              type="button"
               class="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-mono text-xs cursor-pointer"
               onclick={handleDownloadExport}
             >
@@ -290,6 +377,7 @@
               <div class="text-[11px] font-mono text-zinc-400 mt-1">{importStatusMsg}</div>
             {/if}
             <button
+              type="button"
               class="w-full mt-2 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-mono text-xs cursor-pointer"
               onclick={handleImportJSON}
             >

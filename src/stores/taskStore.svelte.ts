@@ -1,6 +1,7 @@
 import { get, set } from 'idb-keyval';
 import type { Task, TaskStatus, TaskPriority, TaskFilter, FilterStatus, FilterPriority } from '../types/task';
 import { topologicalSort, computeCriticalPath } from '../lib/dagSorter';
+import { api, type UserProfile } from '../services/api';
 
 const DB_KEY = 'koshi_tasks_v1';
 
@@ -82,6 +83,9 @@ class TaskStore {
   editingTaskId = $state<string | null>(null);
   isLoaded = $state<boolean>(false);
   lastLatencyMs = $state<number>(0);
+  viewMode = $state<'TABLE' | 'KANBAN'>('TABLE');
+  currentUser = $state<UserProfile | null>(null);
+  isBackendConnected = $state<boolean>(false);
 
   // Filters
   filter = $state<TaskFilter>({
@@ -97,253 +101,240 @@ class TaskStore {
 
   private async init() {
     try {
+      // 1. Check if token exists & verify backend
+      if (api.getToken()) {
+        try {
+          const user = await api.getMe();
+          this.currentUser = user;
+          await this.syncWithBackend();
+          this.isBackendConnected = true;
+          this.isLoaded = true;
+          return;
+        } catch (e) {
+          console.warn('Backend authentication failed or offline, loading local IndexedDB fallback:', e);
+        }
+      }
+
+      // 2. Load from IndexedDB
       const stored = await get<Task[]>(DB_KEY);
       if (stored && Array.isArray(stored) && stored.length > 0) {
         this.tasks = stored;
       } else {
-        const local = localStorage.getItem(DB_KEY);
-        if (local) {
-          this.tasks = JSON.parse(local);
-        } else {
-          this.tasks = INITIAL_TASKS;
-        }
+        this.tasks = INITIAL_TASKS;
+        await set(DB_KEY, INITIAL_TASKS);
       }
-    } catch {
-      const local = localStorage.getItem(DB_KEY);
-      this.tasks = local ? JSON.parse(local) : INITIAL_TASKS;
+    } catch (err) {
+      console.error('Failed to initialize taskStore:', err);
+      this.tasks = INITIAL_TASKS;
     } finally {
       this.isLoaded = true;
-      this.clampSelection();
     }
   }
 
-  private persist() {
-    const data = $state.snapshot(this.tasks);
+  async syncWithBackend(projectId: number = 1) {
     try {
-      localStorage.setItem(DB_KEY, JSON.stringify(data));
-      set(DB_KEY, data).catch((err) => console.error('IndexedDB write error', err));
+      const backendTasks = await api.getTasks(projectId);
+      if (backendTasks && Array.isArray(backendTasks)) {
+        const mapped: Task[] = backendTasks.map((t) => ({
+          id: `TSK-${t.id}`,
+          title: t.title,
+          description: t.description || '',
+          status: t.status as TaskStatus,
+          priority: t.priority as TaskPriority,
+          complexity: t.complexity_points === 1 ? 'S' : t.complexity_points === 2 ? 'M' : t.complexity_points === 3 ? 'L' : 'XL',
+          dueDate: t.due_date,
+          blockingReason: t.blocking_reason,
+          dependencies: t.dependencies || [],
+          acceptanceCriteria: t.acceptance_criteria || [],
+          createdAt: new Date(t.created_at).getTime(),
+          updatedAt: new Date(t.updated_at).getTime(),
+        }));
+        this.tasks = mapped;
+        this.isBackendConnected = true;
+        await this.persist();
+      }
     } catch (e) {
-      console.warn('Storage sync warning', e);
+      console.warn('Backend sync unavailable:', e);
+      this.isBackendConnected = false;
     }
   }
 
-  private measureLatency(fn: () => void) {
+  private async persist() {
     const t0 = performance.now();
-    fn();
-    const t1 = performance.now();
-    this.lastLatencyMs = Math.round((t1 - t0) * 100) / 100;
+    try {
+      await set(DB_KEY, $state.snapshot(this.tasks));
+      this.lastLatencyMs = Math.round((performance.now() - t0) * 10) / 10;
+    } catch (err) {
+      console.error('Persistence failure:', err);
+    }
   }
 
-  // Derived filtered & ordered tasks
+  // Reactive Derived States
   filteredTasks = $derived.by(() => {
     let result = this.tasks;
 
-    // Filter by search query
     if (this.filter.searchQuery.trim()) {
       const q = this.filter.searchQuery.toLowerCase();
       result = result.filter(
         (t) =>
           t.title.toLowerCase().includes(q) ||
           t.id.toLowerCase().includes(q) ||
-          (t.description && t.description.toLowerCase().includes(q)) ||
-          (t.assignee && t.assignee.toLowerCase().includes(q))
+          (t.description && t.description.toLowerCase().includes(q))
       );
     }
 
-    // Filter by status
     if (this.filter.status !== 'ALL') {
       result = result.filter((t) => t.status === this.filter.status);
     }
 
-    // Filter by priority
     if (this.filter.priority !== 'ALL') {
       result = result.filter((t) => t.priority === this.filter.priority);
     }
 
-    // Filter by critical path
     if (this.filter.onlyCriticalPath) {
-      const cpSet = computeCriticalPath(this.tasks);
-      result = result.filter((t) => cpSet.has(t.id));
+      const critSet = this.criticalPathIds;
+      result = result.filter((t) => critSet.has(t.id));
     }
 
     return result;
   });
 
-  // Topologically sorted list
-  topoSortedTasks = $derived.by(() => {
-    return topologicalSort(this.tasks);
+  selectedTask = $derived.by(() => {
+    const list = this.filteredTasks;
+    if (list.length === 0) return null;
+    const clampedIndex = Math.max(0, Math.min(this.selectedIndex, list.length - 1));
+    return list[clampedIndex] || null;
   });
 
-  // Critical path set
   criticalPathIds = $derived.by(() => {
     return computeCriticalPath(this.tasks);
   });
 
-  // Summary Metrics
+  dagOrder = $derived.by(() => {
+    return topologicalSort(this.tasks);
+  });
+
   metrics = $derived.by(() => {
     const total = this.tasks.length;
     const done = this.tasks.filter((t) => t.status === 'DONE').length;
     const inProgress = this.tasks.filter((t) => t.status === 'IN_PROGRESS').length;
     const blocked = this.tasks.filter((t) => t.status === 'BLOCKED').length;
-    const critical = this.tasks.filter((t) => t.priority === 'CRITICAL' && t.status !== 'DONE').length;
-    const completionRate = total > 0 ? Math.round((done / total) * 100) : 0;
+    const todo = this.tasks.filter((t) => t.status === 'TODO').length;
+    const rate = total > 0 ? Math.round((done / total) * 100) : 0;
 
-    return { total, done, inProgress, blocked, critical, completionRate };
+    return { total, done, inProgress, blocked, todo, rate };
   });
 
-  // Active selected task
-  selectedTask = $derived.by(() => {
-    const list = this.filteredTasks;
-    if (list.length === 0) return null;
-    const idx = Math.min(Math.max(0, this.selectedIndex), list.length - 1);
-    return list[idx] || null;
-  });
-
-  // Actions
-  clampSelection() {
-    const len = this.filteredTasks.length;
-    if (len === 0) {
-      this.selectedIndex = 0;
-    } else if (this.selectedIndex >= len) {
-      this.selectedIndex = len - 1;
-    } else if (this.selectedIndex < 0) {
-      this.selectedIndex = 0;
-    }
+  // Action Methods
+  selectTask(index: number) {
+    const maxIdx = this.filteredTasks.length - 1;
+    this.selectedIndex = Math.max(0, Math.min(index, maxIdx));
   }
 
   selectNext() {
-    const maxIdx = this.filteredTasks.length - 1;
-    if (maxIdx <= 0) return;
-    this.selectedIndex = Math.min(this.selectedIndex + 1, maxIdx);
+    this.selectTask(this.selectedIndex + 1);
   }
 
   selectPrev() {
-    if (this.selectedIndex <= 0) return;
-    this.selectedIndex = Math.max(this.selectedIndex - 1, 0);
+    this.selectTask(this.selectedIndex - 1);
   }
 
-  selectIndex(idx: number) {
-    const maxIdx = this.filteredTasks.length - 1;
-    this.selectedIndex = Math.max(0, Math.min(idx, maxIdx));
+  createTask(title: string, priority: TaskPriority = 'MEDIUM', status: TaskStatus = 'TODO'): Task | null {
+    if (!title.trim()) return null;
+    const nextNum = this.tasks.length > 0
+      ? Math.max(...this.tasks.map((t) => parseInt(t.id.replace(/\D/g, ''), 10) || 100)) + 1
+      : 101;
+    const id = `TSK-${nextNum}`;
+    const now = Date.now();
+
+    const newTask: Task = {
+      id,
+      title: title.trim(),
+      status,
+      priority,
+      complexity: 'M',
+      createdAt: now,
+      updatedAt: now,
+      dependencies: [],
+      acceptanceCriteria: [],
+    };
+
+    this.tasks = [newTask, ...this.tasks];
+    this.persist();
+
+    // Background sync to backend if connected
+    if (this.isBackendConnected) {
+      api.createTask({
+        project_id: 1,
+        title: newTask.title,
+        status: newTask.status,
+        priority: newTask.priority,
+        complexity_points: 2,
+      }).catch((e) => console.warn('Failed background API task creation:', e));
+    }
+
+    return newTask;
+  }
+
+  updateTask(id: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>) {
+    this.tasks = this.tasks.map((t) => {
+      if (t.id === id) {
+        return { ...t, ...updates, updatedAt: Date.now() };
+      }
+      return t;
+    });
+    this.persist();
+
+    // Sync to backend if numeric ID
+    const numId = parseInt(id.replace(/\D/g, ''), 10);
+    if (this.isBackendConnected && !isNaN(numId)) {
+      api.updateTask(numId, updates).catch(() => {});
+    }
+  }
+
+  deleteTask(id: string) {
+    this.tasks = this.tasks.filter((t) => t.id !== id);
+    this.tasks = this.tasks.map((t) => {
+      if (t.dependencies && t.dependencies.includes(id)) {
+        return { ...t, dependencies: t.dependencies.filter((d) => d !== id) };
+      }
+      return t;
+    });
+    this.persist();
+
+    const numId = parseInt(id.replace(/\D/g, ''), 10);
+    if (this.isBackendConnected && !isNaN(numId)) {
+      api.deleteTask(numId).catch(() => {});
+    }
+  }
+
+  setStatus(id: string, status: TaskStatus) {
+    this.updateTask(id, { status });
+  }
+
+  cycleStatus(id: string) {
+    const task = this.tasks.find((t) => t.id === id);
+    if (!task) return;
+    const currentIdx = STATUS_CYCLE.indexOf(task.status);
+    const nextStatus = STATUS_CYCLE[(currentIdx + 1) % STATUS_CYCLE.length];
+    this.setStatus(id, nextStatus);
   }
 
   cycleSelectedStatus() {
-    const current = this.selectedTask;
-    if (!current) return;
-    this.cycleStatus(current.id);
+    const t = this.selectedTask;
+    if (t) this.cycleStatus(t.id);
   }
 
-  cycleStatus(taskId: string) {
-    this.measureLatency(() => {
-      const idx = this.tasks.findIndex((t) => t.id === taskId);
-      if (idx === -1) return;
-
-      const currentStatus = this.tasks[idx].status;
-      const nextIdx = (STATUS_CYCLE.indexOf(currentStatus) + 1) % STATUS_CYCLE.length;
-      const nextStatus = STATUS_CYCLE[nextIdx];
-
-      this.tasks[idx] = {
-        ...this.tasks[idx],
-        status: nextStatus,
-        blockingReason: nextStatus === 'BLOCKED' ? (this.tasks[idx].blockingReason || 'Blocked by upstream dependency') : undefined,
-        updatedAt: Date.now(),
-      };
-      this.persist();
-    });
+  setPriority(id: string, priority: TaskPriority) {
+    this.updateTask(id, { priority });
   }
 
-  setStatus(taskId: string, status: TaskStatus, blockingReason?: string) {
-    this.measureLatency(() => {
-      const idx = this.tasks.findIndex((t) => t.id === taskId);
-      if (idx === -1) return;
-      this.tasks[idx] = {
-        ...this.tasks[idx],
-        status,
-        blockingReason: status === 'BLOCKED' ? (blockingReason || this.tasks[idx].blockingReason || 'Action required') : undefined,
-        updatedAt: Date.now(),
-      };
-      this.persist();
-    });
-  }
-
-  setPriority(taskId: string, priority: TaskPriority) {
-    this.measureLatency(() => {
-      const idx = this.tasks.findIndex((t) => t.id === taskId);
-      if (idx === -1) return;
-      this.tasks[idx] = {
-        ...this.tasks[idx],
-        priority,
-        updatedAt: Date.now(),
-      };
-      this.persist();
-    });
-  }
-
-  updateTaskTitle(taskId: string, newTitle: string) {
-    if (!newTitle.trim()) return;
-    this.measureLatency(() => {
-      const idx = this.tasks.findIndex((t) => t.id === taskId);
-      if (idx === -1) return;
-      this.tasks[idx] = {
-        ...this.tasks[idx],
-        title: newTitle.trim(),
-        updatedAt: Date.now(),
-      };
-      this.editingTaskId = null;
-      this.persist();
-    });
-  }
-
-  startEditing(taskId: string) {
-    this.editingTaskId = taskId;
+  startEditing(id: string) {
+    this.editingTaskId = id;
   }
 
   stopEditing() {
     this.editingTaskId = null;
-  }
-
-  createTask(title: string, priority: TaskPriority = 'MEDIUM', status: TaskStatus = 'TODO') {
-    if (!title.trim()) return null;
-    let created: Task | null = null;
-    this.measureLatency(() => {
-      const nextNum = this.tasks.length + 101;
-      const id = `TSK-${nextNum}`;
-      const newTask: Task = {
-        id,
-        title: title.trim(),
-        status,
-        priority,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-        complexity: 'M',
-      };
-      this.tasks = [newTask, ...this.tasks];
-      this.selectedIndex = 0;
-      this.persist();
-      created = newTask;
-    });
-    return created;
-  }
-
-  addBatchTasks(newTasks: Task[]) {
-    this.measureLatency(() => {
-      this.tasks = [...newTasks, ...this.tasks];
-      this.persist();
-    });
-  }
-
-  deleteTask(taskId: string) {
-    this.measureLatency(() => {
-      this.tasks = this.tasks.filter((t) => t.id !== taskId);
-      this.clampSelection();
-      this.persist();
-    });
-  }
-
-  deleteSelected() {
-    const current = this.selectedTask;
-    if (!current) return;
-    this.deleteTask(current.id);
   }
 
   setFilterStatus(status: FilterStatus) {
@@ -356,8 +347,8 @@ class TaskStore {
     this.selectedIndex = 0;
   }
 
-  setSearchQuery(q: string) {
-    this.filter.searchQuery = q;
+  setSearchQuery(query: string) {
+    this.filter.searchQuery = query;
     this.selectedIndex = 0;
   }
 
@@ -366,59 +357,31 @@ class TaskStore {
     this.selectedIndex = 0;
   }
 
-  // Export / Import
-  exportJSON(): string {
-    const data = {
-      project: 'Koshi',
-      version: '1.0.0',
-      exportedAt: new Date().toISOString(),
-      tasks: $state.snapshot(this.tasks),
-    };
-    return JSON.stringify(data, null, 2);
+  toggleViewMode() {
+    this.viewMode = this.viewMode === 'TABLE' ? 'KANBAN' : 'TABLE';
   }
 
-  importJSON(jsonString: string): { success: boolean; count: number; error?: string } {
+  exportJSON(): string {
+    return JSON.stringify(this.tasks, null, 2);
+  }
+
+  importJSON(jsonString: string): { success: boolean; count?: number; error?: string } {
     try {
       const parsed = JSON.parse(jsonString);
-      let items: Task[] = [];
-      if (Array.isArray(parsed)) {
-        items = parsed;
-      } else if (parsed && Array.isArray(parsed.tasks)) {
-        items = parsed.tasks;
-      } else {
-        throw new Error('Invalid JSON format: expected Task array or { tasks: Task[] }');
+      if (!Array.isArray(parsed)) {
+        return { success: false, error: 'Expected an array of tasks.' };
       }
-
-      // Basic validation
-      const validTasks: Task[] = items.map((t, idx) => ({
-        id: t.id || `TSK-${100 + idx}`,
-        title: t.title || 'Untitled Task',
-        description: t.description || '',
-        status: ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'].includes(t.status) ? t.status : 'TODO',
-        priority: ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(t.priority) ? t.priority : 'MEDIUM',
-        assignee: t.assignee,
-        dueDate: t.dueDate,
-        blockingReason: t.blockingReason,
-        createdAt: t.createdAt || Date.now(),
-        updatedAt: t.updatedAt || Date.now(),
-        dependencies: Array.isArray(t.dependencies) ? t.dependencies : [],
-        complexity: t.complexity,
-        acceptanceCriteria: Array.isArray(t.acceptanceCriteria) ? t.acceptanceCriteria : [],
-      }));
-
-      this.tasks = validTasks;
+      this.tasks = parsed;
       this.persist();
-      this.selectedIndex = 0;
-      return { success: true, count: validTasks.length };
+      return { success: true, count: parsed.length };
     } catch (e: any) {
-      return { success: false, count: 0, error: e.message };
+      return { success: false, error: e.message || 'Invalid JSON format.' };
     }
   }
 
-  resetToDefault() {
+  async resetToDefault() {
     this.tasks = INITIAL_TASKS;
-    this.persist();
-    this.selectedIndex = 0;
+    await this.persist();
   }
 }
 
