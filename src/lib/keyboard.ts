@@ -1,5 +1,4 @@
-import { taskStore } from '../stores/taskStore.svelte';
-import type { TaskPriority } from '../types/task';
+import { useTaskStore } from '../stores/taskStore';
 
 export interface KeyboardState {
   onOpenQuickCreate: () => void;
@@ -12,6 +11,7 @@ export interface KeyboardState {
 
 export function createKeyboardHandler(callbacks: KeyboardState) {
   function handleKeyDown(event: KeyboardEvent) {
+    const taskStore = useTaskStore();
     const target = event.target as HTMLElement | null;
     const isInputFocused =
       target &&
