@@ -43,7 +43,7 @@ function getStatusDot(status: TaskStatus) {
       return 'bg-rose-600 dark:bg-rose-400 shadow-[0_0_8px_rgba(244,63,94,0.4)]';
     case 'TODO':
     default:
-      return 'bg-slate-500 dark:bg-zinc-500';
+      return 'bg-slate-500 dark:bg-slate-500';
   }
 }
 
@@ -57,7 +57,7 @@ function getStatusTextColor(status: TaskStatus) {
       return 'text-rose-700 dark:text-rose-300 font-semibold';
     case 'TODO':
     default:
-      return 'text-slate-700 dark:text-zinc-400 font-semibold';
+      return 'text-slate-700 dark:text-slate-400 font-semibold';
   }
 }
 
@@ -71,7 +71,7 @@ function getPriorityBadge(p: TaskPriority) {
       return 'bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/40 font-medium';
     case 'LOW':
     default:
-      return 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-zinc-900 dark:text-zinc-400 dark:border-zinc-800 font-medium';
+      return 'bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-800 font-medium';
   }
 }
 
@@ -164,8 +164,8 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
 
 <template>
   <div class="relative w-full overflow-hidden flex flex-col bg-white dark:bg-slate-900">
-    <!-- Desktop Table Header Bar -->
-    <div class="hidden md:grid grid-cols-[80px_120px_1fr_90px_110px_100px_70px] items-center gap-3 px-4 py-2.5 text-xs font-mono font-bold text-slate-700 dark:text-slate-300 border-b border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-950/40 select-none">
+    <!-- Desktop Table Header Bar (Fixed h-10) -->
+    <div class="hidden md:grid grid-cols-[80px_120px_1fr_90px_110px_100px_70px] items-center gap-3 px-4 h-10 text-xs font-mono font-bold text-slate-700 dark:text-slate-300 border-b border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-950/40 select-none shrink-0">
       <span>ID</span>
       <span>Status</span>
       <span>Title</span>
@@ -183,7 +183,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
       </p>
       <button
         type="button"
-        class="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white dark:text-slate-200 text-xs font-mono cursor-pointer transition min-h-[36px]"
+        class="mt-4 h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white dark:text-slate-200 text-xs font-mono cursor-pointer transition"
         @click="onOpenCreate"
       >
         <Plus class="w-3.5 h-3.5" />
@@ -191,12 +191,12 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
       </button>
     </div>
 
-    <!-- Task List -->
+    <!-- Task List (Uniform h-10 Rows) -->
     <div v-else class="divide-y divide-slate-200 dark:divide-slate-800/40 flex flex-col" role="list">
       <div
         v-for="(task, idx) in taskStore.filteredTasks"
         :key="task.id"
-        class="group relative touch-card select-none h-[46px] md:h-[42px] flex items-center"
+        class="group relative touch-card select-none h-10 flex items-center shrink-0"
         :class="idx === taskStore.selectedIndex ? 'bg-indigo-50 dark:bg-slate-800/80 border-l-2 border-indigo-600 dark:border-slate-400' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'"
         style="touch-action: pan-y;"
         @pointerdown="(e) => handlePointerDown(e, task)"
@@ -223,7 +223,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
           <div class="flex items-center">
             <button
               type="button"
-              class="inline-flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800/60 text-xs font-mono cursor-pointer transition"
+              class="h-6 inline-flex items-center gap-1.5 px-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-800/60 text-[11px] font-mono font-semibold uppercase tracking-wider cursor-pointer transition"
               :class="getStatusTextColor(task.status)"
               @click.stop="taskStore.cycleStatus(task.id)"
               title="Click or Space to cycle"
@@ -240,7 +240,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
                 ref="editInputRef"
                 v-model="editInputVal"
                 type="text"
-                class="w-full bg-white dark:bg-slate-950 border border-indigo-500 dark:border-slate-600 rounded px-2.5 py-1 text-sm text-slate-900 dark:text-slate-100 focus:outline-none font-sans shadow-xs"
+                class="h-7 w-full bg-white dark:bg-slate-950 border border-indigo-500 dark:border-slate-600 rounded-md px-2.5 text-sm text-slate-900 dark:text-slate-100 focus:outline-none font-sans shadow-xs"
                 @keydown="(e) => handleEditKeydown(e, task)"
                 @blur="commitInlineEdit(task)"
               />
@@ -248,7 +248,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
             <button
               v-else
               type="button"
-              class="text-left w-full truncate text-sm font-medium text-slate-950 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-white cursor-text bg-transparent border-0 p-0 font-inherit block leading-none"
+              class="text-left w-full truncate text-sm font-medium text-slate-950 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-white cursor-text bg-transparent border-0 p-0 font-sans block leading-none"
               @dblclick.stop="startInlineEdit(task)"
               title="Double click or Enter to edit"
             >
@@ -259,10 +259,10 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
           </div>
 
           <!-- Col 4: Priority -->
-          <div class="flex items-center font-mono text-xs">
+          <div class="flex items-center font-mono">
             <button
               type="button"
-              class="px-2 py-0.5 rounded border text-xs font-mono cursor-pointer transition shadow-2xs"
+              class="h-6 px-2 inline-flex items-center justify-center rounded-md border text-[11px] font-mono font-semibold uppercase tracking-wider cursor-pointer transition shadow-2xs"
               :class="getPriorityBadge(task.priority)"
               @click="(e) => cyclePriority(e, task.id, task.priority)"
               title="Click or 1-4 to change"
@@ -290,7 +290,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
             <div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
               <button
                 type="button"
-                class="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer"
+                class="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer"
                 @click.stop="startInlineEdit(task)"
                 title="Rename (Enter)"
               >
@@ -298,7 +298,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
               </button>
               <button
                 type="button"
-                class="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-slate-500 hover:text-rose-600 cursor-pointer"
+                class="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md text-slate-500 hover:text-rose-600 cursor-pointer"
                 @click.stop="taskStore.deleteTask(task.id)"
                 title="Delete (d)"
               >
@@ -316,7 +316,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
           <!-- Left: Status Badge -->
           <button
             type="button"
-            class="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800 text-xs font-mono cursor-pointer shrink-0"
+            class="h-6 inline-flex items-center gap-1.5 px-2 rounded-md bg-slate-100 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800 text-[11px] font-mono font-semibold uppercase tracking-wider cursor-pointer shrink-0"
             :class="getStatusTextColor(task.status)"
             @click.stop="taskStore.cycleStatus(task.id)"
           >
@@ -331,7 +331,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
                 ref="editInputRef"
                 v-model="editInputVal"
                 type="text"
-                class="w-full bg-white dark:bg-slate-950 border border-indigo-500 dark:border-slate-600 rounded px-2 py-0.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none font-sans shadow-xs"
+                class="h-7 w-full bg-white dark:bg-slate-950 border border-indigo-500 dark:border-slate-600 rounded-md px-2 py-0.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none font-sans shadow-xs"
                 @keydown="(e) => handleEditKeydown(e, task)"
                 @blur="commitInlineEdit(task)"
               />
@@ -339,7 +339,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
             <button
               v-else
               type="button"
-              class="text-left w-full truncate text-xs font-medium text-slate-950 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-white cursor-text bg-transparent border-0 p-0 font-inherit block leading-none"
+              class="text-left w-full truncate text-xs font-medium text-slate-950 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-white cursor-text bg-transparent border-0 p-0 font-sans block leading-none"
               @click="taskStore.selectTask(idx)"
               @dblclick.stop="startInlineEdit(task)"
             >
@@ -356,7 +356,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
             </span>
             <button
               type="button"
-              class="px-2 py-0.5 rounded border text-xs font-mono cursor-pointer shadow-2xs"
+              class="h-6 px-2 inline-flex items-center justify-center rounded-md border text-[11px] font-mono font-semibold uppercase tracking-wider cursor-pointer shadow-2xs"
               :class="getPriorityBadge(task.priority)"
               @click="(e) => cyclePriority(e, task.id, task.priority)"
             >

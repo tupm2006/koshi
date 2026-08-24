@@ -82,11 +82,11 @@ function handleAcceptAll() {
 
 <template>
   <div class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-100">
-    <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl p-5 md:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col max-h-[90vh]">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-lg p-5 md:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col max-h-[90vh]">
       <!-- Header -->
       <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
         <div class="flex items-center gap-2.5">
-          <div class="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400">
+          <div class="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400">
             <Sparkles class="w-5 h-5" />
           </div>
           <div>
@@ -106,12 +106,12 @@ function handleAcceptAll() {
             v-model="goalInput"
             type="text"
             placeholder="Describe your engineering goal or feature epic..."
-            class="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-sans min-h-[44px]"
+            class="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-sans min-h-[44px]"
             @keydown.enter="handleDecompose()"
           />
           <button
             type="button"
-            class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center gap-1.5 cursor-pointer transition shadow-xs disabled:opacity-50 min-h-[44px]"
+            class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center gap-1.5 cursor-pointer transition shadow-xs disabled:opacity-50 min-h-[44px]"
             :disabled="isLoading || !goalInput.trim()"
             @click="handleDecompose()"
           >
@@ -138,13 +138,13 @@ function handleAcceptAll() {
 
       <!-- Result Area -->
       <div class="flex-1 overflow-y-auto space-y-3 pr-1">
-        <div v-if="errorMsg" class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 flex items-center gap-2 text-xs font-mono">
+        <div v-if="errorMsg" class="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 flex items-center gap-2 text-xs font-mono">
           <AlertCircle class="w-4 h-4 shrink-0" />
           <span>{{ errorMsg }}</span>
         </div>
 
         <div v-if="result" class="space-y-3">
-          <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+          <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
             <h3 class="text-xs font-bold text-slate-900 dark:text-slate-200 font-mono">{{ result.epicTitle }}</h3>
             <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">{{ result.rationale }}</p>
           </div>
@@ -153,7 +153,7 @@ function handleAcceptAll() {
             <div
               v-for="(subtask, idx) in result.subtasks"
               :key="idx"
-              class="p-3 rounded-xl bg-slate-50/70 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex flex-col gap-1.5"
+              class="p-3 rounded-lg bg-slate-50/70 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex flex-col gap-1.5"
             >
               <div class="flex items-center justify-between gap-2">
                 <span class="font-medium text-xs text-slate-900 dark:text-slate-200 font-sans">{{ subtask.title }}</span>
@@ -161,7 +161,7 @@ function handleAcceptAll() {
                   <span v-if="subtask.complexity" class="px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400 font-medium">
                     [{{ subtask.complexity }}]
                   </span>
-                  <span class="px-1.5 py-0.2 rounded border bg-white dark:bg-slate-900 text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700">
+                  <span class="px-1.5 py-0.2 rounded border bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700">
                     {{ subtask.priority }}
                   </span>
                 </div>
@@ -180,14 +180,14 @@ function handleAcceptAll() {
       <div v-if="result" class="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
         <button
           type="button"
-          class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-mono text-xs cursor-pointer transition min-h-[40px]"
+          class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-mono text-xs cursor-pointer transition min-h-[40px]"
           @click="emit('close')"
         >
           Dismiss
         </button>
         <button
           type="button"
-          class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center gap-1.5 cursor-pointer transition shadow-xs min-h-[40px] disabled:opacity-50"
+          class="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center gap-1.5 cursor-pointer transition shadow-xs min-h-[40px] disabled:opacity-50"
           :disabled="isInserted"
           @click="handleAcceptAll"
         >

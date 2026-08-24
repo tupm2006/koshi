@@ -116,160 +116,159 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 </script>
 
 <template>
-  <div class="min-h-screen min-h-[100dvh] flex flex-col bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans text-xs md:text-sm safe-top pb-24 md:pb-6 transition-colors duration-150">
-    <!-- Centered Widescreen Bounds Wrapper -->
-    <div class="w-full max-w-[1720px] mx-auto flex-1 flex flex-col min-w-0">
-      <!-- Minimal Top Navigation Bar -->
-      <header class="border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900/90 sticky top-0 z-30 px-3 md:px-6 py-2.5 shadow-xs">
-        <div class="w-full flex items-center justify-between gap-3">
-          <!-- Brand & Auth Pill -->
-          <div class="flex items-center gap-2.5">
-            <h1 class="text-sm font-bold tracking-wider text-slate-950 dark:text-slate-100 font-mono">KOSHI</h1>
+  <div class="h-screen h-[100dvh] flex flex-col bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans text-xs md:text-sm safe-top overflow-hidden">
+    <!-- Top Header (Fixed h-12) -->
+    <header class="h-12 border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 px-4 md:px-6 flex items-center justify-between z-30 shadow-xs">
+      <div class="w-full max-w-[1720px] mx-auto flex items-center justify-between gap-3">
+        <!-- Brand & Auth Pill -->
+        <div class="flex items-center gap-2.5">
+          <h1 class="text-sm font-bold tracking-wider text-slate-900 dark:text-slate-100 font-mono">KOSHI</h1>
 
-            <!-- View Toggle (Table / Kanban) -->
+          <!-- View Toggle (Table / Kanban) -->
+          <button
+            type="button"
+            class="h-8 flex items-center gap-1.5 px-3 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-mono text-slate-800 dark:text-slate-200 cursor-pointer transition shadow-2xs"
+            @click="taskStore.toggleViewMode()"
+            title="Toggle Table / Kanban View"
+          >
+            <LayoutGrid v-if="taskStore.viewMode === 'TABLE'" class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            <List v-else class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+            <span>{{ taskStore.viewMode === 'TABLE' ? 'Kanban' : 'Table' }}</span>
+          </button>
+
+          <!-- Auth Status Pill -->
+          <button
+            type="button"
+            class="h-8 hidden sm:inline-flex items-center gap-1.5 px-3 rounded-md border text-xs font-mono cursor-pointer transition shadow-2xs"
+            :class="taskStore.currentUser ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold' : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'"
+            @click="isAuthModalOpen = true"
+          >
+            <Shield class="w-3.5 h-3.5" />
+            <span>{{ taskStore.currentUser ? `${taskStore.currentUser.role}: ${taskStore.currentUser.full_name}` : 'Guest / Sign In' }}</span>
+          </button>
+        </div>
+
+        <!-- Header Action Controls -->
+        <div class="flex items-center gap-1.5 md:gap-2">
+          <!-- Consolidated AI Tools Dropdown -->
+          <div id="ai-menu-container" class="relative">
             <button
               type="button"
-              class="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-mono text-slate-800 dark:text-slate-200 cursor-pointer transition shadow-2xs"
-              @click="taskStore.toggleViewMode()"
-              title="Toggle Table / Kanban View"
+              class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-mono cursor-pointer transition shadow-2xs font-semibold"
+              @click.stop="isAIMenuOpen = !isAIMenuOpen"
+              title="AI Workflows & Tools"
             >
-              <LayoutGrid v-if="taskStore.viewMode === 'TABLE'" class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-              <List v-else class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-              <span>{{ taskStore.viewMode === 'TABLE' ? 'Kanban' : 'Table' }}</span>
+              <Sparkles class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>AI Tools</span>
+              <ChevronDown class="w-3 h-3 transition-transform" :class="isAIMenuOpen ? 'rotate-180' : ''" />
             </button>
 
-            <!-- Auth Status Pill -->
-            <button
-              type="button"
-              class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono cursor-pointer transition shadow-2xs"
-              :class="taskStore.currentUser ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold' : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200'"
-              @click="isAuthModalOpen = true"
+            <!-- Dropdown Menu -->
+            <div
+              v-if="isAIMenuOpen"
+              class="absolute right-0 mt-1.5 w-64 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg shadow-xl py-1.5 z-50 text-xs font-mono animate-in fade-in zoom-in-95 duration-100"
             >
-              <Shield class="w-3.5 h-3.5" />
-              <span>{{ taskStore.currentUser ? `${taskStore.currentUser.role}: ${taskStore.currentUser.full_name}` : 'Guest / Sign In' }}</span>
-            </button>
-          </div>
-
-          <!-- Header Action Controls -->
-          <div class="flex items-center gap-1.5 md:gap-2">
-            <!-- Consolidated AI Tools Dropdown -->
-            <div id="ai-menu-container" class="relative">
               <button
                 type="button"
-                class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-mono cursor-pointer transition shadow-2xs font-semibold"
-                @click.stop="isAIMenuOpen = !isAIMenuOpen"
-                title="AI Workflows & Tools"
+                class="w-full text-left px-3 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-2 cursor-pointer transition"
+                @click="() => { isWeeklySummaryOpen = true; isAIMenuOpen = false; }"
               >
                 <Sparkles class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                <span>AI Tools</span>
-                <ChevronDown class="w-3 h-3 transition-transform" :class="isAIMenuOpen ? 'rotate-180' : ''" />
+                <div class="flex flex-col">
+                  <span class="font-semibold">Weekly Summary</span>
+                  <span class="text-[10px] text-slate-500 dark:text-slate-400">Progress & risks (Feature A)</span>
+                </div>
               </button>
 
-              <!-- Dropdown Menu -->
-              <div
-                v-if="isAIMenuOpen"
-                class="absolute right-0 mt-1.5 w-64 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl shadow-xl py-1.5 z-50 text-xs font-mono animate-in fade-in zoom-in-95 duration-100"
+              <button
+                type="button"
+                class="w-full text-left px-3 py-2 hover:bg-sky-50 dark:hover:bg-sky-950/40 text-slate-800 dark:text-slate-200 hover:text-sky-600 dark:hover:text-sky-400 flex items-center gap-2 cursor-pointer transition"
+                @click="() => { isMeetingMinutesOpen = true; isAIMenuOpen = false; }"
               >
-                <button
-                  type="button"
-                  class="w-full text-left px-3 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-2 cursor-pointer transition"
-                  @click="() => { isWeeklySummaryOpen = true; isAIMenuOpen = false; }"
-                >
-                  <Sparkles class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                  <div class="flex flex-col">
-                    <span class="font-semibold">Weekly Summary</span>
-                    <span class="text-[10px] text-slate-500 dark:text-slate-400">Progress & risks (Feature A)</span>
-                  </div>
-                </button>
+                <FileText class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                <div class="flex flex-col">
+                  <span class="font-semibold">Meeting Minutes</span>
+                  <span class="text-[10px] text-slate-500 dark:text-slate-400">Action items (Feature B)</span>
+                </div>
+              </button>
 
-                <button
-                  type="button"
-                  class="w-full text-left px-3 py-2 hover:bg-sky-50 dark:hover:bg-sky-950/40 text-slate-800 dark:text-slate-200 hover:text-sky-600 dark:hover:text-sky-400 flex items-center gap-2 cursor-pointer transition"
-                  @click="() => { isMeetingMinutesOpen = true; isAIMenuOpen = false; }"
-                >
-                  <FileText class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-                  <div class="flex flex-col">
-                    <span class="font-semibold">Meeting Minutes</span>
-                    <span class="text-[10px] text-slate-500 dark:text-slate-400">Action items (Feature B)</span>
-                  </div>
-                </button>
+              <button
+                type="button"
+                class="w-full text-left px-3 py-2 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-800 dark:text-slate-200 hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-2 cursor-pointer transition"
+                @click="() => { isWorkloadAssignOpen = true; isAIMenuOpen = false; }"
+              >
+                <Users class="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <div class="flex flex-col">
+                  <span class="font-semibold">Smart Assignment</span>
+                  <span class="text-[10px] text-slate-500 dark:text-slate-400">Workload balancer (Feature C)</span>
+                </div>
+              </button>
 
-                <button
-                  type="button"
-                  class="w-full text-left px-3 py-2 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-800 dark:text-slate-200 hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-2 cursor-pointer transition"
-                  @click="() => { isWorkloadAssignOpen = true; isAIMenuOpen = false; }"
-                >
-                  <Users class="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                  <div class="flex flex-col">
-                    <span class="font-semibold">Smart Assignment</span>
-                    <span class="text-[10px] text-slate-500 dark:text-slate-400">Workload balancer (Feature C)</span>
-                  </div>
-                </button>
+              <div class="border-t border-slate-200 dark:border-slate-800 my-1"></div>
 
-                <div class="border-t border-slate-200 dark:border-slate-800 my-1"></div>
-
-                <button
-                  type="button"
-                  class="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 flex items-center justify-between cursor-pointer transition"
-                  @click="() => { isAIDecomposerOpen = true; isAIMenuOpen = false; }"
-                >
-                  <div class="flex items-center gap-2">
-                    <Sparkles class="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                    <span>Goal Decomposer</span>
-                  </div>
-                  <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] text-slate-500">a</kbd>
-                </button>
-              </div>
+              <button
+                type="button"
+                class="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 flex items-center justify-between cursor-pointer transition"
+                @click="() => { isAIDecomposerOpen = true; isAIMenuOpen = false; }"
+              >
+                <div class="flex items-center gap-2">
+                  <Sparkles class="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+                  <span>Goal Decomposer</span>
+                </div>
+                <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] text-slate-500">a</kbd>
+              </button>
             </div>
-
-            <!-- DAG Graph -->
-            <button
-              type="button"
-              class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer transition shadow-2xs"
-              @click="isDAGOpen = true"
-              title="DAG Critical Path (v)"
-            >
-              <GitFork class="w-3.5 h-3.5" />
-              <span class="hidden sm:inline">DAG</span>
-            </button>
-
-            <!-- JSON Backup -->
-            <button
-              type="button"
-              class="inline-flex items-center justify-center p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer transition shadow-2xs"
-              @click="isExportImportOpen = true"
-              title="JSON Backup & Restore"
-            >
-              <Download class="w-3.5 h-3.5" />
-            </button>
-
-            <!-- Theme Toggle Button -->
-            <button
-              type="button"
-              class="inline-flex items-center justify-center p-2 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-300 text-xs font-mono cursor-pointer transition shadow-2xs"
-              @click="themeStore.toggleTheme()"
-              :title="`Toggle Theme (t) - Current: ${themeStore.resolvedTheme}`"
-            >
-              <Sun v-if="themeStore.isDark" class="w-4 h-4 text-amber-400" />
-              <Moon v-else class="w-4 h-4 text-slate-800" />
-            </button>
-
-            <!-- Create Task -->
-            <button
-              type="button"
-              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-50 dark:bg-slate-100 dark:hover:bg-white dark:text-slate-950 text-xs font-mono font-medium cursor-pointer transition shadow-xs"
-              @click="isCreateModalOpen = true"
-              title="Create Task (c)"
-            >
-              <Plus class="w-3.5 h-3.5" />
-              <span>New <kbd class="hidden sm:inline opacity-70 text-[10px]">c</kbd></span>
-            </button>
           </div>
-        </div>
-      </header>
 
-      <!-- Filter & Search Toolbar -->
-      <section class="w-full border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900/90 px-3 md:px-6 py-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 shadow-2xs">
+          <!-- DAG Graph -->
+          <button
+            type="button"
+            class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer transition shadow-2xs"
+            @click="isDAGOpen = true"
+            title="DAG Critical Path (v)"
+          >
+            <GitFork class="w-3.5 h-3.5" />
+            <span class="hidden sm:inline">DAG</span>
+          </button>
+
+          <!-- JSON Backup -->
+          <button
+            type="button"
+            class="h-8 inline-flex items-center justify-center px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer transition shadow-2xs"
+            @click="isExportImportOpen = true"
+            title="JSON Backup & Restore"
+          >
+            <Download class="w-3.5 h-3.5" />
+          </button>
+
+          <!-- Theme Toggle Button -->
+          <button
+            type="button"
+            class="h-8 inline-flex items-center justify-center px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-300 text-xs font-mono cursor-pointer transition shadow-2xs"
+            @click="themeStore.toggleTheme()"
+            :title="`Toggle Theme (t) - Current: ${themeStore.resolvedTheme}`"
+          >
+            <Sun v-if="themeStore.isDark" class="w-4 h-4 text-amber-400" />
+            <Moon v-else class="w-4 h-4 text-slate-800" />
+          </button>
+
+          <!-- Create Task -->
+          <button
+            type="button"
+            class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-slate-900 hover:bg-slate-800 text-slate-50 dark:bg-slate-100 dark:hover:bg-white dark:text-slate-950 text-xs font-mono font-medium cursor-pointer transition shadow-xs"
+            @click="isCreateModalOpen = true"
+            title="Create Task (c)"
+          >
+            <Plus class="w-3.5 h-3.5" />
+            <span>New <kbd class="hidden sm:inline opacity-70 text-[10px]">c</kbd></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Toolbar (Fixed h-11) -->
+    <section class="h-11 border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900/60 px-4 md:px-6 flex items-center justify-between shrink-0 z-20 shadow-2xs">
+      <div class="w-full max-w-[1720px] mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <!-- Search Input -->
         <div class="relative flex-1 max-w-md">
           <Search class="w-4 h-4 text-slate-500 dark:text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -278,7 +277,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             v-model="taskStore.filter.searchQuery"
             type="text"
             placeholder="Filter tasks... (Press /)"
-            class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg pl-9 pr-7 py-1.5 text-xs md:text-sm text-slate-950 dark:text-slate-200 placeholder-slate-500 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 dark:focus:border-slate-600 font-sans shadow-2xs"
+            class="h-7 w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md pl-9 pr-7 text-xs md:text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 dark:focus:border-slate-600 font-sans shadow-2xs"
           />
           <button
             v-if="taskStore.filter.searchQuery"
@@ -290,14 +289,14 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           </button>
         </div>
 
-        <!-- Status Tabs -->
+        <!-- Status Tabs (h-6 Compact) -->
         <div class="flex items-center gap-1.5 text-xs font-mono overflow-x-auto no-scrollbar py-0.5">
           <button
             v-for="st in statusTabs"
             :key="st"
             type="button"
-            class="px-2.5 py-1 rounded-lg transition cursor-pointer shrink-0"
-            :class="taskStore.filter.status === st && !taskStore.filter.onlyCriticalPath ? 'bg-slate-200 text-slate-950 dark:bg-slate-800 dark:text-slate-100 font-semibold border border-slate-300 dark:border-transparent shadow-2xs' : 'text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200'"
+            class="h-6 px-2.5 inline-flex items-center justify-center rounded-md transition cursor-pointer shrink-0 text-[11px]"
+            :class="taskStore.filter.status === st && !taskStore.filter.onlyCriticalPath ? 'bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-100 font-semibold border border-slate-300 dark:border-transparent shadow-2xs' : 'text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'"
             @click="() => {
               if (taskStore.filter.onlyCriticalPath) taskStore.toggleCriticalPathOnly();
               taskStore.setFilterStatus(st);
@@ -308,8 +307,8 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 
           <button
             type="button"
-            class="ml-1 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg transition cursor-pointer shrink-0"
-            :class="taskStore.filter.onlyCriticalPath ? 'bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/50 font-semibold shadow-2xs' : 'text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200'"
+            class="h-6 ml-1 inline-flex items-center gap-1 px-2.5 rounded-md transition cursor-pointer shrink-0 text-[11px]"
+            :class="taskStore.filter.onlyCriticalPath ? 'bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/50 font-semibold shadow-2xs' : 'text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'"
             @click="taskStore.toggleCriticalPathOnly()"
             title="Toggle Critical Path Only"
           >
@@ -317,23 +316,25 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             <span>Crit ({{ taskStore.criticalPathIds.size }})</span>
           </button>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- Main Workspace Views (Natural Canvas Presentation) -->
-      <div class="w-full flex-1 p-3 md:p-6 flex flex-col min-w-0">
-        <!-- Table View: Auto-height bounded card -->
-        <div v-if="taskStore.viewMode === 'TABLE'" class="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl shadow-xs overflow-hidden">
-          <TaskTable :on-open-create="() => (isCreateModalOpen = true)" />
-        </div>
-
-        <!-- Kanban View: Open canvas column flow -->
-        <div v-else class="w-full flex-1">
-          <KanbanBoard :on-open-create="() => (isCreateModalOpen = true)" />
-        </div>
+    <!-- Workspace Body (Full-Viewport Docked Layout) -->
+    <div class="flex-1 min-h-0 w-full max-w-[1720px] mx-auto p-4 flex flex-col overflow-hidden">
+      <!-- Table View: Docked full-height table card -->
+      <div v-if="taskStore.viewMode === 'TABLE'" class="flex-1 min-h-0 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg shadow-xs overflow-y-auto">
+        <TaskTable :on-open-create="() => (isCreateModalOpen = true)" />
       </div>
 
-      <!-- Footer with Telemetry -->
-      <footer class="w-full px-3 md:px-6 py-2.5 border-t border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900/90 flex items-center justify-between text-xs select-none">
+      <!-- Kanban View: Docked horizontal column scroll -->
+      <div v-else class="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
+        <KanbanBoard :on-open-create="() => (isCreateModalOpen = true)" />
+      </div>
+    </div>
+
+    <!-- Footer (Fixed h-9) -->
+    <footer class="h-9 border-t border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs shrink-0 px-4 md:px-6 flex items-center justify-between select-none z-20">
+      <div class="w-full max-w-[1720px] mx-auto flex items-center justify-between gap-3">
         <div class="hidden md:flex items-center gap-3 font-mono text-xs text-slate-700 dark:text-slate-400">
           <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-300">t</kbd> Theme</span>
           <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-300">j</kbd>/<kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-300">k</kbd> Nav</span>
@@ -344,10 +345,10 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
         </div>
 
         <div class="flex items-center gap-2.5 font-mono text-xs ml-auto">
-          <!-- Offline Warning Badge (ONLY visible if disconnected) -->
+          <!-- Offline Warning Badge -->
           <span
             v-if="!taskStore.isBackendConnected"
-            class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/60 font-semibold"
+            class="h-6 inline-flex items-center gap-1.5 px-2 rounded-md bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/60 font-semibold"
           >
             <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
             <span>Offline (Local buffer)</span>
@@ -362,8 +363,8 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             Reset sample
           </button>
         </div>
-      </footer>
-    </div>
+      </div>
+    </footer>
 
     <!-- Mobile Thumb Bar -->
     <MobileBottomNav
@@ -389,7 +390,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 
     <!-- JSON Backup / Restore Modal -->
     <div v-if="isExportImportOpen" class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-100">
-      <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-xl p-4 shadow-2xl border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col">
+      <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-lg p-4 shadow-2xl border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col">
         <div class="flex items-center justify-between pb-2 border-b border-slate-300 dark:border-slate-800">
           <h2 class="text-xs font-mono font-semibold">JSON Backup & Restore</h2>
           <button type="button" class="p-1 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer" @click="isExportImportOpen = false">
@@ -397,11 +398,11 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           </button>
         </div>
         <div class="py-3 space-y-3 text-xs">
-          <div class="flex items-center justify-between p-2 rounded bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800">
+          <div class="flex items-center justify-between p-2 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800">
             <span class="font-mono text-slate-600 dark:text-slate-400">Export state file</span>
             <button
               type="button"
-              class="px-2.5 py-1 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-mono text-xs cursor-pointer transition"
+              class="h-8 px-3 rounded-md bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-mono text-xs cursor-pointer transition"
               @click="handleDownloadExport"
             >
               Download
@@ -412,12 +413,12 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
               v-model="importJsonBuffer"
               rows="4"
               placeholder="Paste JSON..."
-              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded p-2 text-xs font-mono text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 dark:focus:border-slate-600"
+              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-md p-2 text-xs font-mono text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 dark:focus:border-slate-600"
             ></textarea>
             <div v-if="importStatusMsg" class="text-[11px] font-mono text-slate-600 dark:text-slate-400 mt-1">{{ importStatusMsg }}</div>
             <button
               type="button"
-              class="w-full mt-2 py-1.5 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-mono text-xs cursor-pointer transition"
+              class="w-full mt-2 h-8 rounded-md bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-mono text-xs cursor-pointer transition flex items-center justify-center"
               @click="handleImportJSON"
             >
               Import JSON

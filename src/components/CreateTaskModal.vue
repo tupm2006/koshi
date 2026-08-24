@@ -30,19 +30,19 @@ onMounted(() => {
 
 <template>
   <div class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-100">
-    <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl p-5 md:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-lg p-5 md:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col">
       <!-- Header -->
       <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
         <div class="flex items-center gap-2.5">
-          <div class="p-2 rounded-xl bg-slate-100 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-zinc-200">
+          <div class="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200">
             <Plus class="w-5 h-5" />
           </div>
           <div>
             <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 font-mono">Create New Task</h2>
-            <p class="text-[11px] text-slate-500 dark:text-zinc-400">High-velocity task authoring</p>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">High-velocity task authoring</p>
           </div>
         </div>
-        <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 cursor-pointer" @click="emit('close')">
+        <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="emit('close')">
           <X class="w-5 h-5" />
         </button>
       </div>
@@ -50,7 +50,7 @@ onMounted(() => {
       <!-- Form Body -->
       <form class="py-4 space-y-4 text-xs" @submit.prevent="handleCreate">
         <div>
-          <label for="vue-create-task-title" class="block font-mono text-slate-700 dark:text-zinc-300 mb-1.5 font-medium">Task Title *</label>
+          <label for="vue-create-task-title" class="block font-mono text-slate-700 dark:text-slate-300 mb-1.5 font-medium">Task Title *</label>
           <input
             id="vue-create-task-title"
             ref="inputRef"
@@ -58,18 +58,18 @@ onMounted(() => {
             type="text"
             placeholder="e.g. Implement Vue 3 Composition API & Pinia Store..."
             required
-            class="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-zinc-100 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-indigo-500 min-h-[44px]"
+            class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 min-h-[44px]"
             @keydown.enter.prevent="handleCreate"
           />
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label for="vue-create-task-priority" class="block font-mono text-slate-600 dark:text-zinc-400 mb-1.5 font-medium">Priority</label>
+            <label for="vue-create-task-priority" class="block font-mono text-slate-600 dark:text-slate-400 mb-1.5 font-medium">Priority</label>
             <select
               id="vue-create-task-priority"
               v-model="priority"
-              class="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-zinc-100 font-mono focus:outline-none focus:border-indigo-500"
+              class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-indigo-500"
             >
               <option value="LOW">LOW</option>
               <option value="MEDIUM">MEDIUM</option>
@@ -79,11 +79,11 @@ onMounted(() => {
           </div>
 
           <div>
-            <label for="vue-create-task-status" class="block font-mono text-slate-600 dark:text-zinc-400 mb-1.5 font-medium">Initial Status</label>
+            <label for="vue-create-task-status" class="block font-mono text-slate-600 dark:text-slate-400 mb-1.5 font-medium">Initial Status</label>
             <select
               id="vue-create-task-status"
               v-model="status"
-              class="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-zinc-100 font-mono focus:outline-none focus:border-indigo-500"
+              class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-indigo-500"
             >
               <option value="TODO">TODO</option>
               <option value="IN_PROGRESS">IN_PROGRESS</option>
@@ -93,17 +93,17 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="pt-2 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-end gap-2">
+        <div class="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
           <button
             type="button"
-            class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 font-mono text-xs cursor-pointer transition min-h-[40px]"
+            class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-mono text-xs cursor-pointer transition min-h-[40px]"
             @click="emit('close')"
           >
             Cancel
           </button>
           <button
             type="submit"
-            class="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white dark:bg-zinc-100 dark:hover:bg-white dark:text-zinc-950 font-mono font-medium text-xs flex items-center gap-1.5 cursor-pointer transition shadow min-h-[40px]"
+            class="px-5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-white dark:text-slate-950 font-mono font-medium text-xs flex items-center gap-1.5 cursor-pointer transition shadow min-h-[40px]"
           >
             <Plus class="w-4 h-4 stroke-[2.5]" />
             <span>Create Task</span>

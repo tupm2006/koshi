@@ -49,11 +49,11 @@ function handleQuickSwitch(targetEmail: string) {
 
 <template>
   <div class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-100">
-    <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl p-5 md:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-lg p-5 md:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col">
       <!-- Header -->
       <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
         <div class="flex items-center gap-2.5">
-          <div class="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400">
+          <div class="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400">
             <Shield class="w-5 h-5" />
           </div>
           <div>
@@ -90,58 +90,58 @@ function handleQuickSwitch(targetEmail: string) {
       <!-- Form Body -->
       <form class="py-3 space-y-3 text-xs" @submit.prevent="handleSubmit">
         <div v-if="mode === 'REGISTER'">
-          <label for="vue-reg-fullname" class="block font-mono text-slate-700 dark:text-zinc-300 mb-1 font-medium">Full Name</label>
+          <label for="vue-reg-fullname" class="block font-mono text-slate-700 dark:text-slate-300 mb-1 font-medium">Full Name</label>
           <input
             id="vue-reg-fullname"
             v-model="fullName"
             type="text"
             required
-            class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-zinc-100 focus:outline-none focus:border-indigo-500 font-sans"
+            class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 font-sans"
           />
         </div>
         <div v-if="mode === 'REGISTER'" class="grid grid-cols-2 gap-2">
           <div>
-            <label for="vue-reg-role" class="block font-mono text-slate-700 dark:text-zinc-300 mb-1 font-medium">Role</label>
+            <label for="vue-reg-role" class="block font-mono text-slate-700 dark:text-slate-300 mb-1 font-medium">Role</label>
             <select
               id="vue-reg-role"
               v-model="role"
-              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-zinc-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-zinc-100 focus:outline-none focus:border-indigo-500 font-mono"
+              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 font-mono"
             >
               <option value="PM">Project Manager (PM)</option>
               <option value="MEMBER">Team Member</option>
             </select>
           </div>
           <div>
-            <label for="vue-reg-skills" class="block font-mono text-slate-700 dark:text-zinc-300 mb-1 font-medium">Skills</label>
+            <label for="vue-reg-skills" class="block font-mono text-slate-700 dark:text-slate-300 mb-1 font-medium">Skills</label>
             <input
               id="vue-reg-skills"
               v-model="skills"
               type="text"
               placeholder="e.g. python,vue"
-              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-zinc-100 focus:outline-none focus:border-indigo-500 font-sans"
+              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 font-sans"
             />
           </div>
         </div>
 
         <div>
-          <label for="vue-auth-email" class="block font-mono text-slate-700 dark:text-zinc-300 mb-1 font-medium">Email Address</label>
+          <label for="vue-auth-email" class="block font-mono text-slate-700 dark:text-slate-300 mb-1 font-medium">Email Address</label>
           <input
             id="vue-auth-email"
             v-model="email"
             type="email"
             required
-            class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-zinc-100 focus:outline-none focus:border-indigo-500 font-mono"
+            class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 font-mono"
           />
         </div>
 
         <div>
-          <label for="vue-auth-password" class="block font-mono text-slate-700 dark:text-zinc-300 mb-1 font-medium">Password</label>
+          <label for="vue-auth-password" class="block font-mono text-slate-700 dark:text-slate-300 mb-1 font-medium">Password</label>
           <input
             id="vue-auth-password"
             v-model="password"
             type="password"
             required
-            class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-zinc-100 focus:outline-none focus:border-indigo-500 font-mono"
+            class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 font-mono"
           />
         </div>
 
@@ -152,7 +152,7 @@ function handleQuickSwitch(targetEmail: string) {
 
         <button
           type="submit"
-          class="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center justify-center gap-1.5 cursor-pointer transition disabled:opacity-50"
+          class="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center justify-center gap-1.5 cursor-pointer transition disabled:opacity-50"
           :disabled="isSubmitting"
         >
           <LogIn v-if="mode === 'LOGIN'" class="w-3.5 h-3.5" />
@@ -163,7 +163,7 @@ function handleQuickSwitch(targetEmail: string) {
         <div class="pt-2 text-center">
           <button
             type="button"
-            class="text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200 text-[11px] font-mono underline cursor-pointer"
+            class="text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 text-[11px] font-mono underline cursor-pointer"
             @click="mode = mode === 'LOGIN' ? 'REGISTER' : 'LOGIN'; errorMsg = null;"
           >
             {{ mode === 'LOGIN' ? "Don't have an account? Register" : "Already registered? Sign In" }}
