@@ -57,11 +57,14 @@ function getPriorityBadge(p: TaskPriority) {
 function moveStatus(task: Task, direction: 'left' | 'right') {
   const statuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'];
   const currentIndex = statuses.indexOf(task.status);
-  const nextIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1;
-  if (nextIndex >= 0 && nextIndex < statuses.length) {
-    taskStore.setStatus(task.id, statuses[nextIndex]);
-    taskStore.kanbanColIndex = nextIndex;
+  let nextIndex: number;
+  if (direction === 'right') {
+    nextIndex = (currentIndex + 1) % statuses.length;
+  } else {
+    nextIndex = (currentIndex - 1 + statuses.length) % statuses.length;
   }
+  taskStore.setStatus(task.id, statuses[nextIndex]);
+  taskStore.syncKanbanFocusToTask(task.id);
 }
 
 function handleDragStart(e: DragEvent, taskId: string) {
@@ -84,7 +87,7 @@ function handleDrop(e: DragEvent, targetStatus: TaskStatus, colIndex: number) {
     const taskId = e.dataTransfer.getData('text/plain');
     if (taskId) {
       taskStore.setStatus(taskId, targetStatus);
-      taskStore.kanbanColIndex = colIndex;
+      taskStore.syncKanbanFocusToTask(taskId);
     }
   }
 }
@@ -131,9 +134,9 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
           v-for="(task, rowIndex) in taskStore.filteredTasks.filter((t) => t.status === col.status)"
           :key="task.id"
           class="group rounded-md p-3 shadow-xs cursor-grab active:cursor-grabbing select-none transition-colors border"
-          :class="task.id === taskStore.activeKanbanTask?.id
-            ? 'ring-2 ring-indigo-500 dark:ring-indigo-400 bg-indigo-50/80 dark:bg-slate-800 border-indigo-400 dark:border-slate-600'
-            : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-700'"
+          :class="taskStore.activeKanbanTask?.id === task.id
+            ? 'ring-2 ring-inset ring-indigo-500 dark:ring-indigo-400 border-indigo-500 dark:border-indigo-400 bg-slate-50 dark:bg-slate-800/90 shadow-sm'
+            : 'border-slate-300 dark:border-slate-700/80 bg-white dark:bg-slate-900 hover:border-slate-400 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800'"
           draggable="true"
           @dragstart="(e) => handleDragStart(e, task.id)"
           @click="selectCard(task, colIndex, rowIndex)"
@@ -174,7 +177,6 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
             <!-- Quick Column Shift Controls -->
             <div class="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition">
               <button
-                v-if="col.status !== 'TODO'"
                 type="button"
                 class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
                 @click.stop="moveStatus(task, 'left')"
@@ -183,7 +185,6 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
                 <ChevronLeft class="w-3.5 h-3.5" />
               </button>
               <button
-                v-if="col.status !== 'DONE'"
                 type="button"
                 class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
                 @click.stop="moveStatus(task, 'right')"

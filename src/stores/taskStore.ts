@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { nextTick } from 'vue';
 import { get, set } from 'idb-keyval';
 import type { Task, TaskStatus, TaskPriority, TaskFilter, FilterStatus, FilterPriority } from '../types/task';
 import { topologicalSort, computeCriticalPath } from '../lib/dagSorter';
@@ -75,7 +76,7 @@ const INITIAL_TASKS: Task[] = [
   },
 ];
 
-const STATUS_CYCLE: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'];
+const STATUS_ORDER: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'];
 
 export const useTaskStore = defineStore('taskStore', {
   state: () => ({
@@ -143,8 +144,7 @@ export const useTaskStore = defineStore('taskStore', {
     },
 
     currentColumnTasks(): Task[] {
-      const statuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'];
-      const status = statuses[this.kanbanColIndex] || 'TODO';
+      const status = STATUS_ORDER[this.kanbanColIndex] || 'TODO';
       return this.tasksByColumn[status] || [];
     },
 
@@ -267,6 +267,21 @@ export const useTaskStore = defineStore('taskStore', {
       this.selectTask(this.selectedIndex - 1);
     },
 
+    syncKanbanFocusToTask(taskId: string) {
+      const task = this.tasks.find((t) => t.id === taskId);
+      if (!task) return;
+
+      const targetColIndex = STATUS_ORDER.indexOf(task.status);
+      if (targetColIndex === -1) return;
+
+      this.kanbanColIndex = targetColIndex;
+
+      const colTasks = this.tasksByColumn[task.status] || [];
+      const targetRowIndex = colTasks.findIndex((t) => t.id === taskId);
+
+      this.kanbanRowIndex = targetRowIndex !== -1 ? targetRowIndex : 0;
+    },
+
     moveKanbanCursor(direction: 'up' | 'down' | 'left' | 'right') {
       if (direction === 'left') {
         this.kanbanColIndex = Math.max(0, this.kanbanColIndex - 1);
@@ -293,13 +308,21 @@ export const useTaskStore = defineStore('taskStore', {
     shiftActiveKanbanTask(direction: 'left' | 'right') {
       const task = this.activeKanbanTask;
       if (!task) return;
-      const statuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'];
-      const curIdx = statuses.indexOf(task.status);
-      const nextIdx = direction === 'left' ? curIdx - 1 : curIdx + 1;
-      if (nextIdx >= 0 && nextIdx < statuses.length) {
-        this.setStatus(task.id, statuses[nextIdx]);
-        this.kanbanColIndex = nextIdx;
+      const currIdx = STATUS_ORDER.indexOf(task.status);
+      let nextIdx: number;
+
+      if (direction === 'right') {
+        nextIdx = (currIdx + 1) % STATUS_ORDER.length;
+      } else {
+        nextIdx = (currIdx - 1 + STATUS_ORDER.length) % STATUS_ORDER.length;
       }
+
+      const nextStatus = STATUS_ORDER[nextIdx];
+      this.setStatus(task.id, nextStatus);
+
+      nextTick(() => {
+        this.syncKanbanFocusToTask(task.id);
+      });
     },
 
     createTask(title: string, priority: TaskPriority = 'MEDIUM', status: TaskStatus = 'TODO'): Task | null {
@@ -383,9 +406,13 @@ export const useTaskStore = defineStore('taskStore', {
     cycleStatus(id: string) {
       const task = this.tasks.find((t) => t.id === id);
       if (!task) return;
-      const currentIdx = STATUS_CYCLE.indexOf(task.status);
-      const nextStatus = STATUS_CYCLE[(currentIdx + 1) % STATUS_CYCLE.length];
+      const currentIdx = STATUS_ORDER.indexOf(task.status);
+      const nextStatus = STATUS_ORDER[(currentIdx + 1) % STATUS_ORDER.length];
       this.setStatus(id, nextStatus);
+
+      nextTick(() => {
+        this.syncKanbanFocusToTask(id);
+      });
     },
 
     cycleSelectedStatus() {
