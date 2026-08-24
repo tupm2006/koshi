@@ -133,7 +133,9 @@ Constructs an adjacency graph of task dependencies, checks for circular dependen
 
 ## 5. Specification Documents
 
-Detailed requirement matrices, IEEE 29148 functional specifications, and non-functional guarantees are maintained in [docs/URD_SRS.md](./docs/URD_SRS.md).
+Detailed user requirements, IEEE 29148 functional specifications, and traceability matrices are maintained in:
+- [URD.md](./URD.md) — User Requirements Document
+- [SRS.md](./SRS.md) — System Requirements Specification
 
 ---
 
@@ -160,7 +162,11 @@ pnpm run build
 
 ---
 
-## 7. License & Authorship
+## 7. License & Contributors
 
-Developed by **Felix Anderson** (`me@felixsu.qzz.io`).  
+* **Lead Architect & Developer**: Felix Anderson / Phạm Minh Tú (`felixsu`, `me@felixsu.qzz.io`)
+* **Contributors**:
+  * Phạm Văn Huynh
+  * Đàm Đức Đôn
+
 Released under the **MIT License**.
