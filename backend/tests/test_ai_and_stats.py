@@ -14,7 +14,7 @@ def test_mandated_ai_features(client: TestClient, pm_auth_headers: dict):
     # 2. Feature B: Meeting Minutes Extractor
     notes_payload = {
         "notes": (
-            "Họp ngày 22/08: Felix Su phụ trách hoàn thiện backend FastAPI và SQLite trước 18h.\n"
+            "Họp ngày 22/08: Felix Anderson phụ trách hoàn thiện backend FastAPI và SQLite trước 18h.\n"
             "Dev Member kiểm tra Svelte 5 runes và giao diện Kanban.\n"
             "Đã chốt: Chạy toàn bộ test suite trước khi merge code vào production."
         )

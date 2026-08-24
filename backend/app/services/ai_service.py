@@ -71,7 +71,7 @@ class AIService:
                 if any(kw in line.lower() for kw in ["làm", "xong", "fix", "code", "dev", "test", "deploy", "thiết kế"]):
                     action_items.append({
                         "title": line,
-                        "assignee_name": "Felix Su" if "felix" in line.lower() else "Team Dev",
+                        "assignee_name": "Felix Anderson" if "felix" in line.lower() else "Team Dev",
                         "priority": "HIGH" if any(w in line.lower() for w in ["gấp", "trước", "fix", "bug"]) else "MEDIUM",
                         "deadline": "Next Sprint"
                     })
@@ -97,7 +97,7 @@ class AIService:
         if "điều phối" in system_prompt or "gợi ý người" in system_prompt or "recommended_user_id" in system_prompt:
             return json.dumps({
                 "recommended_user_id": 1,
-                "recommended_name": "Felix Su",
+                "recommended_name": "Felix Anderson",
                 "rationale": "Thành viên có năng lực phù hợp nhất với mô tả công việc và đang có khối lượng công việc trong ngưỡng an toàn.",
                 "risk_assessment": "Khối lượng công việc khả thi; không có nguy cơ trễ hạn sprint."
             }, ensure_ascii=False)

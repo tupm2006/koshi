@@ -16,7 +16,7 @@ def seed_initial_data():
             pm_user = User(
                 email="pm@felixsu.qzz.io",
                 hashed_password=get_password_hash("koshi123"),
-                full_name="Felix Su (PM)",
+                full_name="Felix Anderson (PM)",
                 role=RoleEnum.PM,
                 skills="management,system_architecture,python,fastapi,svelte"
             )

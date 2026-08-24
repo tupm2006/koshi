@@ -8,7 +8,7 @@ defineProps<{
 }>();
 
 const rawNotes = ref<string>(
-  'Họp ngày 22/08/2026:\n- Felix Su phụ trách hoàn thiện backend FastAPI và SQLite trước 18h.\n- Dev Member kiểm tra Vue 3 Composition API và giao diện Kanban Board.\n- Đã chốt: Chạy toàn bộ test suite pytest trước khi merge code vào production.'
+  'Họp ngày 22/08/2026:\n- Felix Anderson phụ trách hoàn thiện backend FastAPI và SQLite trước 18h.\n- Dev Member kiểm tra Vue 3 Composition API và giao diện Kanban Board.\n- Đã chốt: Chạy toàn bộ test suite pytest trước khi merge code vào production.'
 );
 const isLoading = ref<boolean>(false);
 const result = ref<{ main_topics: string[]; action_items: any[]; key_decisions: string[] } | null>(null);
