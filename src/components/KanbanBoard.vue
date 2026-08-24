@@ -89,11 +89,11 @@ function handleDrop(e: DragEvent, targetStatus: TaskStatus) {
 </script>
 
 <template>
-  <div class="h-full flex-1 min-h-0 grid grid-cols-1 md:grid-cols-4 gap-3 p-3 overflow-hidden">
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 items-start overflow-y-auto">
     <div
       v-for="col in COLUMNS"
       :key="col.status"
-      class="flex flex-col h-full min-h-0 bg-slate-100 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-800 rounded-lg p-2.5 overflow-hidden"
+      class="flex flex-col bg-slate-100 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800 rounded-xl p-3 shadow-2xs max-h-[calc(100vh-14rem)]"
       @dragover="handleDragOver"
       @drop="(e) => handleDrop(e, col.status)"
       role="region"
@@ -102,19 +102,19 @@ function handleDrop(e: DragEvent, targetStatus: TaskStatus) {
       <!-- Column Header -->
       <div class="shrink-0 pb-2 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between select-none">
         <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full" :class="col.dotClass"></span>
-          <h3 class="text-xs font-mono font-bold text-slate-800 dark:text-zinc-200">{{ col.label }}</h3>
+          <span class="w-2.5 h-2.5 rounded-full" :class="col.dotClass"></span>
+          <h3 class="text-xs md:text-sm font-mono font-bold text-slate-800 dark:text-zinc-200">{{ col.label }}</h3>
         </div>
-        <span class="px-2 py-0.5 rounded text-[10px] font-mono border font-medium" :class="col.badgeClass">
+        <span class="px-2 py-0.5 rounded text-xs font-mono border font-semibold" :class="col.badgeClass">
           {{ taskStore.filteredTasks.filter((t) => t.status === col.status).length }}
         </span>
       </div>
 
-      <!-- Cards Scroll Zone -->
-      <div class="flex-1 min-h-0 overflow-y-auto space-y-2 py-2 pr-1 select-none">
+      <!-- Cards Container (Clustered Naturally) -->
+      <div class="flex flex-col gap-2.5 overflow-y-auto py-2 pr-0.5 no-scrollbar">
         <div
           v-if="taskStore.filteredTasks.filter((t) => t.status === col.status).length === 0"
-          class="text-center py-8 text-[11px] text-slate-400 dark:text-zinc-600 font-mono"
+          class="text-center py-6 text-xs text-slate-400 dark:text-zinc-600 font-mono"
         >
           Empty column
         </div>
@@ -122,49 +122,49 @@ function handleDrop(e: DragEvent, targetStatus: TaskStatus) {
         <div
           v-for="task in taskStore.filteredTasks.filter((t) => t.status === col.status)"
           :key="task.id"
-          class="group bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-lg p-2.5 transition shadow-xs cursor-grab active:cursor-grabbing select-none"
+          class="group bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-lg p-3 transition shadow-xs cursor-grab active:cursor-grabbing select-none"
           draggable="true"
           @dragstart="(e) => handleDragStart(e, task.id)"
           role="article"
         >
           <!-- Top Row: ID & Badges -->
-          <div class="flex items-center justify-between gap-1 mb-1.5 text-[10px] font-mono">
-            <span class="text-slate-500 dark:text-zinc-400 font-medium">{{ task.id }}</span>
-            <div class="flex items-center gap-1">
+          <div class="flex items-center justify-between gap-1 mb-1.5 text-xs font-mono">
+            <span class="text-slate-500 dark:text-zinc-400 font-semibold">{{ task.id }}</span>
+            <div class="flex items-center gap-1.5">
               <span v-if="taskStore.criticalPathIds.has(task.id) && task.status !== 'DONE'" title="Critical Path" class="text-rose-600 dark:text-rose-400">
                 <Flame class="w-3.5 h-3.5" />
               </span>
-              <span class="px-1.5 py-0.2 rounded border" :class="getPriorityBadge(task.priority)">
+              <span class="px-2 py-0.5 rounded border text-[11px]" :class="getPriorityBadge(task.priority)">
                 {{ task.priority.slice(0, 4) }}
               </span>
             </div>
           </div>
 
           <!-- Title -->
-          <h4 class="text-xs font-normal text-slate-800 dark:text-zinc-200 mb-1.5 leading-snug" :class="task.status === 'DONE' ? 'line-through text-slate-400 dark:text-zinc-500' : ''">
+          <h4 class="text-sm font-medium text-slate-900 dark:text-zinc-100 mb-2 leading-snug" :class="task.status === 'DONE' ? 'line-through text-slate-400 dark:text-zinc-500 font-normal' : ''">
             {{ task.title }}
           </h4>
 
           <!-- Blocking Reason -->
-          <div v-if="task.blockingReason && task.status === 'BLOCKED'" class="flex items-center gap-1 text-[10px] text-rose-700 dark:text-rose-400/90 font-mono mb-1.5 bg-rose-50 dark:bg-rose-950/30 p-1 rounded border border-rose-200 dark:border-rose-900/40">
-            <AlertCircle class="w-3 h-3 shrink-0" />
+          <div v-if="task.blockingReason && task.status === 'BLOCKED'" class="flex items-center gap-1.5 text-xs text-rose-700 dark:text-rose-400/90 font-mono mb-2 bg-rose-50 dark:bg-rose-950/30 p-1.5 rounded border border-rose-200 dark:border-rose-900/40">
+            <AlertCircle class="w-3.5 h-3.5 shrink-0" />
             <span class="truncate">{{ task.blockingReason }}</span>
           </div>
 
           <!-- Footer Row -->
-          <div class="flex items-center justify-between text-[10px] font-mono text-slate-500 dark:text-zinc-400 pt-1.5 border-t border-slate-100 dark:border-slate-700/60">
+          <div class="flex items-center justify-between text-xs font-mono text-slate-500 dark:text-zinc-400 pt-2 border-t border-slate-100 dark:border-slate-700/60">
             <div class="flex items-center gap-1">
-              <Clock v-if="task.dueDate" class="w-3 h-3 text-slate-400 dark:text-zinc-500" />
+              <Clock v-if="task.dueDate" class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500" />
               <span v-if="task.dueDate">{{ new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }}</span>
               <span v-else>-</span>
             </div>
 
             <!-- Quick Column Shift Controls -->
-            <div class="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition">
+            <div class="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition">
               <button
                 v-if="col.status !== 'TODO'"
                 type="button"
-                class="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 cursor-pointer"
+                class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 cursor-pointer"
                 @click="moveStatus(task, 'left')"
                 title="Move left"
               >
@@ -173,7 +173,7 @@ function handleDrop(e: DragEvent, targetStatus: TaskStatus) {
               <button
                 v-if="col.status !== 'DONE'"
                 type="button"
-                class="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 cursor-pointer"
+                class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 cursor-pointer"
                 @click="moveStatus(task, 'right')"
                 title="Move right"
               >
@@ -184,10 +184,10 @@ function handleDrop(e: DragEvent, targetStatus: TaskStatus) {
         </div>
       </div>
 
-      <!-- Quick Add Button -->
+      <!-- Quick Add Button: Anchored Immediately After Cards -->
       <button
         type="button"
-        class="shrink-0 w-full mt-auto pt-1 py-1.5 rounded-lg border border-dashed border-slate-300 dark:border-zinc-800 hover:border-slate-400 dark:hover:border-zinc-700 hover:bg-white/60 dark:hover:bg-zinc-900/40 text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 text-xs font-mono flex items-center justify-center gap-1 cursor-pointer transition"
+        class="w-full py-1.5 mt-1 border border-dashed border-slate-300 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 text-xs font-mono rounded-lg transition flex items-center justify-center gap-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
         @click="onOpenCreate"
       >
         <Plus class="w-3.5 h-3.5" />
