@@ -89,18 +89,18 @@ function handleDrop(e: DragEvent, targetStatus: TaskStatus) {
 </script>
 
 <template>
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 items-start overflow-y-auto">
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
     <div
       v-for="col in COLUMNS"
       :key="col.status"
-      class="flex flex-col bg-slate-100 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800 rounded-xl p-3 shadow-2xs max-h-[calc(100vh-14rem)]"
+      class="flex flex-col bg-slate-200/70 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-800 rounded-xl p-3 shadow-2xs max-h-[calc(100vh-14rem)]"
       @dragover="handleDragOver"
       @drop="(e) => handleDrop(e, col.status)"
       role="region"
       :aria-label="`${col.label} column`"
     >
       <!-- Column Header -->
-      <div class="shrink-0 pb-2 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between select-none">
+      <div class="shrink-0 pb-2 border-b border-slate-300 dark:border-slate-800 flex items-center justify-between select-none">
         <div class="flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full" :class="col.dotClass"></span>
           <h3 class="text-xs md:text-sm font-mono font-bold text-slate-800 dark:text-zinc-200">{{ col.label }}</h3>
@@ -111,7 +111,7 @@ function handleDrop(e: DragEvent, targetStatus: TaskStatus) {
       </div>
 
       <!-- Cards Container (Clustered Naturally) -->
-      <div class="flex flex-col gap-2.5 overflow-y-auto py-2 pr-0.5 no-scrollbar">
+      <div class="flex flex-col gap-2.5 overflow-y-auto py-2.5 pr-0.5 no-scrollbar">
         <div
           v-if="taskStore.filteredTasks.filter((t) => t.status === col.status).length === 0"
           class="text-center py-6 text-xs text-slate-400 dark:text-zinc-600 font-mono"
@@ -122,7 +122,7 @@ function handleDrop(e: DragEvent, targetStatus: TaskStatus) {
         <div
           v-for="task in taskStore.filteredTasks.filter((t) => t.status === col.status)"
           :key="task.id"
-          class="group bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-lg p-3 transition shadow-xs cursor-grab active:cursor-grabbing select-none"
+          class="group bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-300/80 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-lg p-3 transition shadow-xs cursor-grab active:cursor-grabbing select-none"
           draggable="true"
           @dragstart="(e) => handleDragStart(e, task.id)"
           role="article"
@@ -187,7 +187,7 @@ function handleDrop(e: DragEvent, targetStatus: TaskStatus) {
       <!-- Quick Add Button: Anchored Immediately After Cards -->
       <button
         type="button"
-        class="w-full py-1.5 mt-1 border border-dashed border-slate-300 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 text-xs font-mono rounded-lg transition flex items-center justify-center gap-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+        class="w-full py-1.5 mt-1.5 border border-dashed border-slate-300 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 text-xs font-mono rounded-lg transition flex items-center justify-center gap-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
         @click="onOpenCreate"
       >
         <Plus class="w-3.5 h-3.5" />
