@@ -100,7 +100,7 @@
   - `createdAt`, `updatedAt`: Millisecond timestamps.
 
 - **SRS-FR-02 [Cyclic Status Invariant]**: Invoking status mutation (`cycleStatus`) must strictly follow the modulo-wrapped transition cycle:
-  $$\text{TODO} \longrightarrow \text{IN\_PROGRESS} \longrightarrow \text{BLOCKED} \longrightarrow \text{DONE} \longrightarrow \text{TODO}$$
+  `TODO` $\longrightarrow$ `IN_PROGRESS` $\longrightarrow$ `BLOCKED` $\longrightarrow$ `DONE` $\longrightarrow$ `TODO`
 
 - **SRS-FR-03 [Focus Synchronization]**: Upon any task status shift (via `Space`, `H`/`L`, drag-and-drop, or quick buttons), the store shall invoke `syncKanbanFocusToTask(taskId)` using Vue's `nextTick`, updating `kanbanColIndex` and `kanbanRowIndex` to follow the card.
 
