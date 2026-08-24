@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useTaskStore } from './stores/taskStore';
+import { useThemeStore } from './stores/themeStore';
 import { createKeyboardHandler } from './lib/keyboard';
 import TaskTable from './components/TaskTable.vue';
 import KanbanBoard from './components/KanbanBoard.vue';
@@ -27,11 +28,14 @@ import {
   Search,
   Flame,
   X,
-  Server
+  Server,
+  Sun,
+  Moon
 } from 'lucide-vue-next';
 import type { FilterStatus } from './types/task';
 
 const taskStore = useTaskStore();
+const themeStore = useThemeStore();
 
 // Modal visibility states
 const isAIDecomposerOpen = ref(false);
@@ -102,23 +106,23 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 </script>
 
 <template>
-  <main class="min-h-screen min-h-[100dvh] flex flex-col bg-[#090a0f] text-zinc-200 safe-top pb-24 md:pb-6 font-sans">
+  <main class="min-h-screen min-h-[100dvh] flex flex-col bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 safe-top pb-24 md:pb-6 font-sans transition-colors duration-150">
     <!-- Minimal Top Navigation Bar -->
-    <header class="border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur-md sticky top-0 z-30 px-3 md:px-4 py-2">
+    <header class="border-b border-slate-200 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md sticky top-0 z-30 px-3 md:px-4 py-2">
       <div class="w-full flex items-center justify-between gap-2">
         <!-- Brand & Auth Pill -->
         <div class="flex items-center gap-2">
-          <h1 class="text-xs font-bold tracking-wider text-zinc-100 font-mono">KOSHI</h1>
+          <h1 class="text-xs font-bold tracking-wider text-slate-900 dark:text-slate-100 font-mono">KOSHI</h1>
 
           <!-- View Toggle (Table / Kanban) -->
           <button
             type="button"
-            class="flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-[10px] font-mono text-zinc-300 cursor-pointer"
+            class="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-[10px] font-mono text-slate-700 dark:text-slate-300 cursor-pointer transition"
             @click="taskStore.toggleViewMode()"
             title="Toggle Table / Kanban View"
           >
-            <LayoutGrid v-if="taskStore.viewMode === 'TABLE'" class="w-3 h-3 text-indigo-400" />
-            <List v-else class="w-3 h-3 text-sky-400" />
+            <LayoutGrid v-if="taskStore.viewMode === 'TABLE'" class="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+            <List v-else class="w-3 h-3 text-sky-600 dark:text-sky-400" />
             <span>{{ taskStore.viewMode === 'TABLE' ? 'Kanban' : 'Table' }}</span>
           </button>
 
@@ -126,7 +130,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <button
             type="button"
             class="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-mono cursor-pointer transition"
-            :class="taskStore.currentUser ? 'bg-indigo-950/40 border-indigo-800 text-indigo-300' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300'"
+            :class="taskStore.currentUser ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' : 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'"
             @click="isAuthModalOpen = true"
           >
             <Shield class="w-3 h-3" />
@@ -139,50 +143,50 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <!-- Mandated AI Feature A: Weekly Summary -->
           <button
             type="button"
-            class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-indigo-300 text-xs font-mono cursor-pointer transition"
+            class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-indigo-700 dark:text-indigo-300 text-xs font-mono cursor-pointer transition"
             @click="isWeeklySummaryOpen = true"
             title="Weekly Summary (Feature A)"
           >
-            <Sparkles class="w-3 h-3 text-indigo-400" />
+            <Sparkles class="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
             <span>Summary</span>
           </button>
 
           <!-- Mandated AI Feature B: Meeting Minutes -->
           <button
             type="button"
-            class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-sky-300 text-xs font-mono cursor-pointer transition"
+            class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-sky-700 dark:text-sky-300 text-xs font-mono cursor-pointer transition"
             @click="isMeetingMinutesOpen = true"
             title="Meeting Minutes (Feature B)"
           >
-            <FileText class="w-3 h-3 text-sky-400" />
+            <FileText class="w-3 h-3 text-sky-600 dark:text-sky-400" />
             <span>Minutes</span>
           </button>
 
           <!-- Mandated AI Feature C: Workload & Assignment -->
           <button
             type="button"
-            class="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-amber-300 text-xs font-mono cursor-pointer transition"
+            class="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-amber-700 dark:text-amber-300 text-xs font-mono cursor-pointer transition"
             @click="isWorkloadAssignOpen = true"
             title="Team Workload & Smart Assignment (Feature C)"
           >
-            <Users class="w-3 h-3 text-amber-400" />
+            <Users class="w-3 h-3 text-amber-600 dark:text-amber-400" />
             <span>Workload</span>
           </button>
 
           <!-- Goal Decomposer AI -->
           <button
             type="button"
-            class="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 text-xs font-mono cursor-pointer transition"
+            class="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer transition"
             @click="isAIDecomposerOpen = true"
             title="AI Decomposer (a)"
           >
-            <Sparkles class="w-3 h-3 text-zinc-400" />
+            <Sparkles class="w-3 h-3 text-slate-500 dark:text-slate-400" />
             <span>Decompose</span>
           </button>
 
           <button
             type="button"
-            class="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs font-mono cursor-pointer transition"
+            class="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 text-xs font-mono cursor-pointer transition"
             @click="isDAGOpen = true"
             title="DAG Critical Path (v)"
           >
@@ -192,42 +196,53 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 
           <button
             type="button"
-            class="inline-flex items-center gap-1 px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-400 hover:text-zinc-200 text-xs font-mono cursor-pointer transition"
+            class="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 text-xs font-mono cursor-pointer transition"
             @click="isExportImportOpen = true"
             title="JSON Backup"
           >
             <Download class="w-3 h-3" />
           </button>
 
+          <!-- Theme Toggle Button -->
           <button
             type="button"
-            class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-zinc-100 hover:bg-white text-zinc-950 text-xs font-mono font-medium cursor-pointer transition"
+            class="inline-flex items-center justify-center p-1.5 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer transition"
+            @click="themeStore.toggleTheme()"
+            :title="`Toggle Theme (t) - Current: ${themeStore.resolvedTheme}`"
+          >
+            <Sun v-if="themeStore.isDark" class="w-3.5 h-3.5 text-amber-400" />
+            <Moon v-else class="w-3.5 h-3.5 text-slate-700" />
+          </button>
+
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-900 hover:bg-slate-800 text-slate-50 dark:bg-slate-100 dark:hover:bg-white dark:text-slate-950 text-xs font-mono font-medium cursor-pointer transition shadow-xs"
             @click="isCreateModalOpen = true"
             title="Create Task (c)"
           >
             <Plus class="w-3.5 h-3.5" />
-            <span>New <kbd class="hidden sm:inline text-zinc-600 text-[10px]">c</kbd></span>
+            <span>New <kbd class="hidden sm:inline opacity-70 text-[10px]">c</kbd></span>
           </button>
         </div>
       </div>
     </header>
 
     <!-- Filter & Search Toolbar (Edge to Edge) -->
-    <section class="w-full border-b border-zinc-800/60 bg-zinc-950/30 px-3 md:px-4 py-1.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+    <section class="w-full border-b border-slate-200 dark:border-slate-800/80 bg-slate-100/50 dark:bg-slate-950/30 px-3 md:px-4 py-1.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
       <!-- Search Input -->
       <div class="relative flex-1 max-w-md">
-        <Search class="w-3.5 h-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+        <Search class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
         <input
           ref="searchInputEl"
           v-model="taskStore.filter.searchQuery"
           type="text"
           placeholder="Filter tasks... (Press /)"
-          class="w-full bg-zinc-900/60 border border-zinc-800/80 rounded pl-8 pr-6 py-1 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-600 font-sans"
+          class="w-full bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800/80 rounded pl-8 pr-6 py-1 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 dark:focus:border-slate-600 font-sans shadow-xs"
         />
         <button
           v-if="taskStore.filter.searchQuery"
           type="button"
-          class="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 cursor-pointer p-0.5"
+          class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 cursor-pointer p-0.5"
           @click="taskStore.setSearchQuery('')"
         >
           <X class="w-3 h-3" />
@@ -241,7 +256,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           :key="st"
           type="button"
           class="px-2 py-0.5 rounded transition cursor-pointer shrink-0"
-          :class="taskStore.filter.status === st && !taskStore.filter.onlyCriticalPath ? 'bg-zinc-800 text-zinc-100 font-medium' : 'text-zinc-500 hover:text-zinc-300'"
+          :class="taskStore.filter.status === st && !taskStore.filter.onlyCriticalPath ? 'bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-100 font-medium' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'"
           @click="() => {
             if (taskStore.filter.onlyCriticalPath) taskStore.toggleCriticalPathOnly();
             taskStore.setFilterStatus(st);
@@ -253,11 +268,11 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
         <button
           type="button"
           class="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded transition cursor-pointer shrink-0"
-          :class="taskStore.filter.onlyCriticalPath ? 'bg-rose-950/40 text-rose-300 border border-rose-800/50' : 'text-zinc-500 hover:text-zinc-300'"
+          :class="taskStore.filter.onlyCriticalPath ? 'bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/50' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'"
           @click="taskStore.toggleCriticalPathOnly()"
           title="Toggle Critical Path Only"
         >
-          <Flame class="w-3 h-3 text-rose-400" />
+          <Flame class="w-3 h-3 text-rose-500 dark:text-rose-400" />
           <span>Crit ({{ taskStore.criticalPathIds.size }})</span>
         </button>
       </div>
@@ -270,18 +285,19 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
     </section>
 
     <!-- Footer with Telemetry -->
-    <footer class="w-full px-3 md:px-4 py-2 border-t border-zinc-800/60 bg-zinc-950/40 flex items-center justify-between text-xs select-none">
-      <div class="hidden md:flex items-center gap-2.5 font-mono text-[11px] text-zinc-500">
-        <span><kbd class="px-1 py-0.2 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">j</kbd>/<kbd class="px-1 py-0.2 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">k</kbd> Nav</span>
-        <span><kbd class="px-1 py-0.2 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">Space</kbd> Status</span>
-        <span><kbd class="px-1 py-0.2 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">Enter</kbd> Edit</span>
-        <span><kbd class="px-1 py-0.2 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">d</kbd> Del</span>
-        <span><kbd class="px-1 py-0.2 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">1-4</kbd> Priority</span>
+    <footer class="w-full px-3 md:px-4 py-2 border-t border-slate-200 dark:border-slate-800/60 bg-white/60 dark:bg-slate-950/40 flex items-center justify-between text-xs select-none">
+      <div class="hidden md:flex items-center gap-2.5 font-mono text-[11px] text-slate-500 dark:text-slate-400">
+        <span><kbd class="px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400">t</kbd> Theme</span>
+        <span><kbd class="px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400">j</kbd>/<kbd class="px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400">k</kbd> Nav</span>
+        <span><kbd class="px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400">Space</kbd> Status</span>
+        <span><kbd class="px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400">Enter</kbd> Edit</span>
+        <span><kbd class="px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400">d</kbd> Del</span>
+        <span><kbd class="px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-400">1-4</kbd> Priority</span>
       </div>
 
-      <div class="flex items-center gap-2 text-slate-500 font-mono text-[11px] ml-auto">
+      <div class="flex items-center gap-2 text-slate-500 dark:text-slate-400 font-mono text-[11px] ml-auto">
         <span class="flex items-center gap-1">
-          <Server class="w-3 h-3" :class="taskStore.isBackendConnected ? 'text-emerald-400' : 'text-zinc-600'" />
+          <Server class="w-3 h-3" :class="taskStore.isBackendConnected ? 'text-emerald-500 dark:text-emerald-400' : 'text-slate-400 dark:text-zinc-600'" />
           <span>{{ taskStore.isBackendConnected ? 'FastAPI Connected' : 'Local IndexedDB' }}</span>
         </span>
         <span>•</span>
@@ -289,7 +305,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
         <span>•</span>
         <button
           type="button"
-          class="hover:text-slate-300 underline cursor-pointer"
+          class="hover:text-slate-800 dark:hover:text-slate-200 underline cursor-pointer"
           @click="taskStore.resetToDefault()"
         >
           Reset sample
@@ -320,20 +336,20 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
     <CreateTaskModal v-if="isCreateModalOpen" @close="isCreateModalOpen = false" />
 
     <!-- JSON Backup / Restore Modal -->
-    <div v-if="isExportImportOpen" class="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 animate-in fade-in duration-100">
-      <div class="glass-panel w-full max-w-md rounded-xl p-4 shadow-2xl border border-zinc-800 text-zinc-200 flex flex-col">
-        <div class="flex items-center justify-between pb-2 border-b border-zinc-800">
+    <div v-if="isExportImportOpen" class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-100">
+      <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-xl p-4 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
           <h2 class="text-xs font-mono font-semibold">JSON Backup & Restore</h2>
-          <button type="button" class="p-1 text-zinc-500 hover:text-zinc-300 cursor-pointer" @click="isExportImportOpen = false">
+          <button type="button" class="p-1 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer" @click="isExportImportOpen = false">
             <X class="w-3.5 h-3.5" />
           </button>
         </div>
         <div class="py-3 space-y-3 text-xs">
-          <div class="flex items-center justify-between p-2 rounded bg-zinc-900 border border-zinc-800">
-            <span class="font-mono text-zinc-400">Export state file</span>
+          <div class="flex items-center justify-between p-2 rounded bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+            <span class="font-mono text-slate-600 dark:text-slate-400">Export state file</span>
             <button
               type="button"
-              class="px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-mono text-xs cursor-pointer"
+              class="px-2.5 py-1 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-mono text-xs cursor-pointer transition"
               @click="handleDownloadExport"
             >
               Download
@@ -344,12 +360,12 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
               v-model="importJsonBuffer"
               rows="4"
               placeholder="Paste JSON..."
-              class="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-zinc-600"
+              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded p-2 text-xs font-mono text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 dark:focus:border-slate-600"
             ></textarea>
-            <div v-if="importStatusMsg" class="text-[11px] font-mono text-zinc-400 mt-1">{{ importStatusMsg }}</div>
+            <div v-if="importStatusMsg" class="text-[11px] font-mono text-slate-600 dark:text-slate-400 mt-1">{{ importStatusMsg }}</div>
             <button
               type="button"
-              class="w-full mt-2 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-mono text-xs cursor-pointer"
+              class="w-full mt-2 py-1.5 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-mono text-xs cursor-pointer transition"
               @click="handleImportJSON"
             >
               Import JSON

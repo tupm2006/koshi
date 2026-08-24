@@ -45,20 +45,20 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-100">
-    <div class="glass-panel w-full max-w-2xl rounded-2xl p-5 md:p-6 shadow-2xl border border-zinc-700/60 text-zinc-100 flex flex-col max-h-[88vh]">
+  <div class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-100">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl p-5 md:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col max-h-[88vh]">
       <!-- Header -->
-      <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
         <div class="flex items-center gap-2.5">
-          <div class="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+          <div class="p-2 rounded-xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/30 text-amber-600 dark:text-amber-400">
             <Users class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-bold text-zinc-100 font-mono">Skill & Workload-Based Assignment Recommendation</h2>
-            <p class="text-[11px] text-zinc-400">Mandated Feature C: Workload distribution & smart task routing</p>
+            <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 font-mono">Skill & Workload-Based Assignment Recommendation</h2>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Mandated Feature C: Workload distribution & smart task routing</p>
           </div>
         </div>
-        <button type="button" class="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-200 cursor-pointer" @click="onClose">
+        <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="onClose">
           <X class="w-5 h-5" />
         </button>
       </div>
@@ -67,30 +67,30 @@ onMounted(() => {
       <div class="flex-1 overflow-y-auto py-4 space-y-4 text-xs">
         <!-- Team Capacity / Workload Grid -->
         <div>
-          <h3 class="font-mono text-zinc-400 font-semibold mb-2 uppercase text-[10px] tracking-wider">Current Team Workload & Skills:</h3>
-          <div v-if="isLoadingWorkload" class="py-4 text-center text-zinc-500 font-mono">Loading team profiles...</div>
+          <h3 class="font-mono text-slate-500 dark:text-zinc-400 font-semibold mb-2 uppercase text-[10px] tracking-wider">Current Team Workload & Skills:</h3>
+          <div v-if="isLoadingWorkload" class="py-4 text-center text-slate-500 dark:text-zinc-500 font-mono">Loading team profiles...</div>
           <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div
               v-for="w in workloads"
               :key="w.user_id"
-              class="p-3 rounded-xl bg-zinc-900 border flex flex-col gap-1.5"
-              :class="w.is_overloaded ? 'border-rose-800/80 bg-rose-950/20' : 'border-zinc-800'"
+              class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-900 border flex flex-col gap-1.5"
+              :class="w.is_overloaded ? 'border-rose-300 dark:border-rose-800/80 bg-rose-50 dark:bg-rose-950/20' : 'border-slate-200 dark:border-zinc-800'"
             >
               <div class="flex items-center justify-between">
-                <span class="font-bold text-zinc-200 font-mono text-xs">{{ w.full_name }}</span>
-                <span v-if="w.is_overloaded" class="flex items-center gap-1 text-[10px] font-mono text-rose-400 font-semibold">
+                <span class="font-bold text-slate-800 dark:text-zinc-200 font-mono text-xs">{{ w.full_name }}</span>
+                <span v-if="w.is_overloaded" class="flex items-center gap-1 text-[10px] font-mono text-rose-600 dark:text-rose-400 font-semibold">
                   <AlertTriangle class="w-3 h-3" /> Overloaded
                 </span>
-                <span v-else class="flex items-center gap-1 text-[10px] font-mono text-emerald-400 font-medium">
+                <span v-else class="flex items-center gap-1 text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-medium">
                   <ShieldCheck class="w-3 h-3" /> Optimal
                 </span>
               </div>
-              <div class="flex items-center gap-3 text-zinc-400 font-mono text-[11px]">
-                <span>Tasks: <strong class="text-zinc-200">{{ w.active_tasks_count }}</strong></span>
-                <span>Complexity: <strong class="text-zinc-200">{{ w.total_complexity_points }} pts</strong></span>
+              <div class="flex items-center gap-3 text-slate-600 dark:text-zinc-400 font-mono text-[11px]">
+                <span>Tasks: <strong class="text-slate-900 dark:text-zinc-200">{{ w.active_tasks_count }}</strong></span>
+                <span>Complexity: <strong class="text-slate-900 dark:text-zinc-200">{{ w.total_complexity_points }} pts</strong></span>
               </div>
               <div class="flex flex-wrap gap-1 mt-1">
-                <span v-for="skill in w.skills" :key="skill" class="px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400 text-[10px] font-mono">
+                <span v-for="skill in w.skills" :key="skill" class="px-1.5 py-0.2 rounded bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-400 text-[10px] font-mono">
                   {{ skill }}
                 </span>
               </div>
@@ -99,50 +99,50 @@ onMounted(() => {
         </div>
 
         <!-- Recommendation Inputs -->
-        <div class="pt-2 border-t border-zinc-800 space-y-2.5">
-          <h3 class="font-mono text-zinc-400 font-semibold uppercase text-[10px] tracking-wider">Test Task Assignment Recommendation:</h3>
+        <div class="pt-2 border-t border-slate-200 dark:border-zinc-800 space-y-2.5">
+          <h3 class="font-mono text-slate-500 dark:text-zinc-400 font-semibold uppercase text-[10px] tracking-wider">Test Task Assignment Recommendation:</h3>
           <div>
-            <label for="vue-task-assign-title" class="block text-zinc-300 font-mono text-[11px] mb-1 font-medium">Task Title</label>
+            <label for="vue-task-assign-title" class="block text-slate-700 dark:text-zinc-300 font-mono text-[11px] mb-1 font-medium">Task Title</label>
             <input
               id="vue-task-assign-title"
               v-model="taskTitle"
               type="text"
-              class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 font-sans"
+              class="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-zinc-100 focus:outline-none focus:border-amber-500 font-sans"
             />
           </div>
           <div>
-            <label for="vue-task-assign-desc" class="block text-zinc-300 font-mono text-[11px] mb-1 font-medium">Task Description & Requirements</label>
+            <label for="vue-task-assign-desc" class="block text-slate-700 dark:text-zinc-300 font-mono text-[11px] mb-1 font-medium">Task Description & Requirements</label>
             <input
               id="vue-task-assign-desc"
               v-model="taskDesc"
               type="text"
-              class="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-zinc-100 focus:outline-none focus:border-amber-500 font-sans"
+              class="w-full bg-slate-50 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-zinc-100 focus:outline-none focus:border-amber-500 font-sans"
             />
           </div>
           <button
             type="button"
-            class="w-full py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-zinc-950 font-mono font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition disabled:opacity-50"
+            class="w-full py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white dark:text-zinc-950 font-mono font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition disabled:opacity-50"
             @click="handleRecommend"
             :disabled="isLoadingRec || !taskTitle.trim()"
           >
-            <RefreshCw v-if="isLoadingRec" class="w-4 h-4 animate-spin text-zinc-950" />
-            <Sparkles v-else class="w-4 h-4 text-zinc-950" />
+            <RefreshCw v-if="isLoadingRec" class="w-4 h-4 animate-spin" />
+            <Sparkles v-else class="w-4 h-4" />
             <span>{{ isLoadingRec ? 'Evaluating Workloads & Skill Graph...' : 'Generate AI Recommendation' }}</span>
           </button>
         </div>
 
         <!-- Recommendation Result Box -->
-        <div v-if="recommendation" class="p-3.5 rounded-xl bg-amber-950/20 border border-amber-800/50 space-y-2 animate-in fade-in">
+        <div v-if="recommendation" class="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/50 space-y-2 animate-in fade-in">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <UserCheck class="w-4 h-4 text-amber-400" />
-              <span class="font-mono text-zinc-400 text-[11px]">Recommended Assignee:</span>
-              <strong class="text-amber-300 text-xs font-mono">{{ recommendation.recommended_name }}</strong>
+              <UserCheck class="w-4 h-4 text-amber-600 dark:text-amber-400" />
+              <span class="font-mono text-slate-600 dark:text-zinc-400 text-[11px]">Recommended Assignee:</span>
+              <strong class="text-amber-700 dark:text-amber-300 text-xs font-mono">{{ recommendation.recommended_name }}</strong>
             </div>
           </div>
-          <p class="text-zinc-300 text-xs leading-relaxed">{{ recommendation.rationale }}</p>
-          <div v-if="recommendation.risk_assessment" class="text-[11px] text-zinc-400 font-mono pt-1 border-t border-amber-900/30">
-            <span class="text-amber-400/80">Risk Assessment:</span> {{ recommendation.risk_assessment }}
+          <p class="text-slate-700 dark:text-zinc-300 text-xs leading-relaxed">{{ recommendation.rationale }}</p>
+          <div v-if="recommendation.risk_assessment" class="text-[11px] text-slate-500 dark:text-zinc-400 font-mono pt-1 border-t border-amber-200 dark:border-amber-900/30">
+            <span class="text-amber-700 dark:text-amber-400/80 font-medium">Risk Assessment:</span> {{ recommendation.risk_assessment }}
           </div>
         </div>
       </div>

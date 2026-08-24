@@ -54,20 +54,20 @@ function handleApplyStatuses() {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-100">
-    <div class="glass-panel w-full max-w-2xl rounded-2xl p-5 md:p-6 shadow-2xl border border-zinc-700/60 text-zinc-100 flex flex-col max-h-[90vh]">
+  <div class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-100">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl p-5 md:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col max-h-[90vh]">
       <!-- Header -->
-      <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
         <div class="flex items-center gap-2.5">
-          <div class="p-2 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-400">
+          <div class="p-2 rounded-xl bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/30 text-purple-600 dark:text-purple-400">
             <GitPullRequest class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-bold text-zinc-100 font-mono">Git Diff Analysis & Auto-Resolution</h2>
-            <p class="text-[11px] text-zinc-400">Map code changes directly to board task states</p>
+            <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 font-mono">Git Diff Analysis & Auto-Resolution</h2>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Map code changes directly to board task states</p>
           </div>
         </div>
-        <button type="button" class="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-200 cursor-pointer" @click="emit('close')">
+        <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="emit('close')">
           <X class="w-5 h-5" />
         </button>
       </div>
@@ -75,13 +75,13 @@ function handleApplyStatuses() {
       <!-- Body -->
       <div class="flex-1 overflow-y-auto py-4 space-y-3 text-xs">
         <div>
-          <label for="vue-git-diff-textarea" class="block font-mono text-zinc-300 mb-1.5 font-semibold">Unified Git Patch / Diff *</label>
+          <label for="vue-git-diff-textarea" class="block font-mono text-slate-700 dark:text-zinc-300 mb-1.5 font-semibold">Unified Git Patch / Diff *</label>
           <textarea
             id="vue-git-diff-textarea"
             v-model="diffText"
             rows="5"
             placeholder="Paste output from `git diff`..."
-            class="w-full bg-zinc-900 border border-zinc-700 rounded-xl p-3 text-xs font-mono text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-purple-500"
+            class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-zinc-700 rounded-xl p-3 text-xs font-mono text-slate-900 dark:text-zinc-200 placeholder-slate-400 dark:placeholder-zinc-500 focus:outline-none focus:border-purple-500"
           ></textarea>
         </div>
 
@@ -96,21 +96,21 @@ function handleApplyStatuses() {
           <span>{{ isLoading ? 'Analyzing Code Semantics...' : 'Analyze Git Diff' }}</span>
         </button>
 
-        <div v-if="errorMsg" class="p-3 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 flex items-center gap-2 font-mono">
+        <div v-if="errorMsg" class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 flex items-center gap-2 font-mono">
           <AlertCircle class="w-4 h-4 shrink-0" />
           <span>{{ errorMsg }}</span>
         </div>
 
-        <div v-if="result" class="space-y-3 pt-2 border-t border-zinc-800 animate-in fade-in">
-          <div class="p-3 rounded-xl bg-zinc-900 border border-zinc-800">
-            <h4 class="font-mono text-zinc-200 font-bold text-xs">{{ result.prTitle }}</h4>
-            <p class="text-zinc-400 text-xs mt-1">{{ result.summary }}</p>
+        <div v-if="result" class="space-y-3 pt-2 border-t border-slate-200 dark:border-zinc-800 animate-in fade-in">
+          <div class="p-3 rounded-xl bg-slate-50 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800">
+            <h4 class="font-mono text-slate-900 dark:text-zinc-200 font-bold text-xs">{{ result.prTitle }}</h4>
+            <p class="text-slate-600 dark:text-zinc-400 text-xs mt-1">{{ result.summary }}</p>
           </div>
 
-          <div v-if="result.resolvedTaskIds && result.resolvedTaskIds.length > 0" class="p-3 rounded-xl bg-emerald-950/20 border border-emerald-800/40">
-            <span class="font-mono text-emerald-400 font-bold text-[11px]">Tasks to Mark DONE:</span>
+          <div v-if="result.resolvedTaskIds && result.resolvedTaskIds.length > 0" class="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40">
+            <span class="font-mono text-emerald-700 dark:text-emerald-400 font-bold text-[11px]">Tasks to Mark DONE:</span>
             <div class="flex flex-wrap gap-1.5 mt-1.5">
-              <span v-for="id in result.resolvedTaskIds" :key="id" class="px-2 py-0.5 rounded bg-emerald-900/60 text-emerald-200 font-mono text-[10px]">
+              <span v-for="id in result.resolvedTaskIds" :key="id" class="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 font-mono text-[10px] font-medium">
                 {{ id }}
               </span>
             </div>
@@ -119,10 +119,10 @@ function handleApplyStatuses() {
       </div>
 
       <!-- Footer -->
-      <div v-if="result" class="pt-3 border-t border-zinc-800 flex items-center justify-end gap-2">
+      <div v-if="result" class="pt-3 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-end gap-2">
         <button
           type="button"
-          class="px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 font-mono text-xs cursor-pointer"
+          class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 font-mono text-xs cursor-pointer"
           @click="emit('close')"
         >
           Dismiss

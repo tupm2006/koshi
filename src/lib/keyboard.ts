@@ -1,4 +1,5 @@
 import { useTaskStore } from '../stores/taskStore';
+import { useThemeStore } from '../stores/themeStore';
 
 export interface KeyboardState {
   onOpenQuickCreate: () => void;
@@ -9,16 +10,22 @@ export interface KeyboardState {
   onFocusSearch: () => void;
 }
 
+export function isInputActive(target: EventTarget | null): boolean {
+  if (!target || !(target instanceof HTMLElement)) return false;
+  return (
+    target.tagName === 'INPUT' ||
+    target.tagName === 'TEXTAREA' ||
+    target.tagName === 'SELECT' ||
+    target.isContentEditable
+  );
+}
+
 export function createKeyboardHandler(callbacks: KeyboardState) {
   function handleKeyDown(event: KeyboardEvent) {
     const taskStore = useTaskStore();
+    const themeStore = useThemeStore();
     const target = event.target as HTMLElement | null;
-    const isInputFocused =
-      target &&
-      (target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT' ||
-        target.isContentEditable);
+    const isInputFocused = isInputActive(target);
 
     // Global escape handling
     if (event.key === 'Escape') {
@@ -27,19 +34,24 @@ export function createKeyboardHandler(callbacks: KeyboardState) {
         taskStore.stopEditing();
         return;
       }
-      if (isInputFocused) {
+      if (isInputFocused && target) {
         target.blur();
         return;
       }
     }
 
-    // Do not trigger global vim shortcuts if user is typing in an input
+    // Do not trigger global shortcuts if user is typing in an input
     if (isInputFocused) {
       return;
     }
 
     // Handle shortcuts
     switch (event.key) {
+      case 't': // Toggle Light / Dark theme
+        event.preventDefault();
+        themeStore.toggleTheme();
+        break;
+
       case 'j':
       case 'ArrowDown':
         event.preventDefault();

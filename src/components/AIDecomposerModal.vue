@@ -81,20 +81,20 @@ function handleAcceptAll() {
 </script>
 
 <template>
-  <div class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-100">
-    <div class="glass-panel w-full max-w-2xl rounded-2xl p-5 md:p-6 shadow-2xl border border-zinc-700/60 text-zinc-100 flex flex-col max-h-[90vh]">
+  <div class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-100">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-2xl p-5 md:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col max-h-[90vh]">
       <!-- Header -->
-      <div class="flex items-center justify-between pb-3 border-b border-zinc-800">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
         <div class="flex items-center gap-2.5">
-          <div class="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400">
+          <div class="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400">
             <Sparkles class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-bold text-zinc-100 font-mono">Autonomous Goal Decomposer</h2>
-            <p class="text-[11px] text-zinc-400">Transform natural language epics into structured subtasks & DAGs</p>
+            <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 font-mono">Autonomous Goal Decomposer</h2>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Transform natural language epics into structured subtasks & DAGs</p>
           </div>
         </div>
-        <button type="button" class="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-400 hover:text-zinc-200 cursor-pointer" @click="emit('close')">
+        <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="emit('close')">
           <X class="w-5 h-5" />
         </button>
       </div>
@@ -106,12 +106,12 @@ function handleAcceptAll() {
             v-model="goalInput"
             type="text"
             placeholder="Describe your engineering goal or feature epic..."
-            class="flex-1 bg-zinc-900 border border-zinc-700 rounded-xl px-3.5 py-2.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-indigo-500 font-sans min-h-[44px]"
+            class="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-sans min-h-[44px]"
             @keydown.enter="handleDecompose()"
           />
           <button
             type="button"
-            class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center gap-1.5 cursor-pointer transition shadow-sm disabled:opacity-50 min-h-[44px]"
+            class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center gap-1.5 cursor-pointer transition shadow-xs disabled:opacity-50 min-h-[44px]"
             :disabled="isLoading || !goalInput.trim()"
             @click="handleDecompose()"
           >
@@ -123,12 +123,12 @@ function handleAcceptAll() {
 
         <!-- Quick Prompts -->
         <div class="flex flex-wrap gap-1.5 items-center pt-1">
-          <span class="text-[10px] text-zinc-500 font-mono">Presets:</span>
+          <span class="text-[10px] text-slate-500 dark:text-slate-400 font-mono">Presets:</span>
           <button
             v-for="s in SUGGESTIONS"
             :key="s"
             type="button"
-            class="text-[10px] font-mono px-2 py-1 rounded bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 transition cursor-pointer"
+            class="text-[10px] font-mono px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition cursor-pointer"
             @click="handleDecompose(s)"
           >
             {{ s }}
@@ -138,36 +138,36 @@ function handleAcceptAll() {
 
       <!-- Result Area -->
       <div class="flex-1 overflow-y-auto space-y-3 pr-1">
-        <div v-if="errorMsg" class="p-3 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 flex items-center gap-2 text-xs font-mono">
+        <div v-if="errorMsg" class="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 flex items-center gap-2 text-xs font-mono">
           <AlertCircle class="w-4 h-4 shrink-0" />
           <span>{{ errorMsg }}</span>
         </div>
 
         <div v-if="result" class="space-y-3">
-          <div class="p-3 rounded-xl bg-zinc-900 border border-zinc-800">
-            <h3 class="text-xs font-bold text-zinc-200 font-mono">{{ result.epicTitle }}</h3>
-            <p class="text-xs text-zinc-400 mt-1 leading-relaxed">{{ result.rationale }}</p>
+          <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+            <h3 class="text-xs font-bold text-slate-900 dark:text-slate-200 font-mono">{{ result.epicTitle }}</h3>
+            <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 leading-relaxed">{{ result.rationale }}</p>
           </div>
 
           <div class="space-y-2">
             <div
               v-for="(subtask, idx) in result.subtasks"
               :key="idx"
-              class="p-3 rounded-xl bg-zinc-900/60 border border-zinc-800 flex flex-col gap-1.5"
+              class="p-3 rounded-xl bg-slate-50/70 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 flex flex-col gap-1.5"
             >
               <div class="flex items-center justify-between gap-2">
-                <span class="font-medium text-xs text-zinc-200 font-sans">{{ subtask.title }}</span>
+                <span class="font-medium text-xs text-slate-900 dark:text-slate-200 font-sans">{{ subtask.title }}</span>
                 <div class="flex items-center gap-1.5 shrink-0 font-mono text-[10px]">
-                  <span v-if="subtask.complexity" class="px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400">
+                  <span v-if="subtask.complexity" class="px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400 font-medium">
                     [{{ subtask.complexity }}]
                   </span>
-                  <span class="px-1.5 py-0.2 rounded border bg-zinc-900 text-zinc-300 border-zinc-700">
+                  <span class="px-1.5 py-0.2 rounded border bg-white dark:bg-slate-900 text-slate-700 dark:text-zinc-300 border-slate-200 dark:border-zinc-700">
                     {{ subtask.priority }}
                   </span>
                 </div>
               </div>
-              <p class="text-[11px] text-zinc-400 leading-normal">{{ subtask.description }}</p>
-              <div v-if="subtask.dependsOnTitles && subtask.dependsOnTitles.length > 0" class="text-[10px] text-indigo-400 font-mono flex items-center gap-1">
+              <p class="text-[11px] text-slate-600 dark:text-slate-400 leading-normal">{{ subtask.description }}</p>
+              <div v-if="subtask.dependsOnTitles && subtask.dependsOnTitles.length > 0" class="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono flex items-center gap-1">
                 <ArrowRight class="w-3 h-3" />
                 <span>Depends on: {{ subtask.dependsOnTitles.join(', ') }}</span>
               </div>
@@ -177,17 +177,17 @@ function handleAcceptAll() {
       </div>
 
       <!-- Footer -->
-      <div v-if="result" class="pt-4 border-t border-zinc-800 flex items-center justify-end gap-2">
+      <div v-if="result" class="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
         <button
           type="button"
-          class="px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 font-mono text-xs cursor-pointer transition min-h-[40px]"
+          class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-mono text-xs cursor-pointer transition min-h-[40px]"
           @click="emit('close')"
         >
           Dismiss
         </button>
         <button
           type="button"
-          class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center gap-1.5 cursor-pointer transition shadow-md min-h-[40px] disabled:opacity-50"
+          class="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center gap-1.5 cursor-pointer transition shadow-xs min-h-[40px] disabled:opacity-50"
           :disabled="isInserted"
           @click="handleAcceptAll"
         >

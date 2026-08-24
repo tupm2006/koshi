@@ -12,11 +12,11 @@ defineProps<{
 
 <template>
   <!-- Bottom Floating Thumb Bar for Mobile (< md breakpoint) -->
-  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-zinc-950/95 border-t border-zinc-800/80 backdrop-blur-xl safe-bottom px-3 py-1.5 shadow-2xl">
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800 backdrop-blur-xl safe-bottom px-3 py-1.5 shadow-2xl">
     <div class="grid grid-cols-5 items-center gap-1">
       <button
         type="button"
-        class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200 active:bg-zinc-800 transition min-h-[44px] cursor-pointer"
+        class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 active:bg-slate-200 dark:active:bg-zinc-800 transition min-h-[44px] cursor-pointer"
         @click="onFocusSearch"
         title="Search (/)"
       >
@@ -26,7 +26,7 @@ defineProps<{
 
       <button
         type="button"
-        class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200 active:bg-zinc-800 transition min-h-[44px] cursor-pointer"
+        class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 active:bg-slate-200 dark:active:bg-zinc-800 transition min-h-[44px] cursor-pointer"
         @click="onOpenAIDecomposer"
         title="AI Decomposer (a)"
       >
@@ -38,7 +38,7 @@ defineProps<{
       <div class="flex items-center justify-center">
         <button
           type="button"
-          class="w-10 h-10 rounded-xl bg-zinc-100 hover:bg-white text-zinc-950 flex items-center justify-center font-bold cursor-pointer active:scale-95 transition shadow-sm"
+          class="w-10 h-10 rounded-xl bg-slate-900 dark:bg-zinc-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-zinc-950 flex items-center justify-center font-bold cursor-pointer active:scale-95 transition shadow-sm"
           @click="onOpenCreate"
           title="Create Task (c)"
         >
@@ -48,7 +48,7 @@ defineProps<{
 
       <button
         type="button"
-        class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200 active:bg-zinc-800 transition min-h-[44px] cursor-pointer"
+        class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 active:bg-slate-200 dark:active:bg-zinc-800 transition min-h-[44px] cursor-pointer"
         @click="onOpenDAG"
         title="DAG Critical Path (v)"
       >
@@ -58,7 +58,7 @@ defineProps<{
 
       <button
         type="button"
-        class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-zinc-900 text-zinc-400 hover:text-zinc-200 active:bg-zinc-800 transition min-h-[44px] cursor-pointer"
+        class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 active:bg-slate-200 dark:active:bg-zinc-800 transition min-h-[44px] cursor-pointer"
         @click="onOpenGitDiff"
         title="Git Diff (g)"
       >

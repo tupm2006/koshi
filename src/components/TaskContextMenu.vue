@@ -60,54 +60,54 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="fixed z-50 bg-zinc-950 border border-zinc-800 rounded-xl p-1.5 shadow-2xl text-xs font-mono w-48 animate-in fade-in duration-75"
+    class="fixed z-50 bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-xl p-1.5 shadow-2xl text-xs font-mono w-48 animate-in fade-in duration-75 text-slate-800 dark:text-zinc-200"
     :style="positionStyle"
     @click.stop
   >
-    <div class="px-2 py-1 text-[10px] text-zinc-500 font-bold border-b border-zinc-900 mb-1">
+    <div class="px-2 py-1 text-[10px] text-slate-400 dark:text-zinc-500 font-bold border-b border-slate-100 dark:border-zinc-900 mb-1">
       {{ task.id }}
     </div>
 
     <!-- Status Actions -->
     <button
       type="button"
-      class="w-full text-left px-2 py-1.5 rounded hover:bg-zinc-900 text-zinc-300 flex items-center gap-2 cursor-pointer"
+      class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-900 text-slate-700 dark:text-zinc-300 flex items-center gap-2 cursor-pointer transition"
       @click="handleStatus('DONE')"
     >
-      <Check class="w-3.5 h-3.5 text-emerald-400" />
+      <Check class="w-3.5 h-3.5 text-emerald-500" />
       <span>Mark DONE</span>
     </button>
     <button
       type="button"
-      class="w-full text-left px-2 py-1.5 rounded hover:bg-zinc-900 text-zinc-300 flex items-center gap-2 cursor-pointer"
+      class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-900 text-slate-700 dark:text-zinc-300 flex items-center gap-2 cursor-pointer transition"
       @click="handleStatus('IN_PROGRESS')"
     >
-      <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+      <span class="w-2 h-2 rounded-full bg-sky-500"></span>
       <span>Set In Progress</span>
     </button>
     <button
       type="button"
-      class="w-full text-left px-2 py-1.5 rounded hover:bg-zinc-900 text-zinc-300 flex items-center gap-2 cursor-pointer"
+      class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-900 text-slate-700 dark:text-zinc-300 flex items-center gap-2 cursor-pointer transition"
       @click="handleStatus('BLOCKED')"
     >
-      <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+      <span class="w-2 h-2 rounded-full bg-rose-500"></span>
       <span>Set Blocked</span>
     </button>
 
-    <div class="my-1 border-t border-zinc-900"></div>
+    <div class="my-1 border-t border-slate-100 dark:border-zinc-900"></div>
 
     <!-- Edit / Rename -->
     <button
       type="button"
-      class="w-full text-left px-2 py-1.5 rounded hover:bg-zinc-900 text-zinc-300 flex items-center gap-2 cursor-pointer"
+      class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-zinc-900 text-slate-700 dark:text-zinc-300 flex items-center gap-2 cursor-pointer transition"
       @click="handleEdit"
     >
-      <Edit3 class="w-3.5 h-3.5 text-zinc-400" />
+      <Edit3 class="w-3.5 h-3.5 text-slate-400 dark:text-zinc-400" />
       <span>Rename Title</span>
     </button>
 
     <!-- Priority Submenu -->
-    <div class="px-2 py-1 text-[10px] text-zinc-500 font-bold border-t border-zinc-900 mt-1">
+    <div class="px-2 py-1 text-[10px] text-slate-400 dark:text-zinc-500 font-bold border-t border-slate-100 dark:border-zinc-900 mt-1">
       Priority:
     </div>
     <div class="grid grid-cols-4 gap-1 px-1 py-0.5">
@@ -115,22 +115,22 @@ onUnmounted(() => {
         v-for="p in (['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as TaskPriority[])"
         :key="p"
         type="button"
-        class="text-[9px] py-0.5 rounded border border-zinc-800 hover:bg-zinc-900 text-center text-zinc-300 cursor-pointer"
+        class="text-[9px] py-0.5 rounded border border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-900 text-center text-slate-700 dark:text-zinc-300 cursor-pointer transition"
         @click="handlePriority(p)"
       >
         {{ p.slice(0, 3) }}
       </button>
     </div>
 
-    <div class="my-1 border-t border-zinc-900"></div>
+    <div class="my-1 border-t border-slate-100 dark:border-zinc-900"></div>
 
     <!-- Delete -->
     <button
       type="button"
-      class="w-full text-left px-2 py-1.5 rounded hover:bg-rose-950/40 text-rose-400 flex items-center gap-2 cursor-pointer"
+      class="w-full text-left px-2 py-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center gap-2 cursor-pointer transition"
       @click="handleDelete"
     >
-      <Trash2 class="w-3.5 h-3.5 text-rose-400" />
+      <Trash2 class="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
       <span>Delete Task</span>
     </button>
   </div>
