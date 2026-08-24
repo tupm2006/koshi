@@ -191,13 +191,15 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
       </button>
     </div>
 
-    <!-- Task List (Uniform h-10 Rows) -->
+    <!-- Task List (Uniform h-10 Rows with Constant 2px Left Border) -->
     <div v-else class="divide-y divide-slate-200 dark:divide-slate-800/40 flex flex-col" role="list">
       <div
         v-for="(task, idx) in taskStore.filteredTasks"
         :key="task.id"
-        class="group relative touch-card select-none h-10 flex items-center shrink-0"
-        :class="idx === taskStore.selectedIndex ? 'bg-indigo-50 dark:bg-slate-800/80 border-l-2 border-indigo-600 dark:border-slate-400' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'"
+        class="group relative touch-card select-none h-10 flex items-center shrink-0 border-l-2 transition-colors duration-75"
+        :class="idx === taskStore.selectedIndex
+          ? 'bg-indigo-50/80 dark:bg-slate-800 border-l-indigo-600 dark:border-l-indigo-400'
+          : 'border-l-transparent hover:bg-slate-50 dark:hover:bg-slate-800/60'"
         style="touch-action: pan-y;"
         @pointerdown="(e) => handlePointerDown(e, task)"
         @pointermove="(e) => handlePointerMove(e, task)"
@@ -207,10 +209,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
         role="listitem"
       >
         <!-- Desktop Row View (>= md) -->
-        <div
-          class="relative z-10 hidden md:grid grid-cols-[80px_120px_1fr_90px_110px_100px_70px] items-center gap-3 px-4 w-full h-full transition-transform duration-75"
-          :class="task.status === 'DONE' ? 'opacity-50' : ''"
-        >
+        <div class="relative z-10 hidden md:grid grid-cols-[80px_120px_1fr_90px_110px_100px_70px] items-center gap-3 px-4 w-full h-full">
           <!-- Col 1: ID & Critical Dot -->
           <div class="flex items-center gap-1.5 font-mono text-xs">
             <span class="text-slate-600 dark:text-slate-400 font-semibold">{{ task.id }}</span>
@@ -252,7 +251,12 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
               @dblclick.stop="startInlineEdit(task)"
               title="Double click or Enter to edit"
             >
-              <span class="truncate block" :class="task.status === 'DONE' ? 'line-through text-slate-400 dark:text-slate-600 font-normal' : ''">
+              <span
+                class="truncate block text-sm font-sans"
+                :class="task.status === 'DONE'
+                  ? 'line-through text-slate-500 dark:text-slate-400 font-normal'
+                  : 'text-slate-900 dark:text-slate-100 font-medium'"
+              >
                 {{ task.title }}
               </span>
             </button>
@@ -309,10 +313,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
         </div>
 
         <!-- Mobile Row View (< md) -->
-        <div
-          class="relative z-10 flex md:hidden items-center justify-between gap-2.5 px-3 w-full h-full"
-          :class="task.status === 'DONE' ? 'opacity-50' : ''"
-        >
+        <div class="relative z-10 flex md:hidden items-center justify-between gap-2.5 px-3 w-full h-full">
           <!-- Left: Status Badge -->
           <button
             type="button"
@@ -343,7 +344,12 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
               @click="taskStore.selectTask(idx)"
               @dblclick.stop="startInlineEdit(task)"
             >
-              <span class="truncate block" :class="task.status === 'DONE' ? 'line-through text-slate-400 dark:text-slate-600 font-normal' : ''">
+              <span
+                class="truncate block text-xs font-sans"
+                :class="task.status === 'DONE'
+                  ? 'line-through text-slate-500 dark:text-slate-400 font-normal'
+                  : 'text-slate-900 dark:text-slate-100 font-medium'"
+              >
                 {{ task.title }}
               </span>
             </button>

@@ -1,38 +1,39 @@
 # KOSHI (輿)
 
 > **High-Velocity, Local-First Project Management System**  
-> *Deterministic State Machines • Svelte 5 Direct-DOM Runes • Topological DAG Prioritization • Schema-Constrained AI Execution*
+> *Deterministic State Machines • Vue 3 Composition API & Pinia • 2D Spatial Vim Navigation • Topological DAG Prioritization • Schema-Constrained AI Execution*
 
 [![Live Demo](https://img.shields.io/badge/Live%20Production-koshi.felixsu.qzz.io-emerald?style=flat-square)](https://koshi.felixsu.qzz.io)
-[![Runtime](https://img.shields.io/badge/Runtime-Svelte%205%20Runes-ff3e00?style=flat-square)](https://svelte.dev)
+[![Runtime](https://img.shields.io/badge/Runtime-Vue%203%20Composition%20API-42b883?style=flat-square)](https://vuejs.org)
 [![Memory Footprint](https://img.shields.io/badge/Idle%20RAM-%3C15MB-blue?style=flat-square)](#)
 [![Action Latency](https://img.shields.io/badge/Action%20Latency-%3C50ms-cyan?style=flat-square)](#)
 [![Storage](https://img.shields.io/badge/Persistence-Local--First%20IndexedDB-violet?style=flat-square)](#)
+[![Documentation](https://img.shields.io/badge/Specs-URD%20%26%20SRS-indigo?style=flat-square)](./URD_SRS.md)
 
 ---
 
 ## 1. Executive Summary & Problem Statement
 
-Modern Project Management (PM) tools (Jira, Notion, ClickUp, Linear) have succumbed to feature bloat, memory leakages, administrative state-machine overhead, and superficial LLM wrappers. 
+Modern Project Management tools (Jira, Notion, ClickUp, Linear) have succumbed to feature bloat, memory leakages, administrative state-machine overhead, and superficial LLM wrappers. 
 
 ```
 ┌───────────────────────────────┐     ┌───────────────────────────────┐
 │     Contemporary PM Tools     │     │             KOSHI             │
 ├───────────────────────────────┤     ├───────────────────────────────┤
 │ 800MB–2GB+ RAM per Electron   │     │ <15MB RAM Idle Web / Mobile   │
-│ 1.5s+ modal latency & Diffing │     │ <50ms Optimistic Mutations    │
+│ 1.5s+ modal latency & Diffing │     │ <16ms Optimistic Mutations    │
 │ 15–30 mandatory JQL fields    │     │ 4 Strict Deterministic States │
-│ Unconstrained hallucinated AI │     │ Schema-Enforced AI Compiler   │
+│ Unconstrained hallucinated AI │     │ Schema-Enforced AI Services   │
 │ Proprietary CSV lock-in       │     │ Lossless Graph JSON Port      │
 └───────────────────────────────┘     └───────────────────────────────┘
 ```
 
 **KOSHI** eliminates these systemic bottlenecks by operating on five strict architectural principles:
-1. **Svelte 5 Direct-DOM Reactivity**: Eliminates virtual DOM diffing via granular runes (`$state`, `$derived`).
-2. **Modal-Less Keyboard Traversal**: Full Vim/Linear ergonomics (`j`/`k` nav, `Space` status cycling, inline `Enter` edits).
+1. **Vue 3 Composition API & Pinia Reactivity**: Fine-grained reactive state and zero visual lag.
+2. **Modal-Less 2D Vim Keyboard Traversal**: High-velocity hotkeys (`b` view toggle, `h`/`j`/`k`/`l` spatial grid navigation, `H`/`L` lateral card shifts, `Space` cyclic status cycling, inline `Enter` edits).
 3. **Deterministic State Transitions**: Cyclic invariant: `TODO` $\rightarrow$ `IN_PROGRESS` $\rightarrow$ `BLOCKED` $\rightarrow$ `DONE` $\rightarrow$ `TODO`.
 4. **Topological DAG Prioritization**: Computes true critical paths mathematically instead of arbitrary story-point poker.
-5. **Local-First Persistence**: Zero-latency IndexedDB offline persistence with lossless JSON backup/restore.
+5. **Local-First Persistence**: Zero-latency IndexedDB offline persistence with seamless background FastAPI backend synchronization.
 
 ---
 
@@ -40,77 +41,69 @@ Modern Project Management (PM) tools (Jira, Notion, ClickUp, Linear) have succum
 
 ```mermaid
 graph TB
-    subgraph UI Layer [Svelte 5 Direct-DOM Runes]
-        App[App.svelte Main View]
-        Table[TaskTable.svelte High-Density Grid]
-        MobNav[MobileBottomNav.svelte Floating Thumb Bar]
+    subgraph UI Layer [Vue 3 + Tailwind CSS]
+        App[App.vue Main Shell]
+        Table[TaskTable.vue High-Density Grid]
+        Kanban[KanbanBoard.vue 2D Spatial Board]
         Modals[AI / DAG / Diff / Create Modals]
     end
 
-    subgraph Reactive State & Logic Engine
-        Store[taskStore.svelte.ts Rune Store]
-        Kbd[keyboard.svelte.ts Hotkey Dispatcher]
+    subgraph State & Logic Engine
+        Store[taskStore.ts Pinia Store]
+        Kbd[keyboard.ts Vim Dispatcher]
         DAG[dagSorter.ts Topological Graph Evaluator]
-        AI[aiDecomposer.ts Deterministic Compiler]
-        Git[gitParser.ts SCM Diff Parser]
+        API[api.ts Axios Backend Client]
     end
 
-    subgraph Storage Layer [Local-First Persistence]
-        IDB[(IndexedDB Storage)]
-        MemCache[In-Memory Reactive State]
-        JSONExport[Lossless JSON Schema Engine]
+    subgraph Backend & Storage Layer
+        FastAPI[FastAPI Python Backend]
+        Gemini[Google Gemini 1.5 AI Service]
+        SQLite[(SQLite Database)]
+        IDB[(Client IndexedDB)]
     end
 
     App --> Store
     Table --> Store
-    MobNav --> Store
+    Kanban --> Store
     Modals --> Store
 
     Store --> DAG
-    Store --> AI
-    Store --> Git
     Store --> Kbd
-
-    Store <--> MemCache
-    MemCache <--> IDB
-    Store --> JSONExport
+    Store --> API
+    API --> FastAPI
+    FastAPI --> Gemini
+    FastAPI --> SQLite
+    Store <--> IDB
 ```
 
-* **Framework**: Svelte 5 (Runes) + TypeScript + Vite.
-* **Styling**: Native Tailwind CSS utility classes (zero heavyweight third-party UI libraries).
-* **Storage**: IndexedDB (`idb-keyval`) with synchronous in-memory rune caching.
-* **Packaging**: Docker (Alpine + Nginx) container deployed behind Caddy reverse proxy.
+* **Frontend**: Vue 3 + Pinia + TypeScript + Vite + Tailwind CSS.
+* **Backend**: FastAPI (Python 3.11) + SQLAlchemy 2.0 + Google Gemini AI.
+* **Storage**: IndexedDB (`idb-keyval`) locally, SQLite / PostgreSQL on server.
+* **Deployment**: Docker Compose (Nginx + Uvicorn) behind Caddy reverse proxy on `umi`.
 
 ---
 
 ## 3. High-Leverage Deterministic AI Integration
 
-KOSHI replaces conversational chat wrappers with deterministic, schema-enforced compilers:
+KOSHI replaces conversational chat wrappers with structured AI services:
 
-### 3.1. AI Task Decomposition Compiler (`aiDecomposer.ts`)
-Transforms unstructured engineering goals into dependency-linked subtask graphs:
-```json
-{
-  "goal": "Implement JWT Auth State Machine",
-  "rationale": "Decomposing authentication workflow into token schemas, middleware, and route guards.",
-  "subtasks": [
-    {
-      "title": "Define Auth State Machine & Token Schema",
-      "description": "Implement token schemas and refresh lifecycles.",
-      "priority": "HIGH",
-      "complexity": "M",
-      "acceptanceCriteria": ["Valid signature check", "Auto-refresh on 401"],
-      "dependsOnTitles": []
-    }
-  ]
-}
-```
+### 3.1. Task Decomposer
+Transforms unstructured engineering goals into structured, dependency-linked subtask graphs with complexity ratings.
 
-### 3.2. Git Diff State Synchronizer (`gitParser.ts`)
-Parses commit messages and diff headers (e.g. `feat(auth): resolve #TSK-101`) to automatically close tickets and flag unaddressed edge cases.
+### 3.2. Weekly Progress Summary
+Generates structured executive summaries categorizing completed milestones, active bottlenecks, and immediate sprint priorities.
 
-### 3.3. Topological DAG Critical Path Evaluator (`dagSorter.ts`)
-Constructs an adjacency graph of task dependencies, checks for circular cycles via Kahn's algorithm, and computes the longest execution path weighted by complexity ($S=1, M=2, L=3, XL=5$), flagging true project bottlenecks with the `Flame` indicator.
+### 3.3. Meeting Minutes Generator
+Parses conversational meeting transcripts to extract attendees, recorded decisions, key discussions, and auto-generated actionable tasks.
+
+### 3.4. Team Workload & Smart Assignment
+Evaluates developer skill matches, current active WIP count, and complexity points to balance team velocity.
+
+### 3.5. Git Diff State Synchronizer
+Parses Unified Git Diffs and commit messages (e.g. `feat: resolve #TSK-101`) to automatically transition task states.
+
+### 3.6. Topological DAG Critical Path Evaluator
+Constructs an adjacency graph of task dependencies, checks for circular dependencies via Kahn's algorithm, and computes the longest complexity-weighted path ($S=1, M=2, L=3, XL=5$), flagging bottlenecks with the `Flame` indicator.
 
 ---
 
@@ -119,78 +112,55 @@ Constructs an adjacency graph of task dependencies, checks for circular cycles v
 ### 4.1. Desktop Keyboard Shortcuts
 | Key | Action | Scope |
 | :--- | :--- | :--- |
-| `j` / `↓` | Select next task | Table navigation |
-| `k` / `↑` | Select previous task | Table navigation |
-| `Space` | Cycle task status (`TODO` $\rightarrow$ `IN_PROG` $\rightarrow$ `BLOCKED` $\rightarrow$ `DONE`) | State mutation |
-| `Enter` | Inline title edit mode | Active row |
-| `d` | Delete selected task | Active row |
+| `b` | Toggle Table / Kanban View | Global |
+| `h` / `l` / `←` / `→` | Move left / right between columns | Kanban view |
+| `j` / `k` / `↓` / `↑` | Move down / up across tasks / rows | Global |
+| `H` / `L` | Shift selected task to adjacent status column | Kanban view |
+| `Space` | Cycle task status (`TODO` $\rightarrow$ `IN_PROG` $\rightarrow$ `BLOCKED` $\rightarrow$ `DONE` $\rightarrow$ `TODO`) | Active task |
+| `Enter` | Inline title edit mode | Active task |
+| `d` / `Backspace` | Delete selected task | Active task |
 | `c` | Open task creation modal | Global |
-| `1` - `4` | Set priority (`1`: LOW, `2`: MED, `3`: HIGH, `4`: CRITICAL) | Active row |
-| `/` | Focus search bar | Global |
-| `a` | Open AI Decomposer modal | Global |
+| `1` - `4` | Set priority (`1`: LOW, `2`: MED, `3`: HIGH, `4`: CRITICAL) | Active task |
+| `/` | Focus search filter | Global |
+| `a` | Open Task Decomposer modal | Global |
 | `g` | Open Git Diff analyzer modal | Global |
 | `v` | Open Topological DAG visualizer | Global |
-| `?` | Open shortcuts help modal | Global |
-| `Esc` | Cancel edit / dismiss modal / unfocus search | Global |
-
-### 4.2. Mobile Touch Gestures
-* **Tap Status Badge**: Cycle state instantly.
-* **Double-Tap Title**: Enter inline edit mode.
-* **Swipe Right ($>75\text{px}$)**: Mark task `DONE`.
-* **Swipe Left ($<-75\text{px}$)**: Flag task `BLOCKED` / Delete.
-* **Floating Bottom Thumb Bar**: 5 tactile actions (`Search`, `AI`, `+ New`, `DAG`, `Diff`).
+| `t` | Toggle Light / Dark mode (0ms snap) | Global |
+| `?` | Open keyboard shortcuts help modal | Global |
+| `Esc` | Cancel edit / dismiss modal / unfocus search | Global (Capture-phase) |
 
 ---
 
-## 5. Honest Evaluation & Technical Drawbacks
+## 5. Specification Documents
 
-| Dimension | Strength in Koshi | Drawback / Limitation | Mitigation Roadmap |
-| :--- | :--- | :--- | :--- |
-| **Multi-User Collaboration** | Instant single-player speed; zero server dependency. | No real-time multi-user CRDT synchronization (single-device local state). | Integrate Yjs / Automerge over WebSockets for multi-peer syncing. |
-| **AI Processing** | Zero-latency, deterministic schema output; zero hallucinations. | Offline heuristics cannot process open-ended domain queries without cloud LLMs. | Add optional OpenAI/Ollama API endpoint hook with structured JSON mode. |
-| **Storage Persistence** | Fast IndexedDB local-first storage; lossless JSON backup. | Browser cache clearing purges unexported state. | Implement Origin Private File System (OPFS) SQLite WASM backend. |
-| **Media Attachments** | Ultra-lightweight memory footprint ($<15\text{MB}$). | No binary image/video hosting inside tasks. | Add S3/Blob storage link attachment support. |
+Detailed requirement matrices, IEEE 29148 functional specifications, and non-functional guarantees are maintained in [URD_SRS.md](./URD_SRS.md).
 
 ---
 
-## 6. SDLC Traceability & Verification Matrix
+## 6. Development & Deployment
 
-* **KT1 (Domain & Schema Design)**: Implemented typed task entity model with 4-state deterministic transitions, metadata fields, and IndexedDB persistence.
-* **KT2 (Reactive CRUD & Telemetry)**: Built Svelte 5 Direct-DOM table view with sub-50ms optimistic updates and real-time latency/RAM telemetry.
-* **KT3 (AI Prompts & Conflict Resolution)**: Engineered AI goal decomposer, Git diff synchronizer, and topological DAG critical-path algorithm.
-* **Cuối kỳ (Deployment & Deliverables)**: Production container packaged with Alpine/Nginx and deployed at `https://koshi.felixsu.qzz.io`.
-
----
-
-## 7. Development & Deployment
-
-### 7.1. Local Development
+### 6.1. Local Development
 ```bash
-# Install dependencies
-npm install
+# Frontend
+pnpm install
+pnpm run dev
 
-# Start Vite development server
-npm run dev
+# Backend
+cd backend
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
 ```
 
-### 7.2. Production Build
+### 6.2. Production Build
 ```bash
-# Build optimized static assets
-npm run build
-```
-
-### 7.3. Docker Container Deployment
-```bash
-# Build Docker image
-docker build -t koshi:latest .
-
-# Run container behind proxy (port 80)
-docker run -d --name koshi -p 8080:80 koshi:latest
+pnpm run build
 ```
 
 ---
 
-## 8. License & Authorship
+## 7. License & Authorship
 
-Developed by **felixsu** (`me@felixsu.qzz.io`).  
+Developed by **Felix Anderson** (`me@felixsu.qzz.io`).  
 Released under the **MIT License**.
