@@ -22,11 +22,34 @@ export const useThemeStore = defineStore('themeStore', () => {
   function applyTheme() {
     if (typeof document === 'undefined') return;
     const root = document.documentElement;
+
+    // 1. Inject temporary style to kill transitions on all elements
+    const css = document.createElement('style');
+    css.appendChild(
+      document.createTextNode(
+        `*, *::before, *::after {
+          -webkit-transition: none !important;
+          -moz-transition: none !important;
+          -o-transition: none !important;
+          -ms-transition: none !important;
+          transition: none !important;
+        }`
+      )
+    );
+    document.head.appendChild(css);
+
+    // 2. Toggle class
     if (resolvedTheme.value === 'dark') {
       root.classList.add('dark');
     } else {
       root.classList.remove('dark');
     }
+
+    // 3. Force reflow to commit layout instantly
+    void window.getComputedStyle(css).opacity;
+
+    // 4. Remove freeze rule
+    document.head.removeChild(css);
   }
 
   function setTheme(mode: ThemeMode) {

@@ -196,7 +196,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
       <div
         v-for="(task, idx) in taskStore.filteredTasks"
         :key="task.id"
-        class="group relative touch-card select-none h-[44px] md:h-[38px] flex items-center transition-colors duration-75"
+        class="group relative touch-card select-none h-[44px] md:h-[38px] flex items-center"
         :class="idx === taskStore.selectedIndex ? 'bg-indigo-50 dark:bg-slate-800/80 border-l-2 border-indigo-600 dark:border-slate-400' : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'"
         style="touch-action: pan-y;"
         @pointerdown="(e) => handlePointerDown(e, task)"

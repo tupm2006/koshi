@@ -106,7 +106,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 </script>
 
 <template>
-  <div class="min-h-screen min-h-[100dvh] flex flex-col bg-slate-200 text-slate-950 dark:bg-slate-950 dark:text-slate-100 font-sans transition-colors duration-150 safe-top pb-24 md:pb-6">
+  <div class="min-h-screen min-h-[100dvh] flex flex-col bg-slate-200 text-slate-950 dark:bg-slate-950 dark:text-slate-100 font-sans safe-top pb-24 md:pb-6">
     <!-- Minimal Top Navigation Bar -->
     <header class="border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 sticky top-0 z-30 px-3 md:px-4 py-2 shadow-xs">
       <div class="w-full flex items-center justify-between gap-2">
