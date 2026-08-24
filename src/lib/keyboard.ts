@@ -45,23 +45,70 @@ export function createKeyboardHandler(callbacks: KeyboardState) {
       return;
     }
 
-    // Handle shortcuts
+    // Handle shift-modified keys first
+    if (event.key === 'H' || (event.shiftKey && (event.key === 'h' || event.key === 'H'))) {
+      if (taskStore.viewMode === 'KANBAN') {
+        event.preventDefault();
+        taskStore.shiftActiveKanbanTask('left');
+        return;
+      }
+    }
+
+    if (event.key === 'L' || (event.shiftKey && (event.key === 'l' || event.key === 'L'))) {
+      if (taskStore.viewMode === 'KANBAN') {
+        event.preventDefault();
+        taskStore.shiftActiveKanbanTask('right');
+        return;
+      }
+    }
+
+    // Handle standard shortcuts
     switch (event.key) {
+      case 'b': // View toggle (Table / Kanban)
+        event.preventDefault();
+        taskStore.toggleViewMode();
+        break;
+
       case 't': // Toggle Light / Dark theme
         event.preventDefault();
         themeStore.toggleTheme();
         break;
 
+      // Spatial navigation: Mode-aware
+      case 'h':
+      case 'ArrowLeft':
+        if (taskStore.viewMode === 'KANBAN') {
+          event.preventDefault();
+          taskStore.moveKanbanCursor('left');
+        }
+        break;
+
+      case 'l':
+      case 'ArrowRight':
+        if (taskStore.viewMode === 'KANBAN') {
+          event.preventDefault();
+          taskStore.moveKanbanCursor('right');
+        }
+        break;
+
       case 'j':
       case 'ArrowDown':
         event.preventDefault();
-        taskStore.selectNext();
+        if (taskStore.viewMode === 'KANBAN') {
+          taskStore.moveKanbanCursor('down');
+        } else {
+          taskStore.selectNext();
+        }
         break;
 
       case 'k':
       case 'ArrowUp':
         event.preventDefault();
-        taskStore.selectPrev();
+        if (taskStore.viewMode === 'KANBAN') {
+          taskStore.moveKanbanCursor('up');
+        } else {
+          taskStore.selectPrev();
+        }
         break;
 
       case ' ': // Space: cycle status

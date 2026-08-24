@@ -81,6 +81,8 @@ export const useTaskStore = defineStore('taskStore', {
   state: () => ({
     tasks: [] as Task[],
     selectedIndex: 0,
+    kanbanColIndex: 0,
+    kanbanRowIndex: 0,
     editingTaskId: null as string | null,
     isLoaded: false,
     lastLatencyMs: 0,
@@ -125,7 +127,38 @@ export const useTaskStore = defineStore('taskStore', {
       return result;
     },
 
+    tasksByColumn(): Record<TaskStatus, Task[]> {
+      const cols: Record<TaskStatus, Task[]> = {
+        TODO: [],
+        IN_PROGRESS: [],
+        BLOCKED: [],
+        DONE: [],
+      };
+      for (const task of this.filteredTasks) {
+        if (cols[task.status]) {
+          cols[task.status].push(task);
+        }
+      }
+      return cols;
+    },
+
+    currentColumnTasks(): Task[] {
+      const statuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'];
+      const status = statuses[this.kanbanColIndex] || 'TODO';
+      return this.tasksByColumn[status] || [];
+    },
+
+    activeKanbanTask(): Task | null {
+      const tasks = this.currentColumnTasks;
+      if (tasks.length === 0) return null;
+      const row = Math.max(0, Math.min(this.kanbanRowIndex, tasks.length - 1));
+      return tasks[row] || null;
+    },
+
     selectedTask(): Task | null {
+      if (this.viewMode === 'KANBAN') {
+        return this.activeKanbanTask;
+      }
       const list = this.filteredTasks;
       if (list.length === 0) return null;
       const clamped = Math.max(0, Math.min(this.selectedIndex, list.length - 1));
@@ -232,6 +265,41 @@ export const useTaskStore = defineStore('taskStore', {
 
     selectPrev() {
       this.selectTask(this.selectedIndex - 1);
+    },
+
+    moveKanbanCursor(direction: 'up' | 'down' | 'left' | 'right') {
+      if (direction === 'left') {
+        this.kanbanColIndex = Math.max(0, this.kanbanColIndex - 1);
+        const colLen = this.currentColumnTasks.length;
+        if (colLen > 0 && this.kanbanRowIndex >= colLen) {
+          this.kanbanRowIndex = colLen - 1;
+        }
+      } else if (direction === 'right') {
+        this.kanbanColIndex = Math.min(3, this.kanbanColIndex + 1);
+        const colLen = this.currentColumnTasks.length;
+        if (colLen > 0 && this.kanbanRowIndex >= colLen) {
+          this.kanbanRowIndex = colLen - 1;
+        }
+      } else if (direction === 'up') {
+        this.kanbanRowIndex = Math.max(0, this.kanbanRowIndex - 1);
+      } else if (direction === 'down') {
+        const colLen = this.currentColumnTasks.length;
+        if (colLen > 0) {
+          this.kanbanRowIndex = Math.min(colLen - 1, this.kanbanRowIndex + 1);
+        }
+      }
+    },
+
+    shiftActiveKanbanTask(direction: 'left' | 'right') {
+      const task = this.activeKanbanTask;
+      if (!task) return;
+      const statuses: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'];
+      const curIdx = statuses.indexOf(task.status);
+      const nextIdx = direction === 'left' ? curIdx - 1 : curIdx + 1;
+      if (nextIdx >= 0 && nextIdx < statuses.length) {
+        this.setStatus(task.id, statuses[nextIdx]);
+        this.kanbanColIndex = nextIdx;
+      }
     },
 
     createTask(title: string, priority: TaskPriority = 'MEDIUM', status: TaskStatus = 'TODO'): Task | null {

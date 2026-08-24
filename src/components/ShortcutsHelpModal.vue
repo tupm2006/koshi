@@ -6,9 +6,9 @@ const emit = defineEmits<{
 }>();
 
 const SHORTCUTS = [
-  { key: 't', desc: 'Toggle Light / Dark Theme Mode' },
-  { key: 'j / ↓', desc: 'Select Next Task' },
-  { key: 'k / ↑', desc: 'Select Previous Task' },
+  { key: 'b', desc: 'Toggle Table / Kanban View' },
+  { key: 'h / j / k / l', desc: 'Vim Spatial Navigation (2D Kanban / Table Rows)' },
+  { key: 'H / L', desc: 'Shift Selected Task Left / Right across Columns' },
   { key: 'Space', desc: 'Cycle Task Status (TODO → IN_PROGRESS → BLOCKED → DONE)' },
   { key: 'Enter', desc: 'Inline Rename / Title Edit' },
   { key: 'd / Backspace', desc: 'Delete Selected Task' },
@@ -18,6 +18,7 @@ const SHORTCUTS = [
   { key: 'a', desc: 'Open Task Decomposer' },
   { key: 'g', desc: 'Open Git Diff Parser' },
   { key: 'v', desc: 'Open DAG Visualizer & Critical Path' },
+  { key: 't', desc: 'Toggle Light / Dark Theme Mode' },
   { key: '?', desc: 'Show Keyboard Shortcuts' },
   { key: 'Esc', desc: 'Exit editing / Dismiss dialogs' },
 ];

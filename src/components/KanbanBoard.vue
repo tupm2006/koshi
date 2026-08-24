@@ -60,6 +60,7 @@ function moveStatus(task: Task, direction: 'left' | 'right') {
   const nextIndex = direction === 'left' ? currentIndex - 1 : currentIndex + 1;
   if (nextIndex >= 0 && nextIndex < statuses.length) {
     taskStore.setStatus(task.id, statuses[nextIndex]);
+    taskStore.kanbanColIndex = nextIndex;
   }
 }
 
@@ -77,25 +78,32 @@ function handleDragOver(e: DragEvent) {
   }
 }
 
-function handleDrop(e: DragEvent, targetStatus: TaskStatus) {
+function handleDrop(e: DragEvent, targetStatus: TaskStatus, colIndex: number) {
   e.preventDefault();
   if (e.dataTransfer) {
     const taskId = e.dataTransfer.getData('text/plain');
     if (taskId) {
       taskStore.setStatus(taskId, targetStatus);
+      taskStore.kanbanColIndex = colIndex;
     }
   }
+}
+
+function selectCard(task: Task, colIndex: number, rowIndex: number) {
+  taskStore.kanbanColIndex = colIndex;
+  taskStore.kanbanRowIndex = rowIndex;
 }
 </script>
 
 <template>
   <div class="h-full grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
     <div
-      v-for="col in COLUMNS"
+      v-for="(col, colIndex) in COLUMNS"
       :key="col.status"
-      class="flex flex-col h-full max-h-full bg-slate-200/60 dark:bg-slate-900/80 border border-slate-300 dark:border-slate-800 rounded-lg p-3 shadow-2xs"
+      class="flex flex-col h-full max-h-full bg-slate-200/60 dark:bg-slate-900/80 border rounded-lg p-3 shadow-2xs transition-colors"
+      :class="taskStore.kanbanColIndex === colIndex ? 'border-slate-400 dark:border-slate-700' : 'border-slate-300 dark:border-slate-800'"
       @dragover="handleDragOver"
-      @drop="(e) => handleDrop(e, col.status)"
+      @drop="(e) => handleDrop(e, col.status, colIndex)"
       role="region"
       :aria-label="`${col.label} column`"
     >
@@ -120,11 +128,15 @@ function handleDrop(e: DragEvent, targetStatus: TaskStatus) {
         </div>
 
         <div
-          v-for="task in taskStore.filteredTasks.filter((t) => t.status === col.status)"
+          v-for="(task, rowIndex) in taskStore.filteredTasks.filter((t) => t.status === col.status)"
           :key="task.id"
-          class="group bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 border border-slate-300 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 rounded-md p-3 transition shadow-xs cursor-grab active:cursor-grabbing select-none"
+          class="group rounded-md p-3 shadow-xs cursor-grab active:cursor-grabbing select-none transition-colors border"
+          :class="task.id === taskStore.activeKanbanTask?.id
+            ? 'ring-2 ring-indigo-500 dark:ring-indigo-400 bg-indigo-50/80 dark:bg-slate-800 border-indigo-400 dark:border-slate-600'
+            : 'bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-400 dark:hover:border-slate-700'"
           draggable="true"
           @dragstart="(e) => handleDragStart(e, task.id)"
+          @click="selectCard(task, colIndex, rowIndex)"
           role="article"
         >
           <!-- Top Row: ID & Badges -->
@@ -152,7 +164,7 @@ function handleDrop(e: DragEvent, targetStatus: TaskStatus) {
           </div>
 
           <!-- Footer Row -->
-          <div class="flex items-center justify-between text-xs font-mono text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-700/60">
+          <div class="flex items-center justify-between text-xs font-mono text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
             <div class="flex items-center gap-1">
               <Clock v-if="task.dueDate" class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
               <span v-if="task.dueDate">{{ new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }}</span>
@@ -165,8 +177,8 @@ function handleDrop(e: DragEvent, targetStatus: TaskStatus) {
                 v-if="col.status !== 'TODO'"
                 type="button"
                 class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
-                @click="moveStatus(task, 'left')"
-                title="Move left"
+                @click.stop="moveStatus(task, 'left')"
+                title="Move left (H)"
               >
                 <ChevronLeft class="w-3.5 h-3.5" />
               </button>
@@ -174,8 +186,8 @@ function handleDrop(e: DragEvent, targetStatus: TaskStatus) {
                 v-if="col.status !== 'DONE'"
                 type="button"
                 class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
-                @click="moveStatus(task, 'right')"
-                title="Move right"
+                @click.stop="moveStatus(task, 'right')"
+                title="Move right (L)"
               >
                 <ChevronRight class="w-3.5 h-3.5" />
               </button>
