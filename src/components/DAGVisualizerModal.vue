@@ -22,7 +22,7 @@ const taskStore = useTaskStore();
             <GitFork class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 font-mono">DAG Execution Order & Critical Path</h2>
+            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">DAG Execution Order & Critical Path</h2>
             <p class="text-[11px] text-slate-500 dark:text-slate-400">Topological Sort graph & unblock sequencing</p>
           </div>
         </div>
@@ -42,7 +42,7 @@ const taskStore = useTaskStore();
         </div>
 
         <div class="space-y-2">
-          <h4 class="font-mono text-slate-500 dark:text-slate-400 uppercase text-[10px] tracking-wider font-semibold">Topological Execution Pipeline:</h4>
+          <h4 class="font-mono text-slate-500 dark:text-slate-400 uppercase text-[11px] tracking-wider font-semibold">Topological Execution Pipeline:</h4>
           <div class="space-y-2">
             <div
               v-for="(task, idx) in taskStore.dagOrder"
@@ -55,7 +55,7 @@ const taskStore = useTaskStore();
                 <span class="font-mono text-slate-500 dark:text-slate-400 text-[11px]">{{ task.id }}</span>
                 <span class="font-medium text-slate-800 dark:text-slate-200 truncate">{{ task.title }}</span>
               </div>
-              <div class="flex items-center gap-2 shrink-0 font-mono text-[10px]">
+              <div class="flex items-center gap-2 shrink-0 font-mono text-[11px]">
                 <span v-if="taskStore.criticalPathIds.has(task.id)" class="text-rose-600 dark:text-rose-400 flex items-center gap-1 font-semibold">
                   <Flame class="w-3 h-3" /> Critical
                 </span>

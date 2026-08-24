@@ -93,7 +93,7 @@ function handleAcceptAll() {
             <Sparkles class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 font-mono">Task Decomposer</h2>
+            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">Task Decomposer</h2>
             <p class="text-[11px] text-slate-500 dark:text-slate-400">Break down goals into subtasks and dependencies</p>
           </div>
         </div>
@@ -126,12 +126,12 @@ function handleAcceptAll() {
 
         <!-- Quick Prompts -->
         <div class="flex flex-wrap gap-1.5 items-center pt-1">
-          <span class="text-[10px] text-slate-500 dark:text-slate-400 font-mono">Presets:</span>
+          <span class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">Presets:</span>
           <button
             v-for="s in SUGGESTIONS"
             :key="s"
             type="button"
-            class="text-[10px] font-mono px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition cursor-pointer"
+            class="text-[11px] font-mono px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition cursor-pointer"
             @click="handleDecompose(s)"
           >
             {{ s }}
@@ -160,7 +160,7 @@ function handleAcceptAll() {
             >
               <div class="flex items-center justify-between gap-2">
                 <span class="font-medium text-xs text-slate-900 dark:text-slate-200 font-sans">{{ subtask.title }}</span>
-                <div class="flex items-center gap-1.5 shrink-0 font-mono text-[10px]">
+                <div class="flex items-center gap-1.5 shrink-0 font-mono text-[11px]">
                   <span v-if="subtask.complexity" class="px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400 font-medium">
                     [{{ subtask.complexity }}]
                   </span>
@@ -170,7 +170,7 @@ function handleAcceptAll() {
                 </div>
               </div>
               <p class="text-[11px] text-slate-600 dark:text-slate-400 leading-normal">{{ subtask.description }}</p>
-              <div v-if="subtask.dependsOnTitles && subtask.dependsOnTitles.length > 0" class="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono flex items-center gap-1">
+              <div v-if="subtask.dependsOnTitles && subtask.dependsOnTitles.length > 0" class="text-[11px] text-indigo-600 dark:text-indigo-400 font-mono flex items-center gap-1">
                 <ArrowRight class="w-3 h-3" />
                 <span>Depends on: {{ subtask.dependsOnTitles.join(', ') }}</span>
               </div>

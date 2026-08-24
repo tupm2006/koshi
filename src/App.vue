@@ -223,7 +223,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
                 <Sparkles class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                 <div class="flex flex-col">
                   <span class="font-semibold">Weekly Summary</span>
-                  <span class="text-[10px] text-slate-500 dark:text-slate-400">Progress, blockers & priorities</span>
+                  <span class="text-[11px] text-slate-500 dark:text-slate-400">Progress, blockers & priorities</span>
                 </div>
               </button>
 
@@ -235,7 +235,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
                 <FileText class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
                 <div class="flex flex-col">
                   <span class="font-semibold">Meeting Minutes</span>
-                  <span class="text-[10px] text-slate-500 dark:text-slate-400">Action items & decisions</span>
+                  <span class="text-[11px] text-slate-500 dark:text-slate-400">Action items & decisions</span>
                 </div>
               </button>
 
@@ -247,7 +247,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
                 <Users class="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                 <div class="flex flex-col">
                   <span class="font-semibold">Smart Assignment</span>
-                  <span class="text-[10px] text-slate-500 dark:text-slate-400">Capacity & skill matching</span>
+                  <span class="text-[11px] text-slate-500 dark:text-slate-400">Capacity & skill matching</span>
                 </div>
               </button>
 
@@ -262,7 +262,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
                   <Sparkles class="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
                   <span>Goal Decomposer</span>
                 </div>
-                <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] text-slate-500">a</kbd>
+                <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[11px] text-slate-500">a</kbd>
               </button>
             </div>
           </div>
@@ -307,7 +307,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             title="Create Task (c)"
           >
             <Plus class="w-3.5 h-3.5" />
-            <span>New <kbd class="hidden sm:inline opacity-70 text-[10px]">c</kbd></span>
+            <span>New <kbd class="hidden sm:inline opacity-70 text-[11px]">c</kbd></span>
           </button>
         </div>
       </div>

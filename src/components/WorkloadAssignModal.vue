@@ -57,7 +57,7 @@ onMounted(() => {
             <Users class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 font-mono">Workload & Smart Assignment</h2>
+            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">Workload & Smart Assignment</h2>
             <p class="text-[11px] text-slate-500 dark:text-slate-400">Team capacity analysis and assignment recommendations</p>
           </div>
         </div>
@@ -70,7 +70,7 @@ onMounted(() => {
       <div class="flex-1 overflow-y-auto py-4 space-y-4 text-xs">
         <!-- Team Capacity / Workload Grid -->
         <div>
-          <h3 class="font-mono text-slate-500 dark:text-slate-400 font-semibold mb-2 uppercase text-[10px] tracking-wider">Current Team Workload & Skills:</h3>
+          <h3 class="font-mono text-slate-500 dark:text-slate-400 font-semibold mb-2 uppercase text-[11px] tracking-wider">Current Team Workload & Skills:</h3>
           <div v-if="isLoadingWorkload" class="py-4 text-center text-slate-500 dark:text-slate-500 font-mono">Loading team profiles...</div>
           <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div
@@ -81,10 +81,10 @@ onMounted(() => {
             >
               <div class="flex items-center justify-between">
                 <span class="font-bold text-slate-800 dark:text-slate-200 font-mono text-xs">{{ w.full_name }}</span>
-                <span v-if="w.is_overloaded" class="flex items-center gap-1 text-[10px] font-mono text-rose-600 dark:text-rose-400 font-semibold">
+                <span v-if="w.is_overloaded" class="flex items-center gap-1 text-[11px] font-mono text-rose-600 dark:text-rose-400 font-semibold">
                   <AlertTriangle class="w-3 h-3" /> Overloaded
                 </span>
-                <span v-else class="flex items-center gap-1 text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-medium">
+                <span v-else class="flex items-center gap-1 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-medium">
                   <ShieldCheck class="w-3 h-3" /> Optimal
                 </span>
               </div>
@@ -93,7 +93,7 @@ onMounted(() => {
                 <span>Complexity: <strong class="text-slate-900 dark:text-slate-200">{{ w.total_complexity_points }} pts</strong></span>
               </div>
               <div class="flex flex-wrap gap-1 mt-1">
-                <span v-for="skill in w.skills" :key="skill" class="px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400 text-[10px] font-mono">
+                <span v-for="skill in w.skills" :key="skill" class="px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400 text-[11px] font-mono">
                   {{ skill }}
                 </span>
               </div>
@@ -103,7 +103,7 @@ onMounted(() => {
 
         <!-- Recommendation Inputs -->
         <div class="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2.5">
-          <h3 class="font-mono text-slate-500 dark:text-slate-400 font-semibold uppercase text-[10px] tracking-wider">Test Task Assignment Recommendation:</h3>
+          <h3 class="font-mono text-slate-500 dark:text-slate-400 font-semibold uppercase text-[11px] tracking-wider">Test Task Assignment Recommendation:</h3>
           <div>
             <label for="vue-task-assign-title" class="block text-slate-700 dark:text-slate-300 font-mono text-[11px] mb-1 font-medium">Task Title</label>
             <input

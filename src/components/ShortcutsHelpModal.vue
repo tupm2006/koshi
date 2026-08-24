@@ -36,7 +36,7 @@ const SHORTCUTS = [
             <Keyboard class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 font-mono">Keyboard Shortcuts</h2>
+            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">Keyboard Shortcuts</h2>
             <p class="text-[11px] text-slate-500 dark:text-slate-400">Global hotkeys and quick actions</p>
           </div>
         </div>

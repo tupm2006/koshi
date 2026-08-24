@@ -64,7 +64,7 @@ onUnmounted(() => {
     :style="positionStyle"
     @click.stop
   >
-    <div class="px-2 py-1 text-[10px] text-slate-400 dark:text-slate-500 font-bold border-b border-slate-100 dark:border-slate-900 mb-1">
+    <div class="px-2 py-1 text-[11px] text-slate-400 dark:text-slate-500 font-bold border-b border-slate-100 dark:border-slate-900 mb-1">
       {{ task.id }}
     </div>
 
@@ -107,7 +107,7 @@ onUnmounted(() => {
     </button>
 
     <!-- Priority Submenu -->
-    <div class="px-2 py-1 text-[10px] text-slate-400 dark:text-slate-500 font-bold border-t border-slate-100 dark:border-slate-900 mt-1">
+    <div class="px-2 py-1 text-[11px] text-slate-400 dark:text-slate-500 font-bold border-t border-slate-100 dark:border-slate-900 mt-1">
       Priority:
     </div>
     <div class="grid grid-cols-4 gap-1 px-1 py-0.5">

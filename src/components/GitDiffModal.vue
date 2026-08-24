@@ -66,7 +66,7 @@ function handleApplyStatuses() {
             <GitPullRequest class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 font-mono">Git Diff Analysis & Auto-Resolution</h2>
+            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">Git Diff Analysis & Auto-Resolution</h2>
             <p class="text-[11px] text-slate-500 dark:text-slate-400">Map code changes directly to board task states</p>
           </div>
         </div>
@@ -113,7 +113,7 @@ function handleApplyStatuses() {
           <div v-if="result.resolvedTaskIds && result.resolvedTaskIds.length > 0" class="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40">
             <span class="font-mono text-emerald-700 dark:text-emerald-400 font-bold text-[11px]">Tasks to Mark DONE:</span>
             <div class="flex flex-wrap gap-1.5 mt-1.5">
-              <span v-for="id in result.resolvedTaskIds" :key="id" class="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 font-mono text-[10px] font-medium">
+              <span v-for="id in result.resolvedTaskIds" :key="id" class="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 font-mono text-[11px] font-medium">
                 {{ id }}
               </span>
             </div>

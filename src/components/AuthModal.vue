@@ -60,7 +60,7 @@ function handleQuickSwitch(targetEmail: string) {
             <Shield class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 font-mono">
+            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">
               {{ mode === 'LOGIN' ? 'User Authentication' : 'Create Account' }}
             </h2>
             <p class="text-[11px] text-slate-500 dark:text-slate-400">Role-Based Access Control (RBAC)</p>

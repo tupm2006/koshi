@@ -42,7 +42,7 @@ async function handleExtract() {
             <FileText class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 font-mono">Meeting Minutes Generator</h2>
+            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">Meeting Minutes Generator</h2>
             <p class="text-[11px] text-slate-500 dark:text-slate-400">Extract action items and key decisions from notes</p>
           </div>
         </div>
@@ -83,7 +83,7 @@ async function handleExtract() {
         <div v-if="result" class="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800 animate-in fade-in">
           <!-- Main Topics -->
           <div v-if="result.main_topics && result.main_topics.length > 0" class="p-3 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
-            <h4 class="font-mono text-slate-500 dark:text-slate-400 font-semibold mb-1.5 uppercase text-[10px] tracking-wider">Main Topics Discussed:</h4>
+            <h4 class="font-mono text-slate-500 dark:text-slate-400 font-semibold mb-1.5 uppercase text-[11px] tracking-wider">Main Topics Discussed:</h4>
             <ul class="list-disc list-inside space-y-1 text-slate-800 dark:text-slate-200">
               <li v-for="topic in result.main_topics" :key="topic">{{ topic }}</li>
             </ul>
@@ -91,7 +91,7 @@ async function handleExtract() {
 
           <!-- Action Items -->
           <div v-if="result.action_items && result.action_items.length > 0" class="space-y-2">
-            <h4 class="font-mono text-slate-500 dark:text-slate-400 font-semibold uppercase text-[10px] tracking-wider">Extracted Action Items:</h4>
+            <h4 class="font-mono text-slate-500 dark:text-slate-400 font-semibold uppercase text-[11px] tracking-wider">Extracted Action Items:</h4>
             <div class="grid grid-cols-1 gap-2">
               <div
                 v-for="(item, idx) in result.action_items"
@@ -102,7 +102,7 @@ async function handleExtract() {
                   <span class="w-1.5 h-1.5 rounded-full bg-sky-500 shrink-0"></span>
                   <span class="font-medium text-slate-800 dark:text-slate-200 truncate">{{ item.title }}</span>
                 </div>
-                <div class="flex items-center gap-2 shrink-0 font-mono text-[10px]">
+                <div class="flex items-center gap-2 shrink-0 font-mono text-[11px]">
                   <span class="text-slate-600 dark:text-slate-400 flex items-center gap-1">
                     <User class="w-3 h-3 text-slate-400 dark:text-slate-500" />
                     {{ item.assignee_name || 'Unassigned' }}
@@ -117,7 +117,7 @@ async function handleExtract() {
 
           <!-- Key Decisions -->
           <div v-if="result.key_decisions && result.key_decisions.length > 0" class="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-200">
-            <h4 class="font-mono text-emerald-700 dark:text-emerald-400 font-semibold mb-1.5 uppercase text-[10px] tracking-wider">Key Decisions:</h4>
+            <h4 class="font-mono text-emerald-700 dark:text-emerald-400 font-semibold mb-1.5 uppercase text-[11px] tracking-wider">Key Decisions:</h4>
             <ul class="list-disc list-inside space-y-1 text-xs">
               <li v-for="dec in result.key_decisions" :key="dec">{{ dec }}</li>
             </ul>

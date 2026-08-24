@@ -134,7 +134,7 @@ function handleDrop(e: DragEvent, targetStatus: TaskStatus) {
               <span v-if="taskStore.criticalPathIds.has(task.id) && task.status !== 'DONE'" title="Critical Path" class="text-rose-600 dark:text-rose-400">
                 <Flame class="w-3.5 h-3.5" />
               </span>
-              <span class="h-5 px-1.5 inline-flex items-center justify-center rounded-md border text-[10px] uppercase font-bold" :class="getPriorityBadge(task.priority)">
+              <span class="h-5 px-1.5 inline-flex items-center justify-center rounded-md border text-[11px] uppercase font-bold" :class="getPriorityBadge(task.priority)">
                 {{ task.priority.slice(0, 4) }}
               </span>
             </div>
