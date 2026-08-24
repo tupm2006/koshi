@@ -8,7 +8,7 @@
 [![Memory Footprint](https://img.shields.io/badge/Idle%20RAM-%3C15MB-blue?style=flat-square)](#)
 [![Action Latency](https://img.shields.io/badge/Action%20Latency-%3C50ms-cyan?style=flat-square)](#)
 [![Storage](https://img.shields.io/badge/Persistence-Local--First%20IndexedDB-violet?style=flat-square)](#)
-[![Documentation](https://img.shields.io/badge/Specs-URD%20%26%20SRS-indigo?style=flat-square)](./docs/URD_SRS.md)
+[![Documentation](https://img.shields.io/badge/Specs-URD%20%26%20SRS-indigo?style=flat-square)](./docs/URD.md)
 
 ---
 
@@ -134,8 +134,8 @@ Constructs an adjacency graph of task dependencies, checks for circular dependen
 ## 5. Specification Documents
 
 Detailed user requirements, IEEE 29148 functional specifications, and traceability matrices are maintained in:
-- [URD.md](./URD.md) — User Requirements Document
-- [SRS.md](./SRS.md) — System Requirements Specification
+- [docs/URD.md](./docs/URD.md) — User Requirements Document
+- [docs/SRS.md](./docs/SRS.md) — System Requirements Specification
 
 ---
 
