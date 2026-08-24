@@ -50,14 +50,14 @@ function getStatusDot(status: TaskStatus) {
 function getStatusTextColor(status: TaskStatus) {
   switch (status) {
     case 'DONE':
-      return 'text-emerald-700 dark:text-emerald-400';
+      return 'text-emerald-700 dark:text-emerald-400 font-semibold';
     case 'IN_PROGRESS':
-      return 'text-sky-700 dark:text-sky-300';
+      return 'text-sky-700 dark:text-sky-300 font-semibold';
     case 'BLOCKED':
-      return 'text-rose-700 dark:text-rose-300';
+      return 'text-rose-700 dark:text-rose-300 font-semibold';
     case 'TODO':
     default:
-      return 'text-slate-700 dark:text-zinc-400';
+      return 'text-slate-700 dark:text-zinc-400 font-semibold';
   }
 }
 
@@ -229,7 +229,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
               title="Click or Space to cycle"
             >
               <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="getStatusDot(task.status)"></span>
-              <span class="truncate font-semibold">{{ task.status }}</span>
+              <span class="truncate">{{ task.status }}</span>
             </button>
           </div>
 
@@ -321,7 +321,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
             @click.stop="taskStore.cycleStatus(task.id)"
           >
             <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="getStatusDot(task.status)"></span>
-            <span class="font-semibold">{{ task.status === 'IN_PROGRESS' ? 'IN PROG' : task.status }}</span>
+            <span>{{ task.status === 'IN_PROGRESS' ? 'IN PROG' : task.status }}</span>
           </button>
 
           <!-- Center: Title -->
