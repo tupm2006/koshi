@@ -106,9 +106,9 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 </script>
 
 <template>
-  <div class="min-h-screen min-h-[100dvh] flex flex-col bg-slate-200/70 text-slate-900 dark:bg-slate-950 dark:text-slate-100 safe-top pb-24 md:pb-6 font-sans transition-colors duration-150">
+  <div class="min-h-screen min-h-[100dvh] flex flex-col bg-slate-200 text-slate-900 dark:bg-slate-950 dark:text-slate-100 safe-top pb-24 md:pb-6 font-sans transition-colors duration-150">
     <!-- Minimal Top Navigation Bar -->
-    <header class="border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 sticky top-0 z-30 px-3 md:px-4 py-2">
+    <header class="border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 sticky top-0 z-30 px-3 md:px-4 py-2 shadow-xs">
       <div class="w-full flex items-center justify-between gap-2">
         <!-- Brand & Auth Pill -->
         <div class="flex items-center gap-2">
@@ -117,7 +117,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <!-- View Toggle (Table / Kanban) -->
           <button
             type="button"
-            class="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-[10px] font-mono text-slate-700 dark:text-slate-300 cursor-pointer transition"
+            class="flex items-center gap-1 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-[10px] font-mono text-slate-700 dark:text-slate-300 cursor-pointer transition shadow-2xs"
             @click="taskStore.toggleViewMode()"
             title="Toggle Table / Kanban View"
           >
@@ -129,7 +129,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <!-- Auth Status Pill -->
           <button
             type="button"
-            class="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-mono cursor-pointer transition"
+            class="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded border text-[10px] font-mono cursor-pointer transition shadow-2xs"
             :class="taskStore.currentUser ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300' : 'bg-slate-100 dark:bg-slate-900 border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200'"
             @click="isAuthModalOpen = true"
           >
@@ -143,7 +143,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <!-- Mandated AI Feature A: Weekly Summary -->
           <button
             type="button"
-            class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-indigo-700 dark:text-indigo-300 text-xs font-mono cursor-pointer transition"
+            class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-indigo-700 dark:text-indigo-300 text-xs font-mono cursor-pointer transition shadow-2xs"
             @click="isWeeklySummaryOpen = true"
             title="Weekly Summary (Feature A)"
           >
@@ -154,7 +154,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <!-- Mandated AI Feature B: Meeting Minutes -->
           <button
             type="button"
-            class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-sky-700 dark:text-sky-300 text-xs font-mono cursor-pointer transition"
+            class="hidden lg:inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-sky-700 dark:text-sky-300 text-xs font-mono cursor-pointer transition shadow-2xs"
             @click="isMeetingMinutesOpen = true"
             title="Meeting Minutes (Feature B)"
           >
@@ -165,7 +165,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <!-- Mandated AI Feature C: Workload & Assignment -->
           <button
             type="button"
-            class="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-amber-800 dark:text-amber-300 text-xs font-mono cursor-pointer transition"
+            class="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-amber-800 dark:text-amber-300 text-xs font-mono cursor-pointer transition shadow-2xs"
             @click="isWorkloadAssignOpen = true"
             title="Team Workload & Smart Assignment (Feature C)"
           >
@@ -176,7 +176,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <!-- Goal Decomposer AI -->
           <button
             type="button"
-            class="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer transition"
+            class="hidden sm:inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer transition shadow-2xs"
             @click="isAIDecomposerOpen = true"
             title="AI Decomposer (a)"
           >
@@ -186,7 +186,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 
           <button
             type="button"
-            class="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200 text-xs font-mono cursor-pointer transition"
+            class="hidden md:inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200 text-xs font-mono cursor-pointer transition shadow-2xs"
             @click="isDAGOpen = true"
             title="DAG Critical Path (v)"
           >
@@ -196,7 +196,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 
           <button
             type="button"
-            class="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200 text-xs font-mono cursor-pointer transition"
+            class="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200 text-xs font-mono cursor-pointer transition shadow-2xs"
             @click="isExportImportOpen = true"
             title="JSON Backup"
           >
@@ -206,7 +206,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <!-- Theme Toggle Button -->
           <button
             type="button"
-            class="inline-flex items-center justify-center p-1.5 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer transition"
+            class="inline-flex items-center justify-center p-1.5 rounded bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-800 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer transition shadow-2xs"
             @click="themeStore.toggleTheme()"
             :title="`Toggle Theme (t) - Current: ${themeStore.resolvedTheme}`"
           >
@@ -228,7 +228,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
     </header>
 
     <!-- Filter & Search Toolbar (Edge to Edge) -->
-    <section class="w-full border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 md:px-4 py-1.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+    <section class="w-full border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 md:px-4 py-1.5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 shadow-2xs">
       <!-- Search Input -->
       <div class="relative flex-1 max-w-md">
         <Search class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -237,7 +237,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           v-model="taskStore.filter.searchQuery"
           type="text"
           placeholder="Filter tasks... (Press /)"
-          class="w-full bg-slate-50 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800 rounded pl-8 pr-6 py-1 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 dark:focus:border-slate-600 font-sans shadow-xs"
+          class="w-full bg-slate-50 dark:bg-slate-900/60 border border-slate-300 dark:border-slate-800 rounded pl-8 pr-6 py-1 text-xs text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 dark:focus:border-slate-600 font-sans shadow-2xs"
         />
         <button
           v-if="taskStore.filter.searchQuery"
@@ -256,7 +256,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           :key="st"
           type="button"
           class="px-2 py-0.5 rounded transition cursor-pointer shrink-0"
-          :class="taskStore.filter.status === st && !taskStore.filter.onlyCriticalPath ? 'bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-100 font-semibold border border-slate-300 dark:border-transparent' : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200'"
+          :class="taskStore.filter.status === st && !taskStore.filter.onlyCriticalPath ? 'bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-100 font-semibold border border-slate-300 dark:border-transparent shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200'"
           @click="() => {
             if (taskStore.filter.onlyCriticalPath) taskStore.toggleCriticalPathOnly();
             taskStore.setFilterStatus(st);
@@ -268,7 +268,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
         <button
           type="button"
           class="ml-1 inline-flex items-center gap-1 px-2 py-0.5 rounded transition cursor-pointer shrink-0"
-          :class="taskStore.filter.onlyCriticalPath ? 'bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/50 font-semibold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200'"
+          :class="taskStore.filter.onlyCriticalPath ? 'bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/50 font-semibold shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:text-slate-950 dark:hover:text-slate-200'"
           @click="taskStore.toggleCriticalPathOnly()"
           title="Toggle Critical Path Only"
         >
