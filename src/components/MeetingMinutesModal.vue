@@ -39,11 +39,11 @@ async function handleExtract() {
             <FileText class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 font-mono">Meeting Minutes & Action Items Generator</h2>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">Mandated Feature B: Unstructured meeting notes extraction</p>
+            <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 font-mono">Meeting Minutes Generator</h2>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Extract action items and key decisions from notes</p>
           </div>
         </div>
-        <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="onClose">
+        <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="onClose">
           <X class="w-5 h-5" />
         </button>
       </div>

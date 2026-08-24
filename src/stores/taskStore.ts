@@ -37,7 +37,7 @@ const INITIAL_TASKS: Task[] = [
   {
     id: 'TSK-103',
     title: 'Build local-first IndexedDB persistence layer',
-    description: 'Ensure offline zero-latency execution with background non-blocking persistence.',
+    description: 'Ensure offline execution with background non-blocking persistence.',
     status: 'DONE',
     priority: 'HIGH',
     assignee: 'felixsu',

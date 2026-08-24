@@ -126,7 +126,7 @@ export class ApiClient {
     });
   }
 
-  // AI Mandated Features
+  // AI Workflows & Analysis
   async getWeeklySummary(projectId: number = 1): Promise<{ status: string; summary: string }> {
     return this.request<{ status: string; summary: string }>(`/ai/weekly-summary?project_id=${projectId}`, {
       method: 'POST',

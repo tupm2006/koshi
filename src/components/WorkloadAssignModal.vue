@@ -54,11 +54,11 @@ onMounted(() => {
             <Users class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 font-mono">Skill & Workload-Based Assignment Recommendation</h2>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">Mandated Feature C: Workload distribution & smart task routing</p>
+            <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 font-mono">Workload & Smart Assignment</h2>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Team capacity analysis and assignment recommendations</p>
           </div>
         </div>
-        <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="onClose">
+        <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="onClose">
           <X class="w-5 h-5" />
         </button>
       </div>
@@ -121,13 +121,13 @@ onMounted(() => {
           </div>
           <button
             type="button"
-            class="w-full py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white dark:text-slate-950 font-mono font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition disabled:opacity-50"
-            @click="handleRecommend"
+            class="h-8 w-full rounded-md bg-amber-600 hover:bg-amber-500 text-white font-mono font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition disabled:opacity-50"
             :disabled="isLoadingRec || !taskTitle.trim()"
+            @click="handleRecommend"
           >
-            <RefreshCw v-if="isLoadingRec" class="w-4 h-4 animate-spin" />
-            <Sparkles v-else class="w-4 h-4" />
-            <span>{{ isLoadingRec ? 'Evaluating Workloads & Skill Graph...' : 'Generate AI Recommendation' }}</span>
+            <RefreshCw v-if="isLoadingRec" class="w-3.5 h-3.5 animate-spin" />
+            <Sparkles v-else class="w-3.5 h-3.5" />
+            <span>{{ isLoadingRec ? 'Analyzing Skills & Capacity...' : 'Recommend Assignee' }}</span>
           </button>
         </div>
 

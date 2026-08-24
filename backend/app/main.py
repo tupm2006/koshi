@@ -18,14 +18,14 @@ def seed_initial_data():
                 hashed_password=get_password_hash("koshi123"),
                 full_name="Felix Anderson (PM)",
                 role=RoleEnum.PM,
-                skills="management,system_architecture,python,fastapi,svelte"
+                skills="management,architecture,python,fastapi,vue"
             )
             member_user = User(
                 email="dev@felixsu.qzz.io",
                 hashed_password=get_password_hash("koshi123"),
                 full_name="Dev Member",
                 role=RoleEnum.MEMBER,
-                skills="frontend,svelte,tailwind,javascript"
+                skills="frontend,vue,tailwind,typescript"
             )
             db.add(pm_user)
             db.add(member_user)
@@ -36,7 +36,7 @@ def seed_initial_data():
             # Create default Project
             default_proj = Project(
                 name="Koshi Project Management Engine",
-                description="Core high-velocity local-first project management system with Svelte 5 and FastAPI.",
+                description="Core high-velocity local-first project management system with Vue 3 and FastAPI.",
                 owner_id=pm_user.id
             )
             db.add(default_proj)
@@ -48,7 +48,7 @@ def seed_initial_data():
             default_sprint = Sprint(
                 project_id=default_proj.id,
                 name="Sprint 1: Core Architecture & AI Integration",
-                goal="Deliver full-stack project tracking with FastAPI, SQLite, and 3 mandated AI endpoints.",
+                goal="Deliver full-stack project tracking with FastAPI, SQLite, and 3 AI services.",
                 start_date=now,
                 end_date=now + timedelta(days=14),
                 is_active=True
@@ -85,7 +85,7 @@ def seed_initial_data():
                     project_id=default_proj.id,
                     sprint_id=default_sprint.id,
                     assignee_id=pm_user.id,
-                    title="Develop 3 Mandated AI Endpoints (Summary, Minutes, Assignment)",
+                    title="Develop AI Workflow Endpoints (Summary, Minutes, Assignment)",
                     description="Implement OpenAI API cascade with local Ollama fallback and deterministic safety.",
                     status=TaskStatusEnum.IN_PROGRESS,
                     priority=TaskPriorityEnum.HIGH,

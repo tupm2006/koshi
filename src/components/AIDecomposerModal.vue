@@ -90,11 +90,11 @@ function handleAcceptAll() {
             <Sparkles class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 font-mono">Autonomous Goal Decomposer</h2>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">Transform natural language epics into structured subtasks & DAGs</p>
+            <h2 class="text-sm md:text-base font-bold text-slate-900 dark:text-slate-100 font-mono">Task Decomposer</h2>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Break down goals into subtasks and dependencies</p>
           </div>
         </div>
-        <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="emit('close')">
+        <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="emit('close')">
           <X class="w-5 h-5" />
         </button>
       </div>
@@ -105,19 +105,19 @@ function handleAcceptAll() {
           <input
             v-model="goalInput"
             type="text"
-            placeholder="Describe your engineering goal or feature epic..."
-            class="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-sans min-h-[44px]"
+            placeholder="Describe your engineering goal or feature..."
+            class="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-md px-3.5 py-2 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-sans h-8"
             @keydown.enter="handleDecompose()"
           />
           <button
             type="button"
-            class="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center gap-1.5 cursor-pointer transition shadow-xs disabled:opacity-50 min-h-[44px]"
+            class="h-8 px-3.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center gap-1.5 cursor-pointer transition shadow-xs disabled:opacity-50 shrink-0"
             :disabled="isLoading || !goalInput.trim()"
             @click="handleDecompose()"
           >
-            <RefreshCw v-if="isLoading" class="w-4 h-4 animate-spin" />
-            <Sparkles v-else class="w-4 h-4" />
-            <span>{{ isLoading ? 'Decomposing...' : 'Decompose' }}</span>
+            <RefreshCw v-if="isLoading" class="w-3.5 h-3.5 animate-spin" />
+            <Sparkles v-else class="w-3.5 h-3.5" />
+            <span>{{ isLoading ? 'Decomposing...' : 'Decompose Task' }}</span>
           </button>
         </div>
 

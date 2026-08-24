@@ -176,7 +176,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
                 <Sparkles class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                 <div class="flex flex-col">
                   <span class="font-semibold">Weekly Summary</span>
-                  <span class="text-[10px] text-slate-500 dark:text-slate-400">Progress & risks (Feature A)</span>
+                  <span class="text-[10px] text-slate-500 dark:text-slate-400">Progress, blockers & priorities</span>
                 </div>
               </button>
 
@@ -188,7 +188,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
                 <FileText class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
                 <div class="flex flex-col">
                   <span class="font-semibold">Meeting Minutes</span>
-                  <span class="text-[10px] text-slate-500 dark:text-slate-400">Action items (Feature B)</span>
+                  <span class="text-[10px] text-slate-500 dark:text-slate-400">Action items & decisions</span>
                 </div>
               </button>
 
@@ -200,7 +200,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
                 <Users class="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                 <div class="flex flex-col">
                   <span class="font-semibold">Smart Assignment</span>
-                  <span class="text-[10px] text-slate-500 dark:text-slate-400">Workload balancer (Feature C)</span>
+                  <span class="text-[10px] text-slate-500 dark:text-slate-400">Capacity & skill matching</span>
                 </div>
               </button>
 
