@@ -28,7 +28,6 @@ import {
   Search,
   Flame,
   X,
-  Server,
   Sun,
   Moon
 } from 'lucide-vue-next';
@@ -297,17 +296,20 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
         <span><kbd class="px-1 py-0.2 rounded bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-800 dark:text-slate-400">1-4</kbd> Priority</span>
       </div>
 
-      <div class="flex items-center gap-2 text-slate-700 dark:text-slate-400 font-mono text-[11px] ml-auto">
-        <span class="flex items-center gap-1">
-          <Server class="w-3 h-3" :class="taskStore.isBackendConnected ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-500 dark:text-zinc-600'" />
-          <span>{{ taskStore.isBackendConnected ? 'FastAPI Connected' : 'Local IndexedDB' }}</span>
+      <div class="flex items-center gap-2.5 font-mono text-[11px] ml-auto">
+        <!-- Offline Warning Badge (ONLY visible if disconnected) -->
+        <span
+          v-if="!taskStore.isBackendConnected"
+          class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/60 font-semibold"
+        >
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+          <span>Offline (Local buffer)</span>
         </span>
-        <span>•</span>
-        <span>Latency: {{ taskStore.lastLatencyMs || '<0.5' }}ms</span>
-        <span>•</span>
+
+        <!-- Reset action -->
         <button
           type="button"
-          class="hover:text-slate-950 dark:hover:text-slate-200 underline cursor-pointer font-medium"
+          class="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer font-medium"
           @click="taskStore.resetToDefault()"
         >
           Reset sample

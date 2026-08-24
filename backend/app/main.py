@@ -74,7 +74,7 @@ def seed_initial_data():
                     project_id=default_proj.id,
                     sprint_id=default_sprint.id,
                     assignee_id=member_user.id,
-                    title="Integrate Svelte 5 runes with JWT Bearer Token API sync",
+                    title="Integrate Vue 3 Composition API with JWT Bearer Token API sync",
                     description="Connect frontend task store with backend authentication and CRUD endpoints.",
                     status=TaskStatusEnum.IN_PROGRESS,
                     priority=TaskPriorityEnum.CRITICAL,
