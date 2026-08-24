@@ -69,6 +69,51 @@ const keyboard = createKeyboardHandler({
   },
 });
 
+function closeAllModals() {
+  const hadOpenModal =
+    isAIDecomposerOpen.value ||
+    isWeeklySummaryOpen.value ||
+    isMeetingMinutesOpen.value ||
+    isWorkloadAssignOpen.value ||
+    isAuthModalOpen.value ||
+    isGitDiffOpen.value ||
+    isDAGOpen.value ||
+    isShortcutsHelpOpen.value ||
+    isCreateModalOpen.value ||
+    isExportImportOpen.value ||
+    isAIMenuOpen.value;
+
+  isAIDecomposerOpen.value = false;
+  isWeeklySummaryOpen.value = false;
+  isMeetingMinutesOpen.value = false;
+  isWorkloadAssignOpen.value = false;
+  isAuthModalOpen.value = false;
+  isGitDiffOpen.value = false;
+  isDAGOpen.value = false;
+  isShortcutsHelpOpen.value = false;
+  isCreateModalOpen.value = false;
+  isExportImportOpen.value = false;
+  isAIMenuOpen.value = false;
+
+  // Stop inline editing if active
+  if (taskStore.editingTaskId) {
+    taskStore.stopEditing();
+  }
+
+  // If search or any input is focused, blur it
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
+
+  return hadOpenModal;
+}
+
+function handleGlobalEscape(e: KeyboardEvent) {
+  if (e.key === 'Escape') {
+    closeAllModals();
+  }
+}
+
 function handleWindowClick(e: MouseEvent) {
   const target = e.target as HTMLElement;
   if (!target.closest('#ai-menu-container')) {
@@ -80,11 +125,13 @@ onMounted(() => {
   taskStore.init();
   keyboard.mount();
   window.addEventListener('click', handleWindowClick);
+  window.addEventListener('keydown', handleGlobalEscape, true); // Capture phase priority
 });
 
 onUnmounted(() => {
   keyboard.unmount();
   window.removeEventListener('click', handleWindowClick);
+  window.removeEventListener('keydown', handleGlobalEscape, true);
 });
 
 function handleImportJSON() {
@@ -389,7 +436,11 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
     <CreateTaskModal v-if="isCreateModalOpen" @close="isCreateModalOpen = false" />
 
     <!-- JSON Backup / Restore Modal -->
-    <div v-if="isExportImportOpen" class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-100">
+    <div
+      v-if="isExportImportOpen"
+      class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-100"
+      @click.self="isExportImportOpen = false"
+    >
       <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-lg p-4 shadow-2xl border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col">
         <div class="flex items-center justify-between pb-2 border-b border-slate-300 dark:border-slate-800">
           <h2 class="text-xs font-mono font-semibold">JSON Backup & Restore</h2>
