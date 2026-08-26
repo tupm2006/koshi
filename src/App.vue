@@ -113,6 +113,10 @@ function closeAllModals() {
 
 function handleGlobalEscape(e: KeyboardEvent) {
   if (e.key === 'Escape') {
+    // If TaskDetailModal is active, let its internal key handler deal with Edit mode exit first
+    if (taskStore.activeDetailTaskId) {
+      return;
+    }
     closeAllModals();
   }
 }

@@ -198,7 +198,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
         :key="task.id"
         class="group relative touch-card select-none h-10 flex items-center shrink-0 border-l-2 transition-colors duration-75"
         :class="idx === taskStore.selectedIndex
-          ? 'bg-indigo-50/80 dark:bg-slate-800 border-l-indigo-600 dark:border-l-indigo-400'
+          ? 'bg-indigo-50/90 dark:bg-slate-800/90 border-l-indigo-600 dark:border-l-indigo-400 ring-1 ring-inset ring-indigo-500/20 dark:ring-indigo-400/20'
           : 'border-l-transparent hover:bg-slate-50 dark:hover:bg-slate-800/60'"
         style="touch-action: pan-y;"
         @pointerdown="(e) => handlePointerDown(e, task)"
@@ -248,9 +248,9 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
             <button
               v-else
               type="button"
-              class="text-left w-full truncate text-sm font-medium text-slate-950 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-white cursor-text bg-transparent border-0 p-0 font-sans block leading-none"
+              class="text-left w-full truncate text-sm font-medium text-slate-950 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-white cursor-pointer bg-transparent border-0 p-0 font-sans block leading-none"
               @dblclick.stop="startInlineEdit(task)"
-              title="Double click or Enter to edit"
+              title="Double click or 'i' to edit title"
             >
               <span
                 class="truncate block text-sm font-sans"
@@ -297,7 +297,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
                 type="button"
                 class="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer"
                 @click.stop="startInlineEdit(task)"
-                title="Rename (Enter)"
+                title="Rename (i)"
               >
                 <Edit3 class="w-3.5 h-3.5" />
               </button>
