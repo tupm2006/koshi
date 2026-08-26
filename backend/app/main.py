@@ -6,7 +6,7 @@ from app.config import settings
 from app.database import engine, Base, SessionLocal
 from app.models.entities import User, Project, Sprint, Task, RoleEnum, TaskStatusEnum, TaskPriorityEnum
 from app.security import get_password_hash
-from app.routers import auth, projects, sprints, tasks, stats, ai
+from app.routers import auth, users, projects, sprints, tasks, stats, ai
 
 def seed_initial_data():
     db = SessionLocal()
@@ -145,6 +145,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
+app.include_router(users.router, prefix=settings.API_V1_PREFIX)
 app.include_router(projects.router, prefix=settings.API_V1_PREFIX)
 app.include_router(sprints.router, prefix=settings.API_V1_PREFIX)
 app.include_router(tasks.router, prefix=settings.API_V1_PREFIX)

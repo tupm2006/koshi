@@ -25,8 +25,10 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), unique=True, nullable=False, index=True)
-    hashed_password = Column(String(255), nullable=False)
+    hashed_password = Column(String(255), nullable=True)  # Nullable for OAuth accounts
     full_name = Column(String(100), nullable=False)
+    google_id = Column(String(255), unique=True, index=True, nullable=True)
+    avatar_url = Column(String(500), nullable=True)
     role = Column(Enum(RoleEnum), default=RoleEnum.MEMBER, nullable=False)
     skills = Column(String(255), default="frontend,backend,general")  # Comma-separated
     created_at = Column(DateTime, default=datetime.utcnow)

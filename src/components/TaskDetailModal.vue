@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useTaskStore } from '../stores/taskStore';
-import type { Task, TaskPriority, TaskStatus } from '../types/task';
+import type { Task, TaskPriority, TaskStatus, Complexity } from '../types/task';
 import {
   X,
-  Edit3,
-  Check,
-  User,
   AlertCircle,
   Flame,
-  Calendar,
   Layers,
+  ChevronDown,
 } from 'lucide-vue-next';
 
 const props = defineProps<{
@@ -23,7 +20,7 @@ const emit = defineEmits<{
 
 const taskStore = useTaskStore();
 const isEditing = ref(false);
-const descriptionTextareaRef = ref<HTMLTextAreaElement | null>(null);
+const titleInputRef = ref<HTMLInputElement | null>(null);
 
 const task = computed<Task | null>(() => {
   return taskStore.tasks.find((t) => t.id === props.taskId) || null;
@@ -38,12 +35,26 @@ const formattedDate = computed(() => {
   });
 });
 
-// Edit buffer specifically for Description
+// Full-field edit reactive buffers
+const editTitle = ref('');
+const editStatus = ref<TaskStatus>('TODO');
+const editPriority = ref<TaskPriority>('MEDIUM');
+const editComplexity = ref<Complexity>('M');
+const editAssignee = ref<string>('');
+const editDueDate = ref<string>('');
 const editDescription = ref('');
+const editBlockingReason = ref('');
 
 function initBuffers() {
   if (task.value) {
+    editTitle.value = task.value.title;
+    editStatus.value = task.value.status;
+    editPriority.value = task.value.priority;
+    editComplexity.value = (task.value.complexity as Complexity) || 'M';
+    editAssignee.value = task.value.assignee || '';
+    editDueDate.value = task.value.dueDate ? task.value.dueDate.slice(0, 10) : '';
     editDescription.value = task.value.description || '';
+    editBlockingReason.value = task.value.blockingReason || '';
   }
 }
 
@@ -60,30 +71,47 @@ async function enterEditMode() {
   initBuffers();
   isEditing.value = true;
   await nextTick();
-  if (descriptionTextareaRef.value) {
-    descriptionTextareaRef.value.focus();
-    descriptionTextareaRef.value.select();
+  if (titleInputRef.value) {
+    titleInputRef.value.focus();
+    titleInputRef.value.select();
   }
 }
 
 function saveAndExit() {
   if (!task.value) return;
-  taskStore.updateTask(task.value.id, {
-    description: editDescription.value.trim() || undefined,
-  });
+  if (editTitle.value.trim()) {
+    taskStore.updateTask(task.value.id, {
+      title: editTitle.value.trim(),
+      status: editStatus.value,
+      priority: editPriority.value,
+      complexity: editComplexity.value,
+      assignee: editAssignee.value.trim() || undefined,
+      dueDate: editDueDate.value ? new Date(editDueDate.value).toISOString() : undefined,
+      description: editDescription.value.trim() || undefined,
+      blockingReason: editStatus.value === 'BLOCKED' ? editBlockingReason.value.trim() || undefined : undefined,
+    });
+  }
   isEditing.value = false;
 }
 
-function toggleEditMode() {
-  if (isEditing.value) {
-    saveAndExit();
-  } else {
-    enterEditMode();
+// Live auto-save on field changes while editing
+function onFieldChange() {
+  if (isEditing.value && task.value) {
+    taskStore.updateTask(task.value.id, {
+      title: editTitle.value.trim() || task.value.title,
+      status: editStatus.value,
+      priority: editPriority.value,
+      complexity: editComplexity.value,
+      assignee: editAssignee.value.trim() || undefined,
+      dueDate: editDueDate.value ? new Date(editDueDate.value).toISOString() : undefined,
+      description: editDescription.value.trim() || undefined,
+      blockingReason: editStatus.value === 'BLOCKED' ? editBlockingReason.value.trim() || undefined : undefined,
+    });
   }
 }
 
 function handleKeydown(e: KeyboardEvent) {
-  // If in View mode and user presses 'i': Enter edit mode for description
+  // If in View mode and user presses 'i': Enter edit mode
   if (!isEditing.value && e.key === 'i') {
     e.preventDefault();
     e.stopPropagation();
@@ -91,7 +119,7 @@ function handleKeydown(e: KeyboardEvent) {
     return;
   }
 
-  // If in Edit mode and user presses 'Escape': Save description changes and exit edit mode
+  // If in Edit mode and user presses 'Escape': Save changes and exit edit mode
   if (isEditing.value && e.key === 'Escape') {
     e.preventDefault();
     e.stopPropagation();
@@ -154,7 +182,7 @@ function getStatusBadge(s: TaskStatus) {
       v-if="task"
       class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-lg shadow-2xl border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col max-h-[90vh] overflow-hidden focus:outline-none"
     >
-      <!-- Modal Header -->
+      <!-- Modal Header (Single Close Button) -->
       <div class="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between select-none bg-slate-50/50 dark:bg-slate-950/40 shrink-0 gap-3">
         <!-- Left Badge Group -->
         <div class="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
@@ -162,7 +190,26 @@ function getStatusBadge(s: TaskStatus) {
             {{ task.id }}
           </span>
 
-          <span class="h-6 px-2.5 inline-flex items-center justify-center rounded-md font-mono text-[11px] font-bold uppercase tracking-wider whitespace-nowrap shrink-0 border" :class="getStatusBadge(task.status)">
+          <!-- Status Selector / Chip -->
+          <div v-if="isEditing" class="relative inline-block">
+            <select
+              v-model="editStatus"
+              class="h-6 pl-2 pr-6 appearance-none rounded-md font-mono text-[11px] font-bold uppercase tracking-wider border bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 focus:outline-none cursor-pointer"
+              :class="getStatusBadge(editStatus)"
+              @change="onFieldChange"
+            >
+              <option value="TODO">TODO</option>
+              <option value="IN_PROGRESS">IN_PROGRESS</option>
+              <option value="BLOCKED">BLOCKED</option>
+              <option value="DONE">DONE</option>
+            </select>
+            <ChevronDown class="w-3 h-3 absolute right-1.5 top-1.5 pointer-events-none opacity-60" />
+          </div>
+          <span
+            v-else
+            class="h-6 px-2.5 inline-flex items-center justify-center rounded-md font-mono text-[11px] font-bold uppercase tracking-wider whitespace-nowrap shrink-0 border"
+            :class="getStatusBadge(task.status)"
+          >
             {{ task.status }}
           </span>
 
@@ -176,92 +223,153 @@ function getStatusBadge(s: TaskStatus) {
           </span>
         </div>
 
-        <!-- Right Action Group -->
-        <div class="flex items-center gap-2 shrink-0 ml-auto">
-          <button
-            type="button"
-            class="h-7 px-2.5 rounded-md border text-xs font-sans font-medium flex items-center gap-1.5 cursor-pointer transition shrink-0"
-            :class="isEditing
-              ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 border-transparent shadow-xs'
-              : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200'"
-            @click="toggleEditMode"
-          >
-            <Check class="w-3.5 h-3.5 shrink-0" v-if="isEditing" />
-            <Edit3 class="w-3.5 h-3.5 shrink-0" v-else />
-            <span>{{ isEditing ? 'Save' : 'Edit' }}</span>
-          </button>
-
-          <button
-            type="button"
-            class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer shrink-0"
-            @click="emit('close')"
-          >
-            <X class="w-5 h-5 shrink-0" />
-          </button>
-        </div>
+        <!-- Right: Single Close Button -->
+        <button
+          type="button"
+          class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer shrink-0"
+          @click="emit('close')"
+          title="Close (Esc)"
+        >
+          <X class="w-5 h-5 shrink-0" />
+        </button>
       </div>
 
       <!-- Modal Body -->
       <div class="p-5 md:p-6 overflow-y-auto space-y-5 flex-1 text-xs md:text-sm font-sans">
-        <!-- Title Display -->
+        <!-- Title Field (Interactive / Editable) -->
         <div>
           <label class="block font-mono text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
             Title
           </label>
-          <h3 class="text-base md:text-lg font-semibold text-slate-950 dark:text-slate-50 leading-snug">
-            {{ task.title }}
-          </h3>
+          <div v-if="!isEditing">
+            <h3
+              class="text-base md:text-lg font-semibold text-slate-950 dark:text-slate-50 leading-snug hover:bg-slate-100 dark:hover:bg-slate-800/60 p-1 -m-1 rounded cursor-text"
+              @click="enterEditMode"
+              title="Click to edit"
+            >
+              {{ task.title }}
+            </h3>
+          </div>
+          <div v-else>
+            <input
+              ref="titleInputRef"
+              v-model="editTitle"
+              type="text"
+              class="w-full bg-slate-50 dark:bg-slate-950 border border-indigo-500 rounded-md px-3 py-1.5 text-base font-semibold font-sans text-slate-950 dark:text-slate-50 focus:outline-none shadow-xs"
+              placeholder="Task Title..."
+              @input="onFieldChange"
+            />
+          </div>
         </div>
 
-        <!-- Meta Grid: Priority, Complexity, Assignee, Due Date -->
+        <!-- Meta Grid (4 Interactive Pickers) -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-slate-50 dark:bg-slate-950/60 rounded-lg border border-slate-200 dark:border-slate-800/80">
-          <!-- Priority -->
+          <!-- Priority Selector -->
           <div>
             <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">Priority</span>
-            <span class="h-6 px-2 inline-flex items-center justify-center rounded-md border text-[11px] font-mono font-semibold uppercase" :class="getPriorityBadge(task.priority)">
-              {{ task.priority }}
-            </span>
-          </div>
-
-          <!-- Complexity -->
-          <div>
-            <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">Complexity</span>
-            <span class="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
-              {{ task.complexity || 'M' }} ({{ task.complexity === 'S' ? '1pt' : task.complexity === 'M' ? '2pts' : task.complexity === 'L' ? '3pts' : '5pts' }})
-            </span>
-          </div>
-
-          <!-- Assignee -->
-          <div>
-            <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">Assignee</span>
-            <div class="flex items-center gap-1.5 text-xs font-mono text-slate-700 dark:text-slate-300">
-              <User class="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span>{{ task.assignee || 'Unassigned' }}</span>
+            <div v-if="!isEditing">
+              <span class="h-6 px-2 inline-flex items-center justify-center rounded-md border text-[11px] font-mono font-semibold uppercase" :class="getPriorityBadge(task.priority)">
+                {{ task.priority }}
+              </span>
+            </div>
+            <div v-else class="relative">
+              <select
+                v-model="editPriority"
+                class="w-full h-7 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md pl-2 pr-6 text-xs font-mono text-slate-900 dark:text-slate-100 focus:outline-none appearance-none cursor-pointer font-semibold"
+                :class="getPriorityBadge(editPriority)"
+                @change="onFieldChange"
+              >
+                <option value="LOW">LOW</option>
+                <option value="MEDIUM">MEDIUM</option>
+                <option value="HIGH">HIGH</option>
+                <option value="CRITICAL">CRITICAL</option>
+              </select>
+              <ChevronDown class="w-3 h-3 absolute right-1.5 top-2 pointer-events-none opacity-60" />
             </div>
           </div>
 
-          <!-- Due Date -->
+          <!-- Complexity Selector -->
+          <div>
+            <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">Complexity</span>
+            <div v-if="!isEditing">
+              <span class="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
+                {{ task.complexity || 'M' }} ({{ task.complexity === 'S' ? '1pt' : task.complexity === 'M' ? '2pts' : task.complexity === 'L' ? '3pts' : '5pts' }})
+              </span>
+            </div>
+            <div v-else class="relative">
+              <select
+                v-model="editComplexity"
+                class="w-full h-7 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md pl-2 pr-6 text-xs font-mono text-slate-900 dark:text-slate-100 focus:outline-none appearance-none cursor-pointer"
+                @change="onFieldChange"
+              >
+                <option value="S">S (1pt)</option>
+                <option value="M">M (2pts)</option>
+                <option value="L">L (3pts)</option>
+                <option value="XL">XL (5pts)</option>
+              </select>
+              <ChevronDown class="w-3 h-3 absolute right-1.5 top-2 pointer-events-none opacity-60" />
+            </div>
+          </div>
+
+          <!-- Assignee Selector -->
+          <div>
+            <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">Assignee</span>
+            <div v-if="!isEditing" class="flex items-center gap-1.5 text-xs font-mono text-slate-700 dark:text-slate-300 truncate">
+              <span>{{ task.assignee || 'Unassigned' }}</span>
+            </div>
+            <div v-else class="relative">
+              <select
+                v-model="editAssignee"
+                class="w-full h-7 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md pl-2 pr-6 text-xs font-mono text-slate-900 dark:text-slate-100 focus:outline-none appearance-none cursor-pointer"
+                @change="onFieldChange"
+              >
+                <option value="">Unassigned</option>
+                <option value="felixsu">Felix Anderson (PM)</option>
+                <option value="dev">Dev Member</option>
+                <option value="huynh">Phạm Văn Huynh</option>
+                <option value="don">Đàm Đức Đôn</option>
+              </select>
+              <ChevronDown class="w-3 h-3 absolute right-1.5 top-2 pointer-events-none opacity-60" />
+            </div>
+          </div>
+
+          <!-- Due Date Picker -->
           <div>
             <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">Due Date</span>
-            <div class="flex items-center gap-1.5 text-xs font-mono text-slate-700 dark:text-slate-300">
-              <Calendar class="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <div v-if="!isEditing" class="flex items-center gap-1.5 text-xs font-mono text-slate-700 dark:text-slate-300">
               <span>{{ task.dueDate ? new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'None' }}</span>
+            </div>
+            <div v-else>
+              <input
+                v-model="editDueDate"
+                type="date"
+                class="w-full h-7 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md px-1.5 text-xs font-mono text-slate-900 dark:text-slate-100 focus:outline-none"
+                @change="onFieldChange"
+              />
             </div>
           </div>
         </div>
 
         <!-- Blocking Reason (When Blocked) -->
-        <div v-if="task.status === 'BLOCKED' || task.blockingReason" class="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-lg">
+        <div v-if="editStatus === 'BLOCKED' || task.status === 'BLOCKED' || editBlockingReason" class="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-lg">
           <div class="flex items-center gap-1.5 text-rose-800 dark:text-rose-300 text-xs font-mono font-semibold mb-1">
             <AlertCircle class="w-4 h-4 shrink-0" />
             <span>BLOCKING REASON</span>
           </div>
-          <p class="text-xs font-sans text-rose-900 dark:text-rose-200">
+          <p v-if="!isEditing" class="text-xs font-sans text-rose-900 dark:text-rose-200">
             {{ task.blockingReason || 'No blocking reason specified.' }}
           </p>
+          <input
+            v-else
+            v-model="editBlockingReason"
+            type="text"
+            class="w-full h-8 bg-white dark:bg-slate-900 border border-rose-300 dark:border-rose-800 rounded-md px-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none"
+            placeholder="Describe what is blocking this task..."
+            @input="onFieldChange"
+          />
         </div>
 
-        <!-- Description Section (No floating purple save button) -->
+        <!-- Description Field -->
         <div>
           <label class="block font-mono text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
             Description
@@ -272,6 +380,7 @@ function getStatusBadge(s: TaskStatus) {
             v-if="!isEditing"
             class="p-3.5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 rounded-lg min-h-[90px] cursor-text hover:border-slate-300 dark:hover:border-slate-700"
             @click="enterEditMode"
+            title="Click to edit"
           >
             <p v-if="task.description" class="text-xs md:text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
               {{ task.description }}
@@ -281,14 +390,14 @@ function getStatusBadge(s: TaskStatus) {
             </span>
           </div>
 
-          <!-- Edit Mode (Clean textarea without floating buttons) -->
+          <!-- Edit Mode (Auto-growing textarea) -->
           <div v-else>
             <textarea
-              ref="descriptionTextareaRef"
               v-model="editDescription"
               rows="5"
-              class="w-full bg-white dark:bg-slate-950 border-2 border-indigo-500 dark:border-indigo-400 rounded-md p-3 text-xs md:text-sm text-slate-900 dark:text-slate-100 focus:outline-none font-sans shadow-xs leading-relaxed"
-              placeholder="Task details and technical specifications..."
+              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 focus:border-indigo-500 rounded-md p-3 text-xs md:text-sm text-slate-900 dark:text-slate-100 focus:outline-none font-sans shadow-xs leading-relaxed"
+              placeholder="Add a more detailed description..."
+              @input="onFieldChange"
             ></textarea>
           </div>
         </div>
@@ -330,11 +439,11 @@ function getStatusBadge(s: TaskStatus) {
         </div>
       </div>
 
-      <!-- Footer Strip with Dynamic State & Solid Save Button -->
+      <!-- Footer Action Strip (Single Done Action) -->
       <div class="px-5 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 flex items-center justify-between text-xs select-none shrink-0">
         <!-- Left: Metadata -->
         <span class="font-mono text-[11px] text-slate-500 dark:text-slate-400">
-          {{ isEditing ? 'Editing mode' : `Created: ${formattedDate}` }}
+          {{ isEditing ? 'Auto-saves on exit' : `Created: ${formattedDate}` }}
         </span>
 
         <!-- Right: Actions & Keycaps -->
@@ -352,14 +461,14 @@ function getStatusBadge(s: TaskStatus) {
           <!-- Edit Mode Actions & Keycaps -->
           <template v-else>
             <span class="text-slate-600 dark:text-slate-400 mr-1">
-              <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px]">Esc</kbd> Save & Exit
+              <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px]">Esc</kbd> Done
             </span>
             <button
               type="button"
               class="h-7 px-3 rounded-md bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-white dark:text-slate-900 font-sans font-medium text-xs cursor-pointer shadow-xs"
               @click="saveAndExit"
             >
-              Save
+              Done
             </button>
           </template>
         </div>
