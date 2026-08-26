@@ -4,7 +4,7 @@ import { useTaskStore } from '../stores/taskStore';
 import type { Task, TaskPriority, TaskStatus } from '../types/task';
 import {
   X,
-  Edit2,
+  Edit3,
   Check,
   User,
   AlertCircle,
@@ -63,6 +63,14 @@ function saveAndExit() {
     description: editDescription.value.trim() || undefined,
   });
   isEditing.value = false;
+}
+
+function toggleEdit() {
+  if (isEditing.value) {
+    saveAndExit();
+  } else {
+    enterEditMode();
+  }
 }
 
 function handleKeydown(e: KeyboardEvent) {
@@ -138,62 +146,44 @@ function getStatusBadge(s: TaskStatus) {
       class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-lg shadow-2xl border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col max-h-[90vh] overflow-hidden focus:outline-none"
     >
       <!-- Modal Header -->
-      <div class="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between select-none bg-slate-50/50 dark:bg-slate-950/40 shrink-0">
-        <div class="flex items-center gap-2.5">
-          <span class="font-mono text-xs font-bold text-slate-600 dark:text-slate-400 bg-slate-200/80 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-300 dark:border-slate-700">
+      <div class="px-5 py-3.5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between select-none bg-slate-50/50 dark:bg-slate-950/40 shrink-0 gap-3">
+        <!-- Left Badge Group -->
+        <div class="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap">
+          <span class="h-6 px-2.5 inline-flex items-center justify-center rounded-md font-mono text-[11px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 whitespace-nowrap shrink-0">
             {{ task.id }}
           </span>
 
-          <span class="h-6 px-2 inline-flex items-center justify-center rounded-md border text-[11px] font-mono font-semibold uppercase tracking-wider" :class="getStatusBadge(task.status)">
+          <span class="h-6 px-2.5 inline-flex items-center justify-center rounded-md font-mono text-[11px] font-bold uppercase tracking-wider whitespace-nowrap shrink-0 border" :class="getStatusBadge(task.status)">
             {{ task.status }}
           </span>
 
-          <span v-if="taskStore.criticalPathIds.has(task.id) && task.status !== 'DONE'" title="Critical Path" class="flex items-center gap-1 text-rose-600 dark:text-rose-400 text-xs font-mono font-bold bg-rose-50 dark:bg-rose-950/40 px-2 py-0.5 rounded border border-rose-200 dark:border-rose-900/40">
-            <Flame class="w-3.5 h-3.5" />
+          <span
+            v-if="taskStore.criticalPathIds.has(task.id) && task.status !== 'DONE'"
+            title="Critical Path"
+            class="h-6 px-2.5 inline-flex items-center gap-1.5 rounded-md font-mono text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 whitespace-nowrap shrink-0"
+          >
+            <Flame class="w-3.5 h-3.5 shrink-0" />
             <span>CRITICAL PATH</span>
           </span>
         </div>
 
-        <div class="flex items-center gap-2">
-          <!-- State Indicator Tag -->
-          <span
-            class="hidden sm:inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded border"
-            :class="isEditing
-              ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60 font-semibold'
-              : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'"
-          >
-            {{ isEditing ? 'EDITING DESCRIPTION (Esc to Save)' : 'VIEW MODE (Press i to Edit Description)' }}
-          </span>
-
+        <!-- Right Action Group -->
+        <div class="flex items-center gap-2 shrink-0 ml-auto">
           <button
-            v-if="!isEditing"
             type="button"
-            class="h-7 px-2.5 inline-flex items-center gap-1.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-sans font-medium cursor-pointer border border-slate-200 dark:border-slate-700"
-            @click="enterEditMode"
-            title="Edit description (i)"
+            class="h-7 px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-mono text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+            @click="toggleEdit"
           >
-            <Edit2 class="w-3.5 h-3.5" />
-            <span>Edit Description</span>
-          </button>
-
-          <button
-            v-else
-            type="button"
-            class="h-7 px-2.5 inline-flex items-center gap-1.5 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-sans font-medium cursor-pointer shadow-2xs"
-            @click="saveAndExit"
-            title="Save and Exit (Esc)"
-          >
-            <Check class="w-3.5 h-3.5" />
-            <span>Save</span>
+            <Edit3 class="w-3.5 h-3.5 shrink-0" />
+            <span>{{ isEditing ? 'Done' : 'Edit' }}</span>
           </button>
 
           <button
             type="button"
-            class="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+            class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer shrink-0"
             @click="emit('close')"
-            title="Close dialog (Esc)"
           >
-            <X class="w-4 h-4" />
+            <X class="w-5 h-5 shrink-0" />
           </button>
         </div>
       </div>
@@ -202,7 +192,7 @@ function getStatusBadge(s: TaskStatus) {
       <div class="p-5 md:p-6 overflow-y-auto space-y-5 flex-1 text-xs md:text-sm font-sans">
         <!-- Title Display -->
         <div>
-          <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1 uppercase font-mono tracking-wider">
+          <label class="block font-mono text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
             Title
           </label>
           <h3 class="text-base md:text-lg font-semibold text-slate-950 dark:text-slate-50 leading-snug">
@@ -214,7 +204,7 @@ function getStatusBadge(s: TaskStatus) {
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-slate-50 dark:bg-slate-950/60 rounded-lg border border-slate-200 dark:border-slate-800/80">
           <!-- Priority -->
           <div>
-            <span class="block text-[11px] font-mono uppercase text-slate-500 dark:text-slate-400 mb-1">Priority</span>
+            <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">Priority</span>
             <span class="h-6 px-2 inline-flex items-center justify-center rounded-md border text-[11px] font-mono font-semibold uppercase" :class="getPriorityBadge(task.priority)">
               {{ task.priority }}
             </span>
@@ -222,7 +212,7 @@ function getStatusBadge(s: TaskStatus) {
 
           <!-- Complexity -->
           <div>
-            <span class="block text-[11px] font-mono uppercase text-slate-500 dark:text-slate-400 mb-1">Complexity</span>
+            <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">Complexity</span>
             <span class="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
               {{ task.complexity || 'M' }} ({{ task.complexity === 'S' ? '1pt' : task.complexity === 'M' ? '2pts' : task.complexity === 'L' ? '3pts' : '5pts' }})
             </span>
@@ -230,18 +220,18 @@ function getStatusBadge(s: TaskStatus) {
 
           <!-- Assignee -->
           <div>
-            <span class="block text-[11px] font-mono uppercase text-slate-500 dark:text-slate-400 mb-1">Assignee</span>
+            <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">Assignee</span>
             <div class="flex items-center gap-1.5 text-xs font-mono text-slate-700 dark:text-slate-300">
-              <User class="w-3.5 h-3.5 text-slate-400" />
+              <User class="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <span>{{ task.assignee || 'Unassigned' }}</span>
             </div>
           </div>
 
           <!-- Due Date -->
           <div>
-            <span class="block text-[11px] font-mono uppercase text-slate-500 dark:text-slate-400 mb-1">Due Date</span>
+            <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">Due Date</span>
             <div class="flex items-center gap-1.5 text-xs font-mono text-slate-700 dark:text-slate-300">
-              <Calendar class="w-3.5 h-3.5 text-slate-400" />
+              <Calendar class="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <span>{{ task.dueDate ? new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'None' }}</span>
             </div>
           </div>
@@ -250,7 +240,7 @@ function getStatusBadge(s: TaskStatus) {
         <!-- Blocking Reason (When Blocked) -->
         <div v-if="task.status === 'BLOCKED' || task.blockingReason" class="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-lg">
           <div class="flex items-center gap-1.5 text-rose-800 dark:text-rose-300 text-xs font-mono font-semibold mb-1">
-            <AlertCircle class="w-4 h-4" />
+            <AlertCircle class="w-4 h-4 shrink-0" />
             <span>BLOCKING REASON</span>
           </div>
           <p class="text-xs font-sans text-rose-900 dark:text-rose-200">
@@ -258,33 +248,27 @@ function getStatusBadge(s: TaskStatus) {
           </p>
         </div>
 
-        <!-- Description (Dedicated Edit Mode Target) -->
+        <!-- Description Section (No Inline Redundancy) -->
         <div>
-          <div class="flex items-center justify-between mb-1.5">
-            <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 uppercase font-mono tracking-wider">
-              Description
-            </label>
-            <span v-if="!isEditing" class="text-[11px] font-mono text-slate-400 dark:text-slate-500">
-              Press <kbd class="px-1 py-0.5 bg-slate-200 dark:bg-slate-800 rounded">i</kbd> to edit
-            </span>
-          </div>
+          <label class="block font-mono text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+            Description
+          </label>
 
-          <!-- View Mode for Description -->
+          <!-- View Mode -->
           <div
             v-if="!isEditing"
             class="p-3.5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 rounded-lg min-h-[90px] cursor-text hover:border-slate-300 dark:hover:border-slate-700"
             @click="enterEditMode"
-            title="Click or press 'i' to edit description"
           >
             <p v-if="task.description" class="text-xs md:text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
               {{ task.description }}
             </p>
             <span v-else class="text-xs text-slate-400 dark:text-slate-600 italic">
-              No description provided. Click or press 'i' to add one.
+              No description provided. Click to add details.
             </span>
           </div>
 
-          <!-- Edit Mode for Description -->
+          <!-- Edit Mode -->
           <div v-else class="space-y-2">
             <textarea
               ref="descriptionTextareaRef"
@@ -293,14 +277,13 @@ function getStatusBadge(s: TaskStatus) {
               class="w-full bg-white dark:bg-slate-950 border-2 border-indigo-500 dark:border-indigo-400 rounded-md p-3 text-xs md:text-sm text-slate-900 dark:text-slate-100 focus:outline-none font-sans shadow-xs leading-relaxed"
               placeholder="Task details and technical specifications..."
             ></textarea>
-            <div class="flex items-center justify-between text-xs font-mono text-slate-500 dark:text-slate-400">
-              <span>Press <kbd class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200">Esc</kbd> to save & exit</span>
+            <div class="flex items-center justify-end">
               <button
                 type="button"
                 class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-sans font-medium cursor-pointer"
                 @click="saveAndExit"
               >
-                Save Changes
+                Save
               </button>
             </div>
           </div>
@@ -308,7 +291,7 @@ function getStatusBadge(s: TaskStatus) {
 
         <!-- Dependencies -->
         <div v-if="task.dependencies && task.dependencies.length > 0">
-          <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 uppercase font-mono tracking-wider">
+          <label class="block font-mono text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
             Prerequisites & Dependencies
           </label>
           <div class="flex flex-wrap gap-2">
@@ -317,7 +300,7 @@ function getStatusBadge(s: TaskStatus) {
               :key="depId"
               class="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono text-slate-700 dark:text-slate-300 font-semibold"
             >
-              <Layers class="w-3 h-3 text-slate-400" />
+              <Layers class="w-3 h-3 text-slate-400 shrink-0" />
               <span>{{ depId }}</span>
             </span>
           </div>
@@ -325,7 +308,7 @@ function getStatusBadge(s: TaskStatus) {
 
         <!-- Acceptance Criteria -->
         <div v-if="task.acceptanceCriteria && task.acceptanceCriteria.length > 0">
-          <label class="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5 uppercase font-mono tracking-wider">
+          <label class="block font-mono text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
             Acceptance Criteria
           </label>
           <div class="space-y-1.5">
@@ -335,7 +318,7 @@ function getStatusBadge(s: TaskStatus) {
               class="flex items-center justify-between p-2 rounded bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80"
             >
               <div class="flex items-center gap-2">
-                <span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
                 <span class="text-xs text-slate-800 dark:text-slate-200">{{ crit }}</span>
               </div>
             </div>
@@ -349,8 +332,8 @@ function getStatusBadge(s: TaskStatus) {
           <span>Created: {{ new Date(task.createdAt).toLocaleDateString() }}</span>
         </div>
         <div class="flex items-center gap-2">
-          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300">i</kbd> Edit Description</span>
-          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300">Esc</kbd> {{ isEditing ? 'Save & Exit' : 'Close' }}</span>
+          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] font-mono">i</kbd> Edit</span>
+          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] font-mono">Esc</kbd> Close</span>
         </div>
       </div>
     </div>
