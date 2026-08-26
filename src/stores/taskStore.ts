@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia';
 import { nextTick } from 'vue';
 import { get, set } from 'idb-keyval';
-import type { Task, TaskStatus, TaskPriority, TaskFilter, FilterStatus, FilterPriority } from '../types/task';
+import type { Task, TaskStatus, TaskPriority, TaskFilter, FilterStatus, FilterPriority, Complexity } from '../types/task';
 import { topologicalSort, computeCriticalPath } from '../lib/dagSorter';
 import { api, type UserProfile } from '../services/api';
 
@@ -98,6 +98,7 @@ export const useTaskStore = defineStore('taskStore', {
     kanbanColIndex: 0,
     kanbanRowIndex: 0,
     editingTaskId: null as string | null,
+    activeDetailTaskId: null as string | null,
     isLoaded: false,
     lastLatencyMs: 0,
     viewMode: 'TABLE' as 'TABLE' | 'KANBAN',
@@ -176,6 +177,11 @@ export const useTaskStore = defineStore('taskStore', {
       if (list.length === 0) return null;
       const clamped = Math.max(0, Math.min(this.selectedIndex, list.length - 1));
       return list[clamped] || null;
+    },
+
+    activeDetailTask(state): Task | null {
+      if (!state.activeDetailTaskId) return null;
+      return state.tasks.find((t) => t.id === state.activeDetailTaskId) || null;
     },
 
     criticalPathIds(state): Set<string> {
@@ -280,6 +286,18 @@ export const useTaskStore = defineStore('taskStore', {
       this.selectTask(this.selectedIndex - 1);
     },
 
+    openDetail(id?: string) {
+      if (id) {
+        this.activeDetailTaskId = id;
+      } else if (this.selectedTask) {
+        this.activeDetailTaskId = this.selectedTask.id;
+      }
+    },
+
+    closeDetail() {
+      this.activeDetailTaskId = null;
+    },
+
     syncKanbanFocusToTask(taskId: string) {
       const task = this.tasks.find((t) => t.id === taskId);
       if (!task) return;
@@ -297,13 +315,13 @@ export const useTaskStore = defineStore('taskStore', {
 
     moveKanbanCursor(direction: 'up' | 'down' | 'left' | 'right') {
       if (direction === 'left') {
-        this.kanbanColIndex = Math.max(0, this.kanbanColIndex - 1);
+        this.kanbanColIndex = (this.kanbanColIndex - 1 + 4) % 4;
         const colLen = this.currentColumnTasks.length;
         if (colLen > 0 && this.kanbanRowIndex >= colLen) {
           this.kanbanRowIndex = colLen - 1;
         }
       } else if (direction === 'right') {
-        this.kanbanColIndex = Math.min(3, this.kanbanColIndex + 1);
+        this.kanbanColIndex = (this.kanbanColIndex + 1) % 4;
         const colLen = this.currentColumnTasks.length;
         if (colLen > 0 && this.kanbanRowIndex >= colLen) {
           this.kanbanRowIndex = colLen - 1;
@@ -314,6 +332,8 @@ export const useTaskStore = defineStore('taskStore', {
         const colLen = this.currentColumnTasks.length;
         if (colLen > 0) {
           this.kanbanRowIndex = Math.min(colLen - 1, this.kanbanRowIndex + 1);
+        } else {
+          this.kanbanRowIndex = 0;
         }
       }
     },

@@ -140,6 +140,7 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
           draggable="true"
           @dragstart="(e) => handleDragStart(e, task.id)"
           @click="selectCard(task, colIndex, rowIndex)"
+          @dblclick="taskStore.openDetail(task.id)"
           role="article"
         >
           <!-- Top Row: ID & Badges -->

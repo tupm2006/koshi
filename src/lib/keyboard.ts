@@ -29,6 +29,10 @@ export function createKeyboardHandler(callbacks: KeyboardState) {
 
     // Global escape handling
     if (event.key === 'Escape') {
+      if (taskStore.activeDetailTaskId) {
+        // Handled inside TaskDetailModal or fallback close
+        return;
+      }
       if (taskStore.editingTaskId) {
         event.preventDefault();
         taskStore.stopEditing();
@@ -42,6 +46,11 @@ export function createKeyboardHandler(callbacks: KeyboardState) {
 
     // Do not trigger global shortcuts if user is typing in an input
     if (isInputFocused) {
+      return;
+    }
+
+    // If TaskDetailModal is open, let it handle its own internal keys ('i', 'Escape')
+    if (taskStore.activeDetailTaskId) {
       return;
     }
 
@@ -116,7 +125,14 @@ export function createKeyboardHandler(callbacks: KeyboardState) {
         taskStore.cycleSelectedStatus();
         break;
 
-      case 'Enter': // Enter: inline edit
+      case 'Enter': // Enter: Open Task Detail Inspector
+        event.preventDefault();
+        if (taskStore.selectedTask) {
+          taskStore.openDetail(taskStore.selectedTask.id);
+        }
+        break;
+
+      case 'i': // i: Start inline title edit on Table/Kanban
         event.preventDefault();
         if (taskStore.selectedTask) {
           taskStore.startEditing(taskStore.selectedTask.id);
@@ -136,7 +152,7 @@ export function createKeyboardHandler(callbacks: KeyboardState) {
         callbacks.onFocusSearch();
         break;
 
-      case 'c': // Create task
+      case 'n': // 'n': Create task (overhauls 'c')
         event.preventDefault();
         callbacks.onOpenQuickCreate();
         break;

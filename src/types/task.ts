@@ -1,5 +1,6 @@
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'BLOCKED' | 'DONE';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+export type Complexity = 'S' | 'M' | 'L' | 'XL';
 
 export interface Task {
   id: string;

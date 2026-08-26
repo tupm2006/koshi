@@ -205,6 +205,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
         @pointermove="(e) => handlePointerMove(e, task)"
         @pointerup="(e) => handlePointerUp(e, task, idx)"
         @pointercancel="handlePointerCancel"
+        @dblclick="taskStore.openDetail(task.id)"
         @contextmenu="(e) => handleContextMenu(e, task, idx)"
         role="listitem"
       >

@@ -14,6 +14,7 @@ import GitDiffModal from './components/GitDiffModal.vue';
 import DAGVisualizerModal from './components/DAGVisualizerModal.vue';
 import ShortcutsHelpModal from './components/ShortcutsHelpModal.vue';
 import CreateTaskModal from './components/CreateTaskModal.vue';
+import TaskDetailModal from './components/TaskDetailModal.vue';
 import MobileBottomNav from './components/MobileBottomNav.vue';
 import {
   Sparkles,
@@ -81,7 +82,8 @@ function closeAllModals() {
     isShortcutsHelpOpen.value ||
     isCreateModalOpen.value ||
     isExportImportOpen.value ||
-    isAIMenuOpen.value;
+    isAIMenuOpen.value ||
+    !!taskStore.activeDetailTaskId;
 
   isAIDecomposerOpen.value = false;
   isWeeklySummaryOpen.value = false;
@@ -94,6 +96,7 @@ function closeAllModals() {
   isCreateModalOpen.value = false;
   isExportImportOpen.value = false;
   isAIMenuOpen.value = false;
+  taskStore.closeDetail();
 
   // Stop inline editing if active
   if (taskStore.editingTaskId) {
@@ -387,7 +390,9 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">h/j/k/l</kbd> Nav</span>
           <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">H/L</kbd> Shift</span>
           <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">Space</kbd> Status</span>
-          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">Enter</kbd> Edit</span>
+          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">n</kbd> New</span>
+          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">i</kbd> Edit</span>
+          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">Enter</kbd> Detail</span>
           <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">d</kbd> Del</span>
           <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">1-4</kbd> Priority</span>
           <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">t</kbd> Theme</span>
@@ -436,6 +441,11 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
     <DAGVisualizerModal v-if="isDAGOpen" @close="isDAGOpen = false" />
     <ShortcutsHelpModal v-if="isShortcutsHelpOpen" @close="isShortcutsHelpOpen = false" />
     <CreateTaskModal v-if="isCreateModalOpen" @close="isCreateModalOpen = false" />
+    <TaskDetailModal
+      v-if="taskStore.activeDetailTaskId"
+      :task-id="taskStore.activeDetailTaskId"
+      @close="taskStore.closeDetail()"
+    />
 
     <!-- JSON Backup / Restore Modal -->
     <div
