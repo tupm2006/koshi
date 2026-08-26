@@ -101,7 +101,7 @@ export const useTaskStore = defineStore('taskStore', {
     activeDetailTaskId: null as string | null,
     isLoaded: false,
     lastLatencyMs: 0,
-    viewMode: 'TABLE' as 'TABLE' | 'KANBAN',
+    viewMode: (typeof window !== 'undefined' && window.innerWidth >= 768 ? 'KANBAN' : 'TABLE') as 'TABLE' | 'KANBAN',
     currentUser: null as UserProfile | null,
     isBackendConnected: false,
     filter: {
