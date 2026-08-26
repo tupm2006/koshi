@@ -112,7 +112,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-100"
+    class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6"
     @click.self="onClose"
   >
     <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-lg p-5 md:p-6 shadow-2xl border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col max-h-[85vh]">
@@ -180,7 +180,7 @@ onMounted(() => {
       <div class="pt-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
         <button
           type="button"
-          class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-mono text-xs cursor-pointer transition"
+          class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 font-mono text-xs cursor-pointer"
           @click="loadSummary"
           :disabled="isLoading"
         >
@@ -190,7 +190,7 @@ onMounted(() => {
 
         <button
           type="button"
-          class="h-8 inline-flex items-center gap-1.5 px-3.5 rounded-md bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-950 font-mono font-medium text-xs cursor-pointer transition shadow-xs"
+          class="h-8 inline-flex items-center gap-1.5 px-3.5 rounded-md bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-950 font-mono font-medium text-xs cursor-pointer shadow-xs"
           @click="handleCopy"
           :disabled="isLoading || !summaryText"
         >

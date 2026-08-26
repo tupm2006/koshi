@@ -60,7 +60,7 @@ onUnmounted(() => {
 
 <template>
   <div
-    class="fixed z-50 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-1.5 shadow-2xl text-xs font-mono w-48 animate-in fade-in duration-75 text-slate-800 dark:text-slate-200"
+    class="fixed z-50 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg p-1.5 shadow-2xl text-xs font-mono w-48 text-slate-800 dark:text-slate-200"
     :style="positionStyle"
     @click.stop
   >
@@ -71,7 +71,7 @@ onUnmounted(() => {
     <!-- Status Actions -->
     <button
       type="button"
-      class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 flex items-center gap-2 cursor-pointer transition"
+      class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 flex items-center gap-2 cursor-pointer"
       @click="handleStatus('DONE')"
     >
       <Check class="w-3.5 h-3.5 text-emerald-500" />
@@ -79,7 +79,7 @@ onUnmounted(() => {
     </button>
     <button
       type="button"
-      class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 flex items-center gap-2 cursor-pointer transition"
+      class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 flex items-center gap-2 cursor-pointer"
       @click="handleStatus('IN_PROGRESS')"
     >
       <span class="w-2 h-2 rounded-full bg-sky-500"></span>
@@ -87,7 +87,7 @@ onUnmounted(() => {
     </button>
     <button
       type="button"
-      class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 flex items-center gap-2 cursor-pointer transition"
+      class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 flex items-center gap-2 cursor-pointer"
       @click="handleStatus('BLOCKED')"
     >
       <span class="w-2 h-2 rounded-full bg-rose-500"></span>
@@ -99,7 +99,7 @@ onUnmounted(() => {
     <!-- Edit / Rename -->
     <button
       type="button"
-      class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 flex items-center gap-2 cursor-pointer transition"
+      class="w-full text-left px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-700 dark:text-slate-300 flex items-center gap-2 cursor-pointer"
       @click="handleEdit"
     >
       <Edit3 class="w-3.5 h-3.5 text-slate-400 dark:text-slate-400" />
@@ -115,7 +115,7 @@ onUnmounted(() => {
         v-for="p in (['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as TaskPriority[])"
         :key="p"
         type="button"
-        class="text-[9px] py-0.5 rounded border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900 text-center text-slate-700 dark:text-slate-300 cursor-pointer transition"
+        class="text-[9px] py-0.5 rounded border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900 text-center text-slate-700 dark:text-slate-300 cursor-pointer"
         @click="handlePriority(p)"
       >
         {{ p.slice(0, 3) }}
@@ -127,7 +127,7 @@ onUnmounted(() => {
     <!-- Delete -->
     <button
       type="button"
-      class="w-full text-left px-2 py-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center gap-2 cursor-pointer transition"
+      class="w-full text-left px-2 py-1.5 rounded hover:bg-rose-50 dark:hover:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center gap-2 cursor-pointer"
       @click="handleDelete"
     >
       <Trash2 class="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />

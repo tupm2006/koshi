@@ -183,7 +183,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
       </p>
       <button
         type="button"
-        class="mt-4 h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white dark:text-slate-200 text-xs font-mono cursor-pointer transition"
+        class="mt-4 h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 dark:hover:bg-slate-700 text-white dark:text-slate-200 text-xs font-mono cursor-pointer"
         @click="onOpenCreate"
       >
         <Plus class="w-3.5 h-3.5" />
@@ -196,7 +196,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
       <div
         v-for="(task, idx) in taskStore.filteredTasks"
         :key="task.id"
-        class="group relative touch-card select-none h-10 flex items-center shrink-0 border-l-2 transition-colors duration-75"
+        class="group relative touch-card select-none h-10 flex items-center shrink-0 border-l-2"
         :class="idx === taskStore.selectedIndex
           ? 'bg-indigo-50/90 dark:bg-slate-800/90 border-l-indigo-600 dark:border-l-indigo-400 ring-1 ring-inset ring-indigo-500/20 dark:ring-indigo-400/20'
           : 'border-l-transparent hover:bg-slate-50 dark:hover:bg-slate-800/60'"
@@ -223,7 +223,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
           <div class="flex items-center">
             <button
               type="button"
-              class="h-6 inline-flex items-center gap-1.5 px-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-800/60 text-[11px] font-mono font-semibold uppercase tracking-wider cursor-pointer transition"
+              class="h-6 inline-flex items-center gap-1.5 px-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-800/60 text-[11px] font-mono font-semibold uppercase tracking-wider cursor-pointer"
               :class="getStatusTextColor(task.status)"
               @click.stop="taskStore.cycleStatus(task.id)"
               title="Click or Space to cycle"
@@ -267,7 +267,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
           <div class="flex items-center font-mono">
             <button
               type="button"
-              class="h-6 px-2 inline-flex items-center justify-center rounded-md border text-[11px] font-mono font-semibold uppercase tracking-wider cursor-pointer transition shadow-2xs"
+              class="h-6 px-2 inline-flex items-center justify-center rounded-md border text-[11px] font-mono font-semibold uppercase tracking-wider cursor-pointer shadow-2xs"
               :class="getPriorityBadge(task.priority)"
               @click="(e) => cyclePriority(e, task.id, task.priority)"
               title="Click or 1-4 to change"
@@ -292,7 +292,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
 
           <!-- Col 7: Actions -->
           <div class="flex items-center justify-end">
-            <div class="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+            <div class="opacity-0 group-hover:opacity-100 flex items-center gap-1">
               <button
                 type="button"
                 class="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer"

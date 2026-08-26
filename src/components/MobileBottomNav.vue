@@ -16,7 +16,7 @@ defineProps<{
     <div class="grid grid-cols-5 items-center gap-1">
       <button
         type="button"
-        class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 active:bg-slate-200 dark:active:bg-slate-800 transition min-h-[44px] cursor-pointer"
+        class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 active:bg-slate-200 dark:active:bg-slate-800 min-h-[44px] cursor-pointer"
         @click="onFocusSearch"
         title="Search (/)"
       >
@@ -26,7 +26,7 @@ defineProps<{
 
       <button
         type="button"
-        class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 active:bg-slate-200 dark:active:bg-slate-800 transition min-h-[44px] cursor-pointer"
+        class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 active:bg-slate-200 dark:active:bg-slate-800 min-h-[44px] cursor-pointer"
         @click="onOpenAIDecomposer"
         title="AI Decomposer (a)"
       >
@@ -38,7 +38,7 @@ defineProps<{
       <div class="flex items-center justify-center">
         <button
           type="button"
-          class="w-10 h-10 rounded-lg bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-950 flex items-center justify-center font-bold cursor-pointer active:scale-95 transition shadow-sm"
+          class="w-10 h-10 rounded-lg bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-950 flex items-center justify-center font-bold cursor-pointer shadow-sm"
           @click="onOpenCreate"
           title="Create Task (c)"
         >
@@ -48,7 +48,7 @@ defineProps<{
 
       <button
         type="button"
-        class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 active:bg-slate-200 dark:active:bg-slate-800 transition min-h-[44px] cursor-pointer"
+        class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 active:bg-slate-200 dark:active:bg-slate-800 min-h-[44px] cursor-pointer"
         @click="onOpenDAG"
         title="DAG Critical Path (v)"
       >
@@ -58,7 +58,7 @@ defineProps<{
 
       <button
         type="button"
-        class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 active:bg-slate-200 dark:active:bg-slate-800 transition min-h-[44px] cursor-pointer"
+        class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 active:bg-slate-200 dark:active:bg-slate-800 min-h-[44px] cursor-pointer"
         @click="onOpenGitDiff"
         title="Git Diff (g)"
       >

@@ -46,7 +46,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-100"
+    class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6"
     @click.self="onClose"
   >
     <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-lg p-5 md:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col max-h-[88vh]">
@@ -124,7 +124,7 @@ onMounted(() => {
           </div>
           <button
             type="button"
-            class="h-8 w-full rounded-md bg-amber-600 hover:bg-amber-500 text-white font-mono font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer transition disabled:opacity-50"
+            class="h-8 w-full rounded-md bg-amber-600 hover:bg-amber-500 text-white font-mono font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
             :disabled="isLoadingRec || !taskTitle.trim()"
             @click="handleRecommend"
           >
@@ -135,7 +135,7 @@ onMounted(() => {
         </div>
 
         <!-- Recommendation Result Box -->
-        <div v-if="recommendation" class="p-3.5 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/50 space-y-2 animate-in fade-in">
+        <div v-if="recommendation" class="p-3.5 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/50 space-y-2">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <UserCheck class="w-4 h-4 text-amber-600 dark:text-amber-400" />

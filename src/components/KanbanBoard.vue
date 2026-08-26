@@ -103,7 +103,7 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
     <div
       v-for="(col, colIndex) in COLUMNS"
       :key="col.status"
-      class="flex flex-col h-full max-h-full bg-slate-200/60 dark:bg-slate-900/80 border rounded-lg p-3 shadow-2xs transition-colors"
+      class="flex flex-col h-full max-h-full bg-slate-200/60 dark:bg-slate-900/80 border rounded-lg p-3 shadow-2xs"
       :class="taskStore.kanbanColIndex === colIndex ? 'border-slate-400 dark:border-slate-700' : 'border-slate-300 dark:border-slate-800'"
       @dragover="handleDragOver"
       @drop="(e) => handleDrop(e, col.status, colIndex)"
@@ -133,7 +133,7 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
         <div
           v-for="(task, rowIndex) in taskStore.filteredTasks.filter((t) => t.status === col.status)"
           :key="task.id"
-          class="group rounded-md p-3 shadow-xs cursor-grab active:cursor-grabbing select-none transition-colors border"
+          class="group rounded-md p-3 shadow-xs cursor-grab active:cursor-grabbing select-none border"
           :class="taskStore.activeKanbanTask?.id === task.id
             ? 'ring-2 ring-inset ring-indigo-500 dark:ring-indigo-400 border-indigo-500 dark:border-indigo-400 bg-slate-50 dark:bg-slate-800/90 shadow-sm'
             : 'border-slate-300 dark:border-slate-700/80 bg-white dark:bg-slate-900 hover:border-slate-400 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800'"
@@ -176,7 +176,7 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
             </div>
 
             <!-- Quick Column Shift Controls -->
-            <div class="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition">
+            <div class="flex items-center gap-1 opacity-60 group-hover:opacity-100">
               <button
                 type="button"
                 class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
@@ -201,7 +201,7 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
       <!-- Quick Add Button: h-8 rounded-md standard -->
       <button
         type="button"
-        class="h-8 w-full mt-2 border border-dashed border-slate-300 dark:border-slate-700 rounded-md hover:bg-white dark:hover:bg-slate-800 text-xs font-mono transition flex items-center justify-center gap-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer shrink-0"
+        class="h-8 w-full mt-2 border border-dashed border-slate-300 dark:border-slate-700 rounded-md hover:bg-white dark:hover:bg-slate-800 text-xs font-mono flex items-center justify-center gap-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer shrink-0"
         @click="onOpenCreate"
       >
         <Plus class="w-3.5 h-3.5" />

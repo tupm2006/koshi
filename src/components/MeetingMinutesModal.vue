@@ -31,7 +31,7 @@ async function handleExtract() {
 
 <template>
   <div
-    class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-100"
+    class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6"
     @click.self="onClose"
   >
     <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-lg p-5 md:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col max-h-[88vh]">
@@ -66,7 +66,7 @@ async function handleExtract() {
 
         <button
           type="button"
-          class="w-full py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-mono font-medium text-xs flex items-center justify-center gap-1.5 cursor-pointer transition shadow-xs disabled:opacity-50"
+          class="w-full py-2 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-mono font-medium text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
           @click="handleExtract"
           :disabled="isLoading || !rawNotes.trim()"
         >
@@ -80,7 +80,7 @@ async function handleExtract() {
           <span>{{ errorMsg }}</span>
         </div>
 
-        <div v-if="result" class="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800 animate-in fade-in">
+        <div v-if="result" class="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800">
           <!-- Main Topics -->
           <div v-if="result.main_topics && result.main_topics.length > 0" class="p-3 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
             <h4 class="font-mono text-slate-500 dark:text-slate-400 font-semibold mb-1.5 uppercase text-[11px] tracking-wider">Main Topics Discussed:</h4>

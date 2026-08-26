@@ -82,7 +82,7 @@ function handleAcceptAll() {
 
 <template>
   <div
-    class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-100"
+    class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6"
     @click.self="emit('close')"
   >
     <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-lg p-5 md:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col max-h-[90vh]">
@@ -114,7 +114,7 @@ function handleAcceptAll() {
           />
           <button
             type="button"
-            class="h-8 px-3.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center gap-1.5 cursor-pointer transition shadow-xs disabled:opacity-50 shrink-0"
+            class="h-8 px-3.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50 shrink-0"
             :disabled="isLoading || !goalInput.trim()"
             @click="handleDecompose()"
           >
@@ -131,7 +131,7 @@ function handleAcceptAll() {
             v-for="s in SUGGESTIONS"
             :key="s"
             type="button"
-            class="text-[11px] font-mono px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 transition cursor-pointer"
+            class="text-[11px] font-mono px-2 py-1 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer"
             @click="handleDecompose(s)"
           >
             {{ s }}
@@ -183,14 +183,14 @@ function handleAcceptAll() {
       <div v-if="result" class="pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">
         <button
           type="button"
-          class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-mono text-xs cursor-pointer transition min-h-[40px]"
+          class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-mono text-xs cursor-pointer min-h-[40px]"
           @click="emit('close')"
         >
           Dismiss
         </button>
         <button
           type="button"
-          class="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center gap-1.5 cursor-pointer transition shadow-xs min-h-[40px] disabled:opacity-50"
+          class="px-5 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center gap-1.5 cursor-pointer shadow-xs min-h-[40px] disabled:opacity-50"
           :disabled="isInserted"
           @click="handleAcceptAll"
         >

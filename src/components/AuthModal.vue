@@ -49,7 +49,7 @@ function handleQuickSwitch(targetEmail: string) {
 
 <template>
   <div
-    class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-100"
+    class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6"
     @click.self="emit('close')"
   >
     <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-lg p-5 md:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col">
@@ -155,7 +155,7 @@ function handleQuickSwitch(targetEmail: string) {
 
         <button
           type="submit"
-          class="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center justify-center gap-1.5 cursor-pointer transition disabled:opacity-50"
+          class="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
           :disabled="isSubmitting"
         >
           <LogIn v-if="mode === 'LOGIN'" class="w-3.5 h-3.5" />

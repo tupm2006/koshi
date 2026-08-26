@@ -181,7 +181,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <!-- View Toggle (Table / Kanban) -->
           <button
             type="button"
-            class="h-8 flex items-center gap-1.5 px-3 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-mono text-slate-800 dark:text-slate-200 cursor-pointer transition shadow-2xs"
+            class="h-8 flex items-center gap-1.5 px-3 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-mono text-slate-800 dark:text-slate-200 cursor-pointer shadow-2xs"
             @click="taskStore.toggleViewMode()"
             title="Toggle Table / Kanban View"
           >
@@ -193,7 +193,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <!-- Auth Status Pill -->
           <button
             type="button"
-            class="h-8 hidden sm:inline-flex items-center gap-1.5 px-3 rounded-md border text-xs font-mono cursor-pointer transition shadow-2xs"
+            class="h-8 hidden sm:inline-flex items-center gap-1.5 px-3 rounded-md border text-xs font-mono cursor-pointer shadow-2xs"
             :class="taskStore.currentUser ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold' : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'"
             @click="isAuthModalOpen = true"
           >
@@ -208,23 +208,23 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <div id="ai-menu-container" class="relative">
             <button
               type="button"
-              class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-mono cursor-pointer transition shadow-2xs font-semibold"
+              class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-mono cursor-pointer shadow-2xs font-semibold"
               @click.stop="isAIMenuOpen = !isAIMenuOpen"
               title="AI Workflows & Tools"
             >
               <Sparkles class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
               <span>AI Tools</span>
-              <ChevronDown class="w-3 h-3 transition-transform" :class="isAIMenuOpen ? 'rotate-180' : ''" />
+              <ChevronDown class="w-3 h-3-transform" :class="isAIMenuOpen ? 'rotate-180' : ''" />
             </button>
 
             <!-- Dropdown Menu -->
             <div
               v-if="isAIMenuOpen"
-              class="absolute right-0 mt-1.5 w-64 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg shadow-xl py-1.5 z-50 text-xs font-mono animate-in fade-in zoom-in-95 duration-100"
+              class="absolute right-0 mt-1.5 w-64 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg shadow-xl py-1.5 z-50 text-xs font-mono"
             >
               <button
                 type="button"
-                class="w-full text-left px-3 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-2 cursor-pointer transition"
+                class="w-full text-left px-3 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 text-slate-800 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400 flex items-center gap-2 cursor-pointer"
                 @click="() => { isWeeklySummaryOpen = true; isAIMenuOpen = false; }"
               >
                 <Sparkles class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
@@ -236,7 +236,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 
               <button
                 type="button"
-                class="w-full text-left px-3 py-2 hover:bg-sky-50 dark:hover:bg-sky-950/40 text-slate-800 dark:text-slate-200 hover:text-sky-600 dark:hover:text-sky-400 flex items-center gap-2 cursor-pointer transition"
+                class="w-full text-left px-3 py-2 hover:bg-sky-50 dark:hover:bg-sky-950/40 text-slate-800 dark:text-slate-200 hover:text-sky-600 dark:hover:text-sky-400 flex items-center gap-2 cursor-pointer"
                 @click="() => { isMeetingMinutesOpen = true; isAIMenuOpen = false; }"
               >
                 <FileText class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
@@ -248,7 +248,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 
               <button
                 type="button"
-                class="w-full text-left px-3 py-2 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-800 dark:text-slate-200 hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-2 cursor-pointer transition"
+                class="w-full text-left px-3 py-2 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-800 dark:text-slate-200 hover:text-amber-600 dark:hover:text-amber-400 flex items-center gap-2 cursor-pointer"
                 @click="() => { isWorkloadAssignOpen = true; isAIMenuOpen = false; }"
               >
                 <Users class="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
@@ -262,7 +262,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 
               <button
                 type="button"
-                class="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 flex items-center justify-between cursor-pointer transition"
+                class="w-full text-left px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 flex items-center justify-between cursor-pointer"
                 @click="() => { isAIDecomposerOpen = true; isAIMenuOpen = false; }"
               >
                 <div class="flex items-center gap-2">
@@ -277,7 +277,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <!-- DAG Graph -->
           <button
             type="button"
-            class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer transition shadow-2xs"
+            class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer shadow-2xs"
             @click="isDAGOpen = true"
             title="DAG Critical Path (v)"
           >
@@ -288,7 +288,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <!-- JSON Backup -->
           <button
             type="button"
-            class="h-8 inline-flex items-center justify-center px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer transition shadow-2xs"
+            class="h-8 inline-flex items-center justify-center px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer shadow-2xs"
             @click="isExportImportOpen = true"
             title="JSON Backup & Restore"
           >
@@ -298,7 +298,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <!-- Theme Toggle Button -->
           <button
             type="button"
-            class="h-8 inline-flex items-center justify-center px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-300 text-xs font-mono cursor-pointer transition shadow-2xs"
+            class="h-8 inline-flex items-center justify-center px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-300 text-xs font-mono cursor-pointer shadow-2xs"
             @click="themeStore.toggleTheme()"
             :title="`Toggle Theme (t) - Current: ${themeStore.resolvedTheme}`"
           >
@@ -309,7 +309,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <!-- Create Task -->
           <button
             type="button"
-            class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-slate-900 hover:bg-slate-800 text-slate-50 dark:bg-slate-100 dark:hover:bg-white dark:text-slate-950 text-xs font-mono font-medium cursor-pointer transition shadow-xs"
+            class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-slate-900 hover:bg-slate-800 text-slate-50 dark:bg-slate-100 dark:hover:bg-white dark:text-slate-950 text-xs font-mono font-medium cursor-pointer shadow-xs"
             @click="isCreateModalOpen = true"
             title="Create Task (c)"
           >
@@ -349,7 +349,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             v-for="st in statusTabs"
             :key="st"
             type="button"
-            class="h-6 px-2.5 inline-flex items-center justify-center rounded-md transition cursor-pointer shrink-0 text-[11px]"
+            class="h-6 px-2.5 inline-flex items-center justify-center rounded-md cursor-pointer shrink-0 text-[11px]"
             :class="taskStore.filter.status === st && !taskStore.filter.onlyCriticalPath ? 'bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-100 font-semibold border border-slate-300 dark:border-transparent shadow-2xs' : 'text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'"
             @click="() => {
               if (taskStore.filter.onlyCriticalPath) taskStore.toggleCriticalPathOnly();
@@ -361,7 +361,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 
           <button
             type="button"
-            class="h-6 ml-1 inline-flex items-center gap-1 px-2.5 rounded-md transition cursor-pointer shrink-0 text-[11px]"
+            class="h-6 ml-1 inline-flex items-center gap-1 px-2.5 rounded-md cursor-pointer shrink-0 text-[11px]"
             :class="taskStore.filter.onlyCriticalPath ? 'bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/50 font-semibold shadow-2xs' : 'text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'"
             @click="taskStore.toggleCriticalPathOnly()"
             title="Toggle Critical Path Only"
@@ -408,7 +408,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             v-if="!taskStore.isBackendConnected"
             class="h-6 inline-flex items-center gap-1.5 px-2 rounded-md bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/60 font-semibold"
           >
-            <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
             <span>Offline (Local buffer)</span>
           </span>
 
@@ -454,7 +454,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
     <!-- JSON Backup / Restore Modal -->
     <div
       v-if="isExportImportOpen"
-      class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-3 animate-in fade-in duration-100"
+      class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-3"
       @click.self="isExportImportOpen = false"
     >
       <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-lg p-4 shadow-2xl border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col">
@@ -469,7 +469,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             <span class="font-mono text-slate-600 dark:text-slate-400">Export state file</span>
             <button
               type="button"
-              class="h-8 px-3 rounded-md bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-mono text-xs cursor-pointer transition"
+              class="h-8 px-3 rounded-md bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-mono text-xs cursor-pointer"
               @click="handleDownloadExport"
             >
               Download
@@ -485,7 +485,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             <div v-if="importStatusMsg" class="text-[11px] font-mono text-slate-600 dark:text-slate-400 mt-1">{{ importStatusMsg }}</div>
             <button
               type="button"
-              class="w-full mt-2 h-8 rounded-md bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-mono text-xs cursor-pointer transition flex items-center justify-center"
+              class="w-full mt-2 h-8 rounded-md bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-mono text-xs cursor-pointer flex items-center justify-center"
               @click="handleImportJSON"
             >
               Import JSON

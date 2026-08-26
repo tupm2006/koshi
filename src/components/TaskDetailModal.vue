@@ -130,7 +130,7 @@ function getStatusBadge(s: TaskStatus) {
 
 <template>
   <div
-    class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6 animate-in fade-in duration-100"
+    class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6"
     @click.self="emit('close')"
   >
     <div
@@ -159,7 +159,7 @@ function getStatusBadge(s: TaskStatus) {
           <span
             class="hidden sm:inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded border"
             :class="isEditing
-              ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60 font-semibold animate-pulse'
+              ? 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/60 font-semibold'
               : 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'"
           >
             {{ isEditing ? 'EDITING DESCRIPTION (Esc to Save)' : 'VIEW MODE (Press i to Edit Description)' }}
@@ -168,7 +168,7 @@ function getStatusBadge(s: TaskStatus) {
           <button
             v-if="!isEditing"
             type="button"
-            class="h-7 px-2.5 inline-flex items-center gap-1.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-sans font-medium transition cursor-pointer border border-slate-200 dark:border-slate-700"
+            class="h-7 px-2.5 inline-flex items-center gap-1.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-sans font-medium cursor-pointer border border-slate-200 dark:border-slate-700"
             @click="enterEditMode"
             title="Edit description (i)"
           >
@@ -179,7 +179,7 @@ function getStatusBadge(s: TaskStatus) {
           <button
             v-else
             type="button"
-            class="h-7 px-2.5 inline-flex items-center gap-1.5 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-sans font-medium transition cursor-pointer shadow-2xs"
+            class="h-7 px-2.5 inline-flex items-center gap-1.5 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-sans font-medium cursor-pointer shadow-2xs"
             @click="saveAndExit"
             title="Save and Exit (Esc)"
           >
@@ -189,7 +189,7 @@ function getStatusBadge(s: TaskStatus) {
 
           <button
             type="button"
-            class="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            class="p-1 rounded-md text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
             @click="emit('close')"
             title="Close dialog (Esc)"
           >
@@ -272,7 +272,7 @@ function getStatusBadge(s: TaskStatus) {
           <!-- View Mode for Description -->
           <div
             v-if="!isEditing"
-            class="p-3.5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 rounded-lg min-h-[90px] cursor-text hover:border-slate-300 dark:hover:border-slate-700 transition"
+            class="p-3.5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 rounded-lg min-h-[90px] cursor-text hover:border-slate-300 dark:hover:border-slate-700"
             @click="enterEditMode"
             title="Click or press 'i' to edit description"
           >
