@@ -29,6 +29,15 @@ const task = computed<Task | null>(() => {
   return taskStore.tasks.find((t) => t.id === props.taskId) || null;
 });
 
+const formattedDate = computed(() => {
+  if (!task.value) return '';
+  return new Date(task.value.createdAt).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+});
+
 // Edit buffer specifically for Description
 const editDescription = ref('');
 
@@ -65,7 +74,7 @@ function saveAndExit() {
   isEditing.value = false;
 }
 
-function toggleEdit() {
+function toggleEditMode() {
   if (isEditing.value) {
     saveAndExit();
   } else {
@@ -171,11 +180,15 @@ function getStatusBadge(s: TaskStatus) {
         <div class="flex items-center gap-2 shrink-0 ml-auto">
           <button
             type="button"
-            class="h-7 px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 font-mono text-xs flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
-            @click="toggleEdit"
+            class="h-7 px-2.5 rounded-md border text-xs font-sans font-medium flex items-center gap-1.5 cursor-pointer transition shrink-0"
+            :class="isEditing
+              ? 'bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 border-transparent shadow-xs'
+              : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200'"
+            @click="toggleEditMode"
           >
-            <Edit3 class="w-3.5 h-3.5 shrink-0" />
-            <span>{{ isEditing ? 'Done' : 'Edit' }}</span>
+            <Check class="w-3.5 h-3.5 shrink-0" v-if="isEditing" />
+            <Edit3 class="w-3.5 h-3.5 shrink-0" v-else />
+            <span>{{ isEditing ? 'Save' : 'Edit' }}</span>
           </button>
 
           <button
@@ -248,7 +261,7 @@ function getStatusBadge(s: TaskStatus) {
           </p>
         </div>
 
-        <!-- Description Section (No Inline Redundancy) -->
+        <!-- Description Section (No floating purple save button) -->
         <div>
           <label class="block font-mono text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
             Description
@@ -268,8 +281,8 @@ function getStatusBadge(s: TaskStatus) {
             </span>
           </div>
 
-          <!-- Edit Mode -->
-          <div v-else class="space-y-2">
+          <!-- Edit Mode (Clean textarea without floating buttons) -->
+          <div v-else>
             <textarea
               ref="descriptionTextareaRef"
               v-model="editDescription"
@@ -277,15 +290,6 @@ function getStatusBadge(s: TaskStatus) {
               class="w-full bg-white dark:bg-slate-950 border-2 border-indigo-500 dark:border-indigo-400 rounded-md p-3 text-xs md:text-sm text-slate-900 dark:text-slate-100 focus:outline-none font-sans shadow-xs leading-relaxed"
               placeholder="Task details and technical specifications..."
             ></textarea>
-            <div class="flex items-center justify-end">
-              <button
-                type="button"
-                class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs font-sans font-medium cursor-pointer"
-                @click="saveAndExit"
-              >
-                Save
-              </button>
-            </div>
           </div>
         </div>
 
@@ -326,14 +330,38 @@ function getStatusBadge(s: TaskStatus) {
         </div>
       </div>
 
-      <!-- Footer -->
-      <div class="px-5 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 flex items-center justify-between text-xs font-mono text-slate-500 dark:text-slate-400 shrink-0">
-        <div>
-          <span>Created: {{ new Date(task.createdAt).toLocaleDateString() }}</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] font-mono">i</kbd> Edit</span>
-          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px] font-mono">Esc</kbd> Close</span>
+      <!-- Footer Strip with Dynamic State & Solid Save Button -->
+      <div class="px-5 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 flex items-center justify-between text-xs select-none shrink-0">
+        <!-- Left: Metadata -->
+        <span class="font-mono text-[11px] text-slate-500 dark:text-slate-400">
+          {{ isEditing ? 'Editing mode' : `Created: ${formattedDate}` }}
+        </span>
+
+        <!-- Right: Actions & Keycaps -->
+        <div class="flex items-center gap-2 font-mono">
+          <!-- View Mode Keycaps -->
+          <template v-if="!isEditing">
+            <span class="text-slate-600 dark:text-slate-400">
+              <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px]">i</kbd> Edit
+            </span>
+            <span class="text-slate-600 dark:text-slate-400">
+              <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px]">Esc</kbd> Close
+            </span>
+          </template>
+
+          <!-- Edit Mode Actions & Keycaps -->
+          <template v-else>
+            <span class="text-slate-600 dark:text-slate-400 mr-1">
+              <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px]">Esc</kbd> Save & Exit
+            </span>
+            <button
+              type="button"
+              class="h-7 px-3 rounded-md bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-white dark:text-slate-900 font-sans font-medium text-xs cursor-pointer shadow-xs"
+              @click="saveAndExit"
+            >
+              Save
+            </button>
+          </template>
         </div>
       </div>
     </div>
