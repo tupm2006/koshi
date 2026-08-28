@@ -35,9 +35,6 @@ class UserOut(BaseModel):
     class Config:
         from_attributes = True
 
-# Alias for search responses
-UserResponse = UserOut
-
 class UserWithWIPOut(UserOut):
     active_tasks_count: int = 0
     wip_points: int = 0
@@ -50,3 +47,9 @@ class Token(BaseModel):
 class TokenPayload(BaseModel):
     sub: str
     role: str
+
+# Aliases for request and response models
+UserRegisterRequest = UserRegister
+UserLoginRequest = UserLogin
+TokenResponse = Token
+UserResponse = UserOut

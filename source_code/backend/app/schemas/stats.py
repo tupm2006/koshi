@@ -11,6 +11,8 @@ class MemberWorkloadOut(BaseModel):
     total_complexity_points: int
     is_overloaded: bool
 
+UserWithWIPOut = MemberWorkloadOut
+
 class DelayedTaskOut(BaseModel):
     task_id: int
     title: str

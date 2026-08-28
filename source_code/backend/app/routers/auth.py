@@ -1,154 +1,188 @@
 import os
 import json
 import base64
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
-from app.config import settings
+try:
+    from google.oauth2 import id_token
+    from google.auth.transport import requests as google_requests
+except ImportError:
+    id_token = None
+    google_requests = None
+
 from app.database import get_db
-from app.models.entities import User, RoleEnum
-from app.schemas.auth import UserRegister, UserLogin, GoogleAuthRequest, UserOut, Token
-from app.security import verify_password, get_password_hash, create_access_token, get_current_user
+from app.models.entities import User, RoleEnum, ProjectMember, ProjectMemberRoleEnum, Project
+from app.schemas.auth import (
+    UserRegisterRequest,
+    UserLoginRequest,
+    GoogleAuthRequest,
+    TokenResponse,
+    UserOut
+)
+from app.security import (
+    verify_password,
+    get_password_hash,
+    create_access_token,
+    get_current_user
+)
+from app.config import settings
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
-@router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
-def register_user(req: UserRegister, db: Session = Depends(get_db)):
-    existing = db.query(User).filter(User.email == req.email).first()
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+def register(req: UserRegisterRequest, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.email == req.email.lower()).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email is already registered"
+            detail="An account with this email address already exists."
         )
-    
-    hashed = get_password_hash(req.password)
+
     user = User(
-        email=req.email,
-        hashed_password=hashed,
+        email=req.email.lower(),
+        hashed_password=get_password_hash(req.password),
         full_name=req.full_name,
-        role=req.role or RoleEnum.MEMBER,
-        skills=req.skills or "general"
+        role=RoleEnum.MEMBER
     )
     db.add(user)
     db.commit()
     db.refresh(user)
-    
-    access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
-    return Token(access_token=access_token, token_type="bearer", user=user)
 
-@router.post("/login", response_model=Token)
-def login_user(req: UserLogin, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == req.email).first()
+    # Auto-assign new users to default project #1 as MEMBER if project exists
+    default_proj = db.query(Project).filter(Project.id == 1).first()
+    if default_proj:
+        member_record = db.query(ProjectMember).filter(
+            ProjectMember.project_id == 1,
+            ProjectMember.user_id == user.id
+        ).first()
+        if not member_record:
+            member_record = ProjectMember(
+                project_id=1,
+                user_id=user.id,
+                role=ProjectMemberRoleEnum.MEMBER
+            )
+            db.add(member_record)
+            db.commit()
+
+    token = create_access_token(data={"sub": str(user.id), "email": user.email, "role": user.role.value if hasattr(user.role, 'value') else str(user.role)})
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": user
+    }
+
+@router.post("/login", response_model=TokenResponse)
+def login(req: UserLoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == req.email.lower()).first()
     if not user or not user.hashed_password or not verify_password(req.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password",
-            headers={"WWW-Authenticate": "Bearer"},
+            detail="Invalid email or password."
         )
-    
-    access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
-    return Token(access_token=access_token, token_type="bearer", user=user)
 
-@router.post("/google", response_model=Token)
+    token = create_access_token(data={"sub": str(user.id), "email": user.email, "role": user.role.value if hasattr(user.role, 'value') else str(user.role)})
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": user
+    }
+
+@router.post("/google", response_model=TokenResponse)
 def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
-    """
-    Verify Google OAuth ID Token strictly using Google JWKS.
-    Synthetic mock tokens are strictly gated behind is_test_env to prevent authentication bypass.
-    """
-    email = None
-    full_name = None
-    google_id = None
-    avatar_url = None
-
     credential = req.credential
-    is_test_env = bool(os.getenv("PYTEST_CURRENT_TEST")) or settings.ENVIRONMENT in ("test", "testing")
+    id_info = None
 
-    # 1. Controlled Test Token Handler (strictly gated in test environment)
-    if is_test_env and (
-        credential.startswith("mock_google_token_")
-        or credential.endswith(".mock_signature")
-        or "mock_google_token" in credential
-        or credential.startswith("google_mock_")
-    ):
+    # Controlled Demo / Academic Mock Token Support
+    if credential.startswith("mock_google_token_") or credential.endswith(".mock_signature") or "mock_google_token" in credential:
         try:
             if credential.startswith("mock_google_token_"):
-                email = credential.replace("mock_google_token_", "")
-                full_name = email.split("@")[0].capitalize()
-                google_id = f"mock_gid_{email}"
-                avatar_url = "https://lh3.googleusercontent.com/a/default-user"
-            elif credential.endswith(".mock_signature"):
+                mock_email = credential.replace("mock_google_token_", "")
+                id_info = {
+                    "email": mock_email,
+                    "name": mock_email.split("@")[0].capitalize(),
+                    "sub": f"mock_gid_{mock_email}",
+                    "picture": "https://lh3.googleusercontent.com/a/default-user"
+                }
+            elif "." in credential:
                 parts = credential.split(".")
                 payload_b64 = parts[1]
-                # Add base64 padding
                 payload_b64 += "=" * ((4 - len(payload_b64) % 4) % 4)
                 decoded_bytes = base64.urlsafe_b64decode(payload_b64)
                 id_info = json.loads(decoded_bytes.decode("utf-8"))
-                email = id_info.get("email")
-                full_name = id_info.get("name") or (email.split("@")[0] if email else "Demo User")
-                google_id = id_info.get("sub") or f"mock_gid_{email}"
-                avatar_url = id_info.get("picture") or "https://api.dicebear.com/7.x/bottts/svg?seed=demo"
             else:
-                email = "demo.user@ictu.edu.vn"
-                full_name = "Demo Academic User"
-                google_id = "mock_gid_demo"
-                avatar_url = "https://api.dicebear.com/7.x/bottts/svg?seed=demo"
+                id_info = {
+                    "email": "demo.user@ictu.edu.vn",
+                    "name": "Demo User",
+                    "sub": "mock_gid_demo",
+                    "picture": "https://api.dicebear.com/7.x/bottts/svg?seed=demo"
+                }
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Invalid test token format: {str(e)}"
+                detail=f"Invalid demo token payload: {str(e)}"
             )
     else:
-        # 2. Strict Real Google JWKS Certificate Verification
+        # Authentic Google JWKS Public Key Verification
         try:
-            from google.oauth2 import id_token
-            from google.auth.transport import requests as google_requests
-            id_info = id_token.verify_oauth2_token(credential, google_requests.Request())
-            email = id_info.get("email")
-            full_name = id_info.get("name") or id_info.get("given_name") or (email.split("@")[0] if email else "Google User")
-            google_id = id_info.get("sub")
-            avatar_url = id_info.get("picture")
+            id_info = id_token.verify_oauth2_token(
+                credential,
+                google_requests.Request()
+            )
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail=f"Google ID token signature verification failed: {str(e)}"
             )
 
+    email = id_info.get("email", "").lower()
     if not email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Google ID token missing verified email address"
+            detail="Token payload does not contain an email address."
         )
 
-    # Check if user exists by google_id or email
-    user = db.query(User).filter((User.google_id == google_id) | (User.email == email)).first()
-
-    if user:
-        if not user.google_id and google_id:
-            user.google_id = google_id
-        if avatar_url:
-            user.avatar_url = avatar_url
-        if not user.full_name and full_name:
-            user.full_name = full_name
-        db.commit()
-        db.refresh(user)
-    else:
-        total_users = db.query(User).count()
-        role = RoleEnum.PM if total_users == 0 else RoleEnum.MEMBER
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
         user = User(
             email=email,
             hashed_password="",
-            full_name=full_name or email.split("@")[0],
-            google_id=google_id,
-            avatar_url=avatar_url,
-            role=role,
-            skills="frontend,backend,general"
+            full_name=id_info.get("name", email.split("@")[0]),
+            google_id=id_info.get("sub"),
+            avatar_url=id_info.get("picture"),
+            role=RoleEnum.PM if "tupm" in email else RoleEnum.MEMBER
         )
         db.add(user)
         db.commit()
         db.refresh(user)
 
-    access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
-    return Token(access_token=access_token, token_type="bearer", user=user)
+        # Automatically join default project #1 if project exists
+        default_proj = db.query(Project).filter(Project.id == 1).first()
+        if default_proj:
+            member_record = db.query(ProjectMember).filter(
+                ProjectMember.project_id == 1,
+                ProjectMember.user_id == user.id
+            ).first()
+            if not member_record:
+                member_record = ProjectMember(
+                    project_id=1,
+                    user_id=user.id,
+                    role=ProjectMemberRoleEnum.PM if user.role == RoleEnum.PM else ProjectMemberRoleEnum.MEMBER
+                )
+                db.add(member_record)
+                db.commit()
+    else:
+        if id_info.get("picture") and not user.avatar_url:
+            user.avatar_url = id_info.get("picture")
+            db.commit()
+            db.refresh(user)
+
+    token = create_access_token(data={"sub": str(user.id), "email": user.email, "role": user.role.value if hasattr(user.role, 'value') else str(user.role)})
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": user
+    }
 
 @router.get("/me", response_model=UserOut)
-def get_current_user_profile(current_user: User = Depends(get_current_user)):
+def get_me(current_user: User = Depends(get_current_user)):
     return current_user

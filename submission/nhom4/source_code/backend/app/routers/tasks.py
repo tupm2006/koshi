@@ -1,65 +1,71 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.orm import Session
+import json
+import re
 from typing import List, Optional
 from datetime import datetime
+from fastapi import APIRouter, HTTPException, Depends, status
+from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.entities import Task, Comment, TaskStatusEnum, User, ProjectMemberRoleEnum
-from app.schemas.task import TaskCreate, TaskUpdate, TaskOut, CommentCreate, CommentOut
+from app.models.entities import Task, TaskDependency, Comment, User, TaskStatusEnum, ProjectMemberRoleEnum
+from app.schemas.task import TaskCreate, TaskUpdate, TaskOut, TaskCycleStatusOut, CommentCreate, CommentOut
 from app.security import get_current_user, verify_project_membership
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
+def sync_dependencies(task_id: int, dep_ids: List[int], db: Session):
+    db.query(TaskDependency).filter(TaskDependency.task_id == task_id).delete()
+    for dep_id in dep_ids:
+        if dep_id != task_id:
+            db.add(TaskDependency(task_id=task_id, depends_on_id=dep_id))
+    db.commit()
+
 @router.get("", response_model=List[TaskOut])
 def list_tasks(
-    project_id: int,
-    sprint_id: Optional[int] = None,
-    status: Optional[TaskStatusEnum] = None,
-    assignee_id: Optional[int] = None,
+    project_id: int = 1,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     verify_project_membership(project_id, current_user.id, db)
-    query = db.query(Task).filter(Task.project_id == project_id)
-    if sprint_id is not None:
-        query = query.filter(Task.sprint_id == sprint_id)
-    if status is not None:
-        query = query.filter(Task.status == status)
-    if assignee_id is not None:
-        query = query.filter(Task.assignee_id == assignee_id)
-    return query.order_by(Task.id.desc()).all()
+    return db.query(Task).filter(Task.project_id == project_id).order_by(Task.id.asc()).all()
 
 @router.post("", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
-def create_task(req: TaskCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    verify_project_membership(
-        req.project_id,
-        current_user.id,
-        db,
-        allowed_roles=[ProjectMemberRoleEnum.OWNER, ProjectMemberRoleEnum.PM, ProjectMemberRoleEnum.MEMBER]
-    )
+def create_task(
+    payload: TaskCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    verify_project_membership(payload.project_id, current_user.id, db)
+    
     task = Task(
-        project_id=req.project_id,
-        sprint_id=req.sprint_id,
-        assignee_id=req.assignee_id or current_user.id,
-        title=req.title,
-        description=req.description or "",
-        status=req.status or TaskStatusEnum.TODO,
-        priority=req.priority,
-        complexity_points=req.complexity_points or 2,
-        due_date=req.due_date,
-        blocking_reason=req.blocking_reason
+        project_id=payload.project_id,
+        sprint_id=payload.sprint_id,
+        assignee_id=payload.assignee_id,
+        title=payload.title,
+        description=payload.description or "",
+        status=payload.status or TaskStatusEnum.TODO,
+        priority=payload.priority or "MEDIUM",
+        complexity_points=payload.complexity_points or 2,
+        due_date=payload.due_date,
+        blocking_reason=payload.blocking_reason,
+        dependencies_json=json.dumps(payload.dependencies or []),
+        acceptance_criteria_json=json.dumps(payload.acceptance_criteria or [])
     )
-    if req.dependencies:
-        task.dependencies = req.dependencies
-    if req.acceptance_criteria:
-        task.acceptance_criteria = req.acceptance_criteria
-        
     db.add(task)
     db.commit()
     db.refresh(task)
+
+    # Sync relational dependencies table
+    if payload.dependencies:
+        raw_ids = [int(re.sub(r'\D', '', str(d))) for d in payload.dependencies if re.sub(r'\D', '', str(d))]
+        sync_dependencies(task.id, raw_ids, db)
+
     return task
 
 @router.get("/{task_id}", response_model=TaskOut)
-def get_task(task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
@@ -67,43 +73,48 @@ def get_task(task_id: int, db: Session = Depends(get_db), current_user: User = D
     return task
 
 @router.patch("/{task_id}", response_model=TaskOut)
-def update_task(task_id: int, req: TaskUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def update_task(
+    task_id: int,
+    payload: TaskUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    verify_project_membership(
-        task.project_id,
-        current_user.id,
-        db,
-        allowed_roles=[ProjectMemberRoleEnum.OWNER, ProjectMemberRoleEnum.PM, ProjectMemberRoleEnum.MEMBER]
-    )
-    
-    update_data = req.model_dump(exclude_unset=True)
-    
-    if "dependencies" in update_data:
-        task.dependencies = update_data.pop("dependencies")
-    if "acceptance_criteria" in update_data:
-        task.acceptance_criteria = update_data.pop("acceptance_criteria")
-        
-    for k, v in update_data.items():
-        setattr(task, k, v)
-        
+    verify_project_membership(task.project_id, current_user.id, db)
+
+    update_data = payload.model_dump(exclude_unset=True) if hasattr(payload, 'model_dump') else payload.dict(exclude_unset=True)
+    if "dependencies" in update_data and update_data["dependencies"] is not None:
+        deps = update_data.pop("dependencies")
+        task.dependencies_json = json.dumps(deps)
+        raw_ids = [int(re.sub(r'\D', '', str(d))) for d in deps if re.sub(r'\D', '', str(d))]
+        sync_dependencies(task.id, raw_ids, db)
+
+    if "acceptance_criteria" in update_data and update_data["acceptance_criteria"] is not None:
+        task.acceptance_criteria_json = json.dumps(update_data.pop("acceptance_criteria"))
+
+    for field, value in update_data.items():
+        setattr(task, field, value)
+
     task.updated_at = datetime.utcnow()
     db.commit()
     db.refresh(task)
     return task
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_task(task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def delete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    verify_project_membership(
-        task.project_id,
-        current_user.id,
-        db,
-        allowed_roles=[ProjectMemberRoleEnum.OWNER, ProjectMemberRoleEnum.PM]
-    )
+    verify_project_membership(task.project_id, current_user.id, db)
+
+    # Clean up relational dependency records
+    db.query(TaskDependency).filter((TaskDependency.task_id == task_id) | (TaskDependency.depends_on_id == task_id)).delete()
 
     # Clean up any sibling task referencing the deleted task ID in its dependencies_json
     sibling_tasks = db.query(Task).filter(Task.project_id == task.project_id).all()
@@ -118,38 +129,44 @@ def delete_task(task_id: int, db: Session = Depends(get_db), current_user: User 
     db.commit()
     return None
 
-@router.post("/{task_id}/cycle-status", response_model=TaskOut)
-def cycle_task_status(task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
-    verify_project_membership(
-        task.project_id,
-        current_user.id,
-        db,
-        allowed_roles=[ProjectMemberRoleEnum.OWNER, ProjectMemberRoleEnum.PM, ProjectMemberRoleEnum.MEMBER]
-    )
-        
-    cycle = [TaskStatusEnum.TODO, TaskStatusEnum.IN_PROGRESS, TaskStatusEnum.BLOCKED, TaskStatusEnum.DONE]
-    current_idx = cycle.index(task.status)
-    task.status = cycle[(current_idx + 1) % len(cycle)]
-    task.updated_at = datetime.utcnow()
-    
-    db.commit()
-    db.refresh(task)
-    return task
-
-@router.post("/{task_id}/comments", response_model=CommentOut, status_code=status.HTTP_201_CREATED)
-def add_comment(task_id: int, req: CommentCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+@router.post("/{task_id}/cycle-status", response_model=TaskCycleStatusOut)
+def cycle_task_status(
+    task_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     verify_project_membership(task.project_id, current_user.id, db)
-        
+
+    cycle = [TaskStatusEnum.TODO, TaskStatusEnum.IN_PROGRESS, TaskStatusEnum.BLOCKED, TaskStatusEnum.DONE]
+    current_idx = cycle.index(task.status) if task.status in cycle else 0
+    next_status = cycle[(current_idx + 1) % len(cycle)]
+
+    task.status = next_status
+    task.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(task)
+
+    return {"id": task.id, "status": task.status, "updated_at": task.updated_at}
+
+@router.post("/{task_id}/comments", response_model=CommentOut, status_code=status.HTTP_201_CREATED)
+def add_comment(
+    task_id: int,
+    payload: CommentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    task = db.query(Task).filter(Task.id == task_id).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    verify_project_membership(task.project_id, current_user.id, db)
+
     comment = Comment(
         task_id=task_id,
         author_id=current_user.id,
-        content=req.content
+        content=payload.content
     )
     db.add(comment)
     db.commit()

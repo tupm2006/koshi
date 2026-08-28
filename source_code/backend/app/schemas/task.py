@@ -70,3 +70,9 @@ class TaskOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+class TaskCycleStatusOut(BaseModel):
+    id: int
+    status: str
+    updated_at: datetime
+

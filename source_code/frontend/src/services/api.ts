@@ -21,13 +21,15 @@ export function base64UrlEncode(str: string): string {
     .replace(/=+$/, '');
 }
 
+export const encodeBase64Url = base64UrlEncode;
+
 /**
  * UTF-8 Safe Base64URL decoder.
  * Handles multi-byte Unicode strings (e.g. Vietnamese diacritics) without InvalidCharacterError.
  */
 export function base64UrlDecode(str: string): string {
   let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
-  while (base64.length % 4) {
+  while (base64.length % 4 !== 0) {
     base64 += '=';
   }
   const binary = atob(base64);
@@ -35,7 +37,7 @@ export function base64UrlDecode(str: string): string {
   for (let i = 0; i < binary.length; i++) {
     bytes[i] = binary.charCodeAt(i);
   }
-  return new TextDecoder().decode(bytes);
+  return new TextDecoder('utf-8').decode(bytes);
 }
 
 /**
@@ -46,9 +48,9 @@ export function parseJwt<T = any>(token: string): T | null {
     const parts = token.split('.');
     if (parts.length < 2) return null;
     const jsonStr = base64UrlDecode(parts[1]);
-    return JSON.parse(jsonStr);
-  } catch (e) {
-    console.error('Failed to parse JWT payload:', e);
+    return JSON.parse(jsonStr) as T;
+  } catch (err) {
+    console.error('[Auth] Failed to decode token:', err);
     return null;
   }
 }
@@ -104,7 +106,7 @@ export class ApiClient {
     return this.token;
   }
 
-  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const headers = new Headers(options.headers || {});
     headers.set('Content-Type', 'application/json');
 
@@ -116,6 +118,12 @@ export class ApiClient {
       ...options,
       headers,
     });
+
+    if (res.status === 401) {
+      this.setToken(null);
+      const errBody = await res.json().catch(() => ({ detail: 'Session expired or invalid credentials' }));
+      throw new Error(errBody.detail || 'Session expired. Please log in again.');
+    }
 
     if (!res.ok) {
       const errBody = await res.json().catch(() => ({ detail: res.statusText }));
@@ -161,8 +169,8 @@ export class ApiClient {
     return this.request<UserProfile>('/auth/me');
   }
 
-  async getUsers(): Promise<UserProfile[]> {
-    return this.request<UserProfile[]>('/users');
+  async getUsers(): Promise<any[]> {
+    return this.request<any[]>('/users');
   }
 
   async searchUsers(query: string): Promise<UserProfile[]> {
@@ -284,3 +292,4 @@ export class ApiClient {
 }
 
 export const api = new ApiClient();
+export const ApiService = ApiClient;
