@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+import os
 import json
 import base64
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from app.config import settings
 from app.database import get_db
 from app.models.entities import User, RoleEnum
 from app.schemas.auth import UserRegister, UserLogin, GoogleAuthRequest, UserOut, Token
@@ -48,7 +50,10 @@ def login_user(req: UserLogin, db: Session = Depends(get_db)):
 
 @router.post("/google", response_model=Token)
 def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
-    # 1. Verify Google JWT Token or parse payload
+    """
+    Verify Google OAuth ID Token strictly.
+    Eliminated all unverified JWT fallback decoding for P0 security compliance.
+    """
     email = None
     full_name = None
     google_id = None
@@ -57,27 +62,23 @@ def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
     try:
         from google.oauth2 import id_token
         from google.auth.transport import requests as google_requests
-        # In production, verify against Google's public keys
         id_info = id_token.verify_oauth2_token(req.credential, google_requests.Request())
         email = id_info.get("email")
-        full_name = id_info.get("name") or id_info.get("given_name") or email.split("@")[0]
+        full_name = id_info.get("name") or id_info.get("given_name") or (email.split("@")[0] if email else "Google User")
         google_id = id_info.get("sub")
         avatar_url = id_info.get("picture")
-    except Exception:
-        # Robust fallback for JWT token decoding in test / sandbox environments
-        try:
-            parts = req.credential.split(".")
-            if len(parts) >= 2:
-                padded = parts[1] + "=" * ((4 - len(parts[1]) % 4) % 4)
-                decoded = json.loads(base64.urlsafe_b64decode(padded).decode("utf-8"))
-                email = decoded.get("email")
-                full_name = decoded.get("name") or decoded.get("given_name") or (email.split("@")[0] if email else "Google User")
-                google_id = decoded.get("sub")
-                avatar_url = decoded.get("picture")
-        except Exception as e:
+    except Exception as e:
+        # Mock token handling ONLY permitted in automated test suites
+        is_test_env = bool(os.getenv("PYTEST_CURRENT_TEST")) or settings.ENVIRONMENT in ("test", "testing")
+        if is_test_env and req.credential.startswith("mock_google_token_"):
+            email = req.credential.replace("mock_google_token_", "")
+            full_name = "Google Test User"
+            google_id = f"mock_gid_{email}"
+            avatar_url = "https://lh3.googleusercontent.com/a/default-user"
+        else:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invalid Google ID Token: {str(e)}"
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Google ID token signature verification failed: {str(e)}"
             )
 
     if not email:
@@ -86,11 +87,10 @@ def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
             detail="Google ID token missing verified email address"
         )
 
-    # 2. Check if user exists by google_id or email
+    # Check if user exists by google_id or email
     user = db.query(User).filter((User.google_id == google_id) | (User.email == email)).first()
 
     if user:
-        # Update OAuth identifiers and profile
         if not user.google_id and google_id:
             user.google_id = google_id
         if avatar_url:
@@ -100,7 +100,6 @@ def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)
     else:
-        # First user is promoted to PM; subsequent users default to MEMBER
         total_users = db.query(User).count()
         role = RoleEnum.PM if total_users == 0 else RoleEnum.MEMBER
         user = User(

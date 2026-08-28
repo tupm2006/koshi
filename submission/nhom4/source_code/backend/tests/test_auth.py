@@ -42,15 +42,8 @@ def test_unauthenticated_request_rejected(client: TestClient):
     assert res.status_code == 401
 
 def test_google_oauth_and_user_management_flow(client: TestClient):
-    # 1. Simulate Google ID token
-    header = base64.urlsafe_b64encode(json.dumps({"alg": "RS256", "typ": "JWT"}).encode()).decode().rstrip("=")
-    payload = base64.urlsafe_b64encode(json.dumps({
-        "sub": "google-user-123456",
-        "email": "google.dev@tupm.qzz.io",
-        "name": "Google Developer",
-        "picture": "https://lh3.googleusercontent.com/a/default-user"
-    }).encode()).decode().rstrip("=")
-    dummy_jwt = f"{header}.{payload}.signature"
+    # 1. Test mock token handling in test environment
+    dummy_jwt = "mock_google_token_google.dev@tupm.qzz.io"
 
     google_res = client.post("/api/auth/google", json={"credential": dummy_jwt})
     assert google_res.status_code == 200
@@ -86,7 +79,6 @@ def test_google_oauth_and_user_management_flow(client: TestClient):
     assert members[0]["role"] == "OWNER"
 
     # 5. Add second member to project
-    # Login as seed PM
     pm_login = client.post("/api/auth/login", json={"email": "pm@tupm.qzz.io", "password": "koshi123"})
     pm_token = pm_login.json()["access_token"]
     pm_id = pm_login.json()["user"]["id"]
@@ -98,3 +90,43 @@ def test_google_oauth_and_user_management_flow(client: TestClient):
     )
     assert add_mem_res.status_code == 201
     assert add_mem_res.json()["role"] == "PM"
+
+def test_tenant_rbac_cross_project_isolation(client: TestClient):
+    # 1. Register User A and create Tenant Project A
+    res_a = client.post("/api/auth/register", json={
+        "email": "user_a@tenant.qzz.io",
+        "password": "password123",
+        "full_name": "Tenant A User"
+    })
+    token_a = res_a.json()["access_token"]
+    headers_a = {"Authorization": f"Bearer {token_a}"}
+
+    proj_a = client.post(
+        "/api/projects",
+        json={"name": "Tenant A Secret Workspace", "description": "Confidential project data"},
+        headers=headers_a
+    ).json()
+    proj_a_id = proj_a["id"]
+
+    # 2. Register User B (different tenant)
+    res_b = client.post("/api/auth/register", json={
+        "email": "user_b@tenant.qzz.io",
+        "password": "password123",
+        "full_name": "Tenant B User"
+    })
+    token_b = res_b.json()["access_token"]
+    headers_b = {"Authorization": f"Bearer {token_b}"}
+
+    # 3. User B attempts unauthorized access to Project A -> MUST return 403 Forbidden
+    unauthorized_proj = client.get(f"/api/projects/{proj_a_id}", headers=headers_b)
+    assert unauthorized_proj.status_code == 403
+
+    unauthorized_tasks = client.get(f"/api/tasks?project_id={proj_a_id}", headers=headers_b)
+    assert unauthorized_tasks.status_code == 403
+
+    unauthorized_create_task = client.post(
+        "/api/tasks",
+        json={"project_id": proj_a_id, "title": "Malicious Injection Task", "priority": "HIGH"},
+        headers=headers_b
+    )
+    assert unauthorized_create_task.status_code == 403

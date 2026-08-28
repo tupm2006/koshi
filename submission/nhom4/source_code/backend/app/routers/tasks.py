@@ -3,9 +3,9 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import datetime
 from app.database import get_db
-from app.models.entities import Task, Comment, TaskStatusEnum, User
+from app.models.entities import Task, Comment, TaskStatusEnum, User, ProjectMemberRoleEnum
 from app.schemas.task import TaskCreate, TaskUpdate, TaskOut, CommentCreate, CommentOut
-from app.security import get_current_user
+from app.security import get_current_user, verify_project_membership
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
@@ -18,6 +18,7 @@ def list_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    verify_project_membership(project_id, current_user.id, db)
     query = db.query(Task).filter(Task.project_id == project_id)
     if sprint_id is not None:
         query = query.filter(Task.sprint_id == sprint_id)
@@ -29,10 +30,16 @@ def list_tasks(
 
 @router.post("", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
 def create_task(req: TaskCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    verify_project_membership(
+        req.project_id,
+        current_user.id,
+        db,
+        allowed_roles=[ProjectMemberRoleEnum.OWNER, ProjectMemberRoleEnum.PM, ProjectMemberRoleEnum.MEMBER]
+    )
     task = Task(
         project_id=req.project_id,
         sprint_id=req.sprint_id,
-        assignee_id=req.assignee_id,
+        assignee_id=req.assignee_id or current_user.id,
         title=req.title,
         description=req.description or "",
         status=req.status or TaskStatusEnum.TODO,
@@ -56,6 +63,7 @@ def get_task(task_id: int, db: Session = Depends(get_db), current_user: User = D
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    verify_project_membership(task.project_id, current_user.id, db)
     return task
 
 @router.patch("/{task_id}", response_model=TaskOut)
@@ -63,6 +71,12 @@ def update_task(task_id: int, req: TaskUpdate, db: Session = Depends(get_db), cu
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    verify_project_membership(
+        task.project_id,
+        current_user.id,
+        db,
+        allowed_roles=[ProjectMemberRoleEnum.OWNER, ProjectMemberRoleEnum.PM, ProjectMemberRoleEnum.MEMBER]
+    )
     
     update_data = req.model_dump(exclude_unset=True)
     
@@ -84,6 +98,12 @@ def delete_task(task_id: int, db: Session = Depends(get_db), current_user: User 
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    verify_project_membership(
+        task.project_id,
+        current_user.id,
+        db,
+        allowed_roles=[ProjectMemberRoleEnum.OWNER, ProjectMemberRoleEnum.PM]
+    )
     db.delete(task)
     db.commit()
     return None
@@ -93,6 +113,12 @@ def cycle_task_status(task_id: int, db: Session = Depends(get_db), current_user:
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    verify_project_membership(
+        task.project_id,
+        current_user.id,
+        db,
+        allowed_roles=[ProjectMemberRoleEnum.OWNER, ProjectMemberRoleEnum.PM, ProjectMemberRoleEnum.MEMBER]
+    )
         
     cycle = [TaskStatusEnum.TODO, TaskStatusEnum.IN_PROGRESS, TaskStatusEnum.BLOCKED, TaskStatusEnum.DONE]
     current_idx = cycle.index(task.status)
@@ -108,6 +134,7 @@ def add_comment(task_id: int, req: CommentCreate, db: Session = Depends(get_db),
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    verify_project_membership(task.project_id, current_user.id, db)
         
     comment = Comment(
         task_id=task_id,

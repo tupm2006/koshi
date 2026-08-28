@@ -8,7 +8,7 @@ from app.schemas.ai import (
     WeeklySummaryResponse, AIDecomposeRequest, AIDecomposeResponse, DecomposedSubtask
 )
 from app.services.ai_service import AIService
-from app.security import get_current_user
+from app.security import get_current_user, verify_project_membership
 
 router = APIRouter(prefix="/ai", tags=["AI Services"])
 
@@ -21,6 +21,7 @@ async def generate_weekly_summary(
     """
     Mandated Feature A: Weekly project progress summary based on task/sprint data.
     """
+    verify_project_membership(project_id, current_user.id, db)
     tasks = db.query(Task).filter(Task.project_id == project_id).all()
     if not tasks:
         # Provide sample context if empty
@@ -79,6 +80,7 @@ async def recommend_assignment(
     """
     Mandated Feature C: Skill- and workload-based task assignment recommendation engine.
     """
+    verify_project_membership(project_id, current_user.id, db)
     users = db.query(User).all()
     workload_payload = []
     
