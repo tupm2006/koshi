@@ -1,44 +1,87 @@
-# CLAUDE.md - Koshi Project Management Engine
+# CLAUDE.md — Agent Instructions for Koshi
 
-## Overview & Authorship
-- **Project**: Koshi (輿) Project Management Engine
-- **Lead Architect & Developer**: Phạm Minh Tú
-- **Fullstack Contributor & Testing**: Phạm Văn Huynh
-- **Frontend Contributor & Documentation**: Đàm Đức Đôn
-- **Live Production URL**: `https://koshi.tupm.qzz.io`
+Guidance for AI agents working in this repository. **Read `documentation/` before editing code.**
 
----
+## Before you touch anything
 
-## Architectural Rules & Non-Negotiables
-1. **0ms Latency UI Standard**:
-   - Zero animations (`transition-duration: 0s !important`, `animation-duration: 0s !important`).
-   - Solid contrast with WCAG AA standard against pure slate backgrounds.
-   - All state mutations render instantaneously without frame interpolation.
-2. **Deterministic State Invariants**:
-   - Cyclic status progression: `TODO` $\to$ `IN_PROGRESS` $\to$ `DONE` $\to$ `BLOCKED` $\to$ `TODO`.
-   - Circular Kanban navigation: `(col ± 1 + 4) % 4` on boundary traversal.
-   - DAG Critical Path Analysis: Kahn's topological sort for cycle detection and CPM critical path derivation.
-3. **Local-First & Multi-Tier AI Cascade**:
-   - Tier 1: Client heuristic / regex rules (< 5ms).
-   - Tier 2: FastAPI Backend rule-based assignment (< 50ms).
-   - Tier 3: Gemini 1.5 Flash structured output LLM (< 1500ms).
+1. **[D6 §1](./documentation/D6-risks-delegation-policies.md)** — find your target file's autonomy
+   zone (🟢 act / 🟡 act and report / 🔴 stop and ask). If 🔴, stop.
+2. **[D8 §3](./documentation/D8-rtm.md)** — reverse-trace the file: what requirements it serves,
+   what tests cover it (often: none).
+3. **[D4](./documentation/D4-api-and-data-contracts.md)** — is this a contract change? If yes,
+   follow the escalation path in D6 §2. Contract changes are never incidental.
+4. **[D7](./documentation/D7-development-book.md)** — check whether the thing you're about to "fix"
+   is already a recorded decision.
+5. **[D5 §4](./documentation/D5-tests-and-acceptance.md)** — satisfy the Definition of Done before
+   reporting completion.
 
----
+## Verification gates
 
-## Common Development Commands
-
-### Frontend (`/`)
-- **Install Dependencies**: `pnpm install`
-- **Development Server**: `pnpm run dev`
-- **Production Build Check**: `pnpm run build` (runs `vue-tsc -b && vite build`)
-
-### Backend (`/backend`)
-- **Initialize Database**: `python init_db.py`
-- **Run Backend Server**: `uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload`
-- **Run Unit/Integration Tests**: `pytest`
-
-### Production Deployment
 ```bash
-# Push directly to umi remote container
-tar --exclude='.git' --exclude='node_modules' --exclude='dist' -czf - -C /home/tupm/.gemini/antigravity-ide/scratch/koshi . | ssh umi "tar -xzf - -C /home/tupm/docker/koshi" && ssh umi "cd /home/tupm/docker/koshi && docker compose build && docker compose up -d"
+# Backend — must stay green
+cd source/backend && pytest -q          # expect: 6 passed
+
+# Frontend — the only automated gate that exists
+pnpm run build                          # vue-tsc -b && vite build
 ```
+
+There is no frontend test runner. A green build is a type check, not a correctness check.
+
+## Standing rules
+
+- **Verify, don't assume.** Read the implementation before describing behaviour. This documentation
+  set exists because the previous docs confidently described behaviour the code did not have.
+- **Scope discipline.** Fix what was asked. A drive-by fix of a known critical risk while doing
+  something else is still a red-zone violation.
+- **Test before touching untested logic.** For any 🟡 file with no coverage — `lib/dagSorter.ts`
+  above all — write the characterisation test first, confirm it passes against current behaviour,
+  then change the code.
+- **Never weaken a test to make it pass.** A failing test is a finding; report it. One test
+  deliberately encodes a defect — see D5 §5.
+- **Preserve the local-first ordering.** IndexedDB write precedes the network call, and neither
+  blocks the render. Adding an `await` before render is an architecture violation, not a style
+  choice (D3 §4.1).
+- **Keep docs in the same commit.** A code change that invalidates D1–D8 without updating them is
+  incomplete work.
+- **Scope bulk edits** to `source/` and `documentation/`. Never `submission/`, `node_modules/`,
+  `.venv/`, or `dist/`.
+- **No secrets in source.** The repo already has a hardcoded JWT secret problem; don't widen it.
+
+Full policy set: [D6 §6](./documentation/D6-risks-delegation-policies.md).
+
+## Invariants you must not break casually
+
+**Status cycle** (`TODO → IN_PROGRESS → BLOCKED → DONE → TODO`) is implemented twice — in
+`source/frontend/stores/taskStore.ts` and `source/backend/app/routers/tasks.py`. They must stay
+identical. Changing the order is 🔴 RED.
+
+**Kanban is exactly 4 columns**, navigation wraps via `(c ± 1 + 4) % 4`.
+
+**Keyboard bindings** live in one file, `source/frontend/lib/keyboard.ts`. Changing one also means
+updating `ShortcutsHelpModal.vue`, `README.md`, and D1 §3.1.
+
+**`types/task.ts` is a contract.** Any breaking change to `Task` requires bumping the IndexedDB key
+`koshi_tasks_v1` — there is no migration code and stale values are read back unvalidated.
+
+## Repository layout
+
+```
+source/frontend/    Vue 3 SPA (Vite root — build config stays at repo root)
+source/backend/     FastAPI service
+documentation/      D1–D8 — the navigation layer
+submission/         frozen coursework snapshot — read-only (D6 §3)
+```
+
+## Deployment — human-initiated only
+
+Do **not** run this yourself. It overwrites a live production host.
+
+```bash
+tar --exclude='.git' --exclude='node_modules' --exclude='dist' -czf - . \
+  | ssh umi "tar -xzf - -C /home/tupm/docker/koshi" \
+  && ssh umi "cd /home/tupm/docker/koshi && docker compose build && docker compose up -d"
+```
+
+## Authorship
+
+Lead Architect & Developer: Phạm Minh Tú. Contributors: Phạm Văn Huynh, Đàm Đức Đôn.

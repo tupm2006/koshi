@@ -1,172 +1,123 @@
 # KOSHI (輿)
 
-> **High-Velocity, Local-First Project Management System**  
-> *Deterministic State Machines • Vue 3 Composition API & Pinia • 2D Spatial Vim Navigation • Topological DAG Prioritization • Schema-Constrained AI Execution*
+> Local-first, keyboard-driven project management for small software teams.
+> Vue 3 + Pinia · FastAPI + SQLAlchemy · deterministic state machine · topological DAG critical path · schema-constrained AI.
 
-[![Live Demo](https://img.shields.io/badge/Live%20Production-koshi.tupm.qzz.io-emerald?style=flat-square)](https://koshi.tupm.qzz.io)
-[![Runtime](https://img.shields.io/badge/Runtime-Vue%203%20Composition%20API-42b883?style=flat-square)](https://vuejs.org)
-[![Memory Footprint](https://img.shields.io/badge/Idle%20RAM-%3C15MB-blue?style=flat-square)](#)
-[![Action Latency](https://img.shields.io/badge/Action%20Latency-%3C50ms-cyan?style=flat-square)](#)
-[![Storage](https://img.shields.io/badge/Persistence-Local--First%20IndexedDB-violet?style=flat-square)](#)
-[![Documentation](https://img.shields.io/badge/Specs-URD%20%26%20SRS-indigo?style=flat-square)](./docs/URD.md)
+**Live:** https://koshi.tupm.qzz.io
 
 ---
 
-## 1. Executive Summary & Problem Statement
+## What it is
 
-Modern Project Management tools (Jira, Notion, ClickUp, Linear) have succumbed to feature bloat, memory leakages, administrative state-machine overhead, and superficial LLM wrappers. 
+Koshi optimises for two things most trackers do badly: **mutation velocity** (every state change is
+local and instant, the network never blocks the UI) and **trustworthy AI output** (every AI endpoint
+is validated against a Pydantic schema and degrades to a deterministic generator rather than
+failing).
+
+It deliberately trades breadth for those two properties. Multi-tenant orgs, real-time collaboration,
+attachments, and time tracking are out of scope — see [D1 §2](./documentation/D1-requirements.md).
+
+## Repository layout
 
 ```
-┌───────────────────────────────┐     ┌───────────────────────────────┐
-│     Contemporary PM Tools     │     │             KOSHI             │
-├───────────────────────────────┤     ├───────────────────────────────┤
-│ 800MB–2GB+ RAM per Electron   │     │ <15MB RAM Idle Web / Mobile   │
-│ 1.5s+ modal latency & Diffing │     │ <16ms Optimistic Mutations    │
-│ 15–30 mandatory JQL fields    │     │ 4 Strict Deterministic States │
-│ Unconstrained hallucinated AI │     │ Schema-Enforced AI Services   │
-│ Proprietary CSV lock-in       │     │ Lossless Graph JSON Port      │
-└───────────────────────────────┘     └───────────────────────────────┘
+source/
+  frontend/     Vue 3 SPA — Vite root
+  backend/      FastAPI service
+documentation/  D1–D8: the navigation layer (start here)
+scripts/        packaging helpers
+submission/     frozen coursework snapshot — do not edit
 ```
 
-**KOSHI** eliminates these systemic bottlenecks by operating on five strict architectural principles:
-1. **Vue 3 Composition API & Pinia Reactivity**: Fine-grained reactive state and zero visual lag.
-2. **Modal-Less 2D Vim Keyboard Traversal**: High-velocity hotkeys (`b` view toggle, `h`/`j`/`k`/`l` spatial grid navigation, `H`/`L` lateral card shifts, `Space` cyclic status cycling, inline `Enter` edits).
-3. **Deterministic State Transitions**: Cyclic invariant: `TODO` $\rightarrow$ `IN_PROGRESS` $\rightarrow$ `BLOCKED` $\rightarrow$ `DONE` $\rightarrow$ `TODO`.
-4. **Topological DAG Prioritization**: Computes true critical paths mathematically instead of arbitrary story-point poker.
-5. **Local-First Persistence**: Zero-latency IndexedDB offline persistence with seamless background FastAPI backend synchronization.
+## Quick start
 
----
-
-## 2. Core Architecture & Tech Stack
-
-```mermaid
-graph TB
-    subgraph UI Layer [Vue 3 + Tailwind CSS]
-        App[App.vue Main Shell]
-        Table[TaskTable.vue High-Density Grid]
-        Kanban[KanbanBoard.vue 2D Spatial Board]
-        Modals[AI / DAG / Diff / Create Modals]
-    end
-
-    subgraph State & Logic Engine
-        Store[taskStore.ts Pinia Store]
-        Kbd[keyboard.ts Vim Dispatcher]
-        DAG[dagSorter.ts Topological Graph Evaluator]
-        API[api.ts Axios Backend Client]
-    end
-
-    subgraph Backend & Storage Layer
-        FastAPI[FastAPI Python Backend]
-        Gemini[Google Gemini 1.5 AI Service]
-        SQLite[(SQLite Database)]
-        IDB[(Client IndexedDB)]
-    end
-
-    App --> Store
-    Table --> Store
-    Kanban --> Store
-    Modals --> Store
-
-    Store --> DAG
-    Store --> Kbd
-    Store --> API
-    API --> FastAPI
-    FastAPI --> Gemini
-    FastAPI --> SQLite
-    Store <--> IDB
-```
-
-* **Frontend**: Vue 3 + Pinia + TypeScript + Vite + Tailwind CSS.
-* **Backend**: FastAPI (Python 3.11) + SQLAlchemy 2.0 + Google Gemini AI.
-* **Storage**: IndexedDB (`idb-keyval`) locally, SQLite / PostgreSQL on server.
-* **Deployment**: Docker Compose (Nginx + Uvicorn) behind Caddy reverse proxy on `umi`.
-
----
-
-## 3. High-Leverage Deterministic AI Integration
-
-KOSHI replaces conversational chat wrappers with structured AI services:
-
-### 3.1. Task Decomposer
-Transforms unstructured engineering goals into structured, dependency-linked subtask graphs with complexity ratings.
-
-### 3.2. Weekly Progress Summary
-Generates structured executive summaries categorizing completed milestones, active bottlenecks, and immediate sprint priorities.
-
-### 3.3. Meeting Minutes Generator
-Parses conversational meeting transcripts to extract attendees, recorded decisions, key discussions, and auto-generated actionable tasks.
-
-### 3.4. Team Workload & Smart Assignment
-Evaluates developer skill matches, current active WIP count, and complexity points to balance team velocity.
-
-### 3.5. Git Diff State Synchronizer
-Parses Unified Git Diffs and commit messages (e.g. `feat: resolve #TSK-101`) to automatically transition task states.
-
-### 3.6. Topological DAG Critical Path Evaluator
-Constructs an adjacency graph of task dependencies, checks for circular dependencies via Kahn's algorithm, and computes the longest complexity-weighted path ($S=1, M=2, L=3, XL=5$), flagging bottlenecks with the `Flame` indicator.
-
----
-
-## 4. Keyboard Protocol & Touch Ergonomics
-
-### 4.1. Desktop Keyboard Shortcuts
-| Key | Action | Scope |
-| :--- | :--- | :--- |
-| `b` | Toggle Table / Kanban View | Global |
-| `h` / `l` / `←` / `→` | Move left / right between columns | Kanban view |
-| `j` / `k` / `↓` / `↑` | Move down / up across tasks / rows | Global |
-| `H` / `L` | Shift selected task to adjacent status column | Kanban view |
-| `Space` | Cycle task status (`TODO` $\rightarrow$ `IN_PROG` $\rightarrow$ `BLOCKED` $\rightarrow$ `DONE` $\rightarrow$ `TODO`) | Active task |
-| `Enter` | Inline title edit mode | Active task |
-| `d` / `Backspace` | Delete selected task | Active task |
-| `c` | Open task creation modal | Global |
-| `1` - `4` | Set priority (`1`: LOW, `2`: MED, `3`: HIGH, `4`: CRITICAL) | Active task |
-| `/` | Focus search filter | Global |
-| `a` | Open Task Decomposer modal | Global |
-| `g` | Open Git Diff analyzer modal | Global |
-| `v` | Open Topological DAG visualizer | Global |
-| `t` | Toggle Light / Dark mode (0ms snap) | Global |
-| `?` | Open keyboard shortcuts help modal | Global |
-| `Esc` | Cancel edit / dismiss modal / unfocus search | Global (Capture-phase) |
-
----
-
-## 5. Specification Documents
-
-Detailed user requirements, IEEE 29148 functional specifications, and traceability matrices are maintained in:
-- [docs/URD.md](./docs/URD.md) — User Requirements Document
-- [docs/SRS.md](./docs/SRS.md) — System Requirements Specification
-
----
-
-## 6. Development & Deployment
-
-### 6.1. Local Development
+**Frontend**
 ```bash
-# Frontend
 pnpm install
-pnpm run dev
-
-# Backend
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
+pnpm run dev            # http://localhost:5173, proxies /api → :8000
+pnpm run build          # vue-tsc -b && vite build → dist/
 ```
 
-### 6.2. Production Build
+**Backend**
 ```bash
-pnpm run build
+cd source/backend
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+mkdir -p data                      # required — DATABASE_URL points at ./data/
+uvicorn app.main:app --reload --port 8000
+pytest -q                          # 6 tests
 ```
 
----
+On first run with an empty database the app seeds a PM (`pm@tupm.qzz.io` / `koshi123`), a member, a
+project, a sprint, and five sample tasks. **Disable this before any real deployment** — see
+[D6 RISK-11](./documentation/D6-risks-delegation-policies.md).
 
-## 7. License & Contributors
+**Docker**
+```bash
+docker compose build && docker compose up -d
+```
 
-* **Lead Architect & Developer**: Phạm Minh Tú (`tupm`)
-* **Contributors**:
-  * Phạm Văn Huynh
-  * Đàm Đức Đôn
+## Documentation
 
-Released under the **MIT License**.
+All project documentation lives in [`documentation/`](./documentation/README.md) as eight numbered
+documents. Read them in order; each answers one question.
+
+| | | |
+|:--|:--|:--|
+| [D1](./documentation/D1-requirements.md) | Requirements | what must be achieved |
+| [D2](./documentation/D2-module-map.md) | Module Map | where things live |
+| [D3](./documentation/D3-architecture.md) | Architecture | how components interact |
+| [D4](./documentation/D4-api-and-data-contracts.md) | API & Data Contracts | boundaries that must not break |
+| [D5](./documentation/D5-tests-and-acceptance.md) | Tests & Acceptance | what correctness means |
+| [D6](./documentation/D6-risks-delegation-policies.md) | Risks & Delegation | limits of AI autonomy |
+| [D7](./documentation/D7-development-book.md) | Development Book | what was tried and why |
+| [D8](./documentation/D8-rtm.md) | RTM | requirement → code → test |
+
+**This README is a summary, not a specification.** Where it differs from D1–D8, D1–D8 are correct.
+
+## Core behaviour
+
+**Status cycle** — the system's central invariant:
+```
+TODO → IN_PROGRESS → BLOCKED → DONE → (wraps to TODO)
+```
+Implemented in both `taskStore.ts` and `routers/tasks.py`; changing it requires changing both
+([D4 §3.1](./documentation/D4-api-and-data-contracts.md)).
+
+**Keyboard model** — the authoritative list is `source/frontend/lib/keyboard.ts`:
+
+| Key | Action | | Key | Action |
+|:--|:--|:--|:--|:--|
+| `b` | toggle Table ⇄ Kanban | | `n` | create task |
+| `h` `j` `k` `l` | navigate (2D in Kanban) | | `i` | inline title edit |
+| `H` `L` | shift task across columns | | `Enter` | open task inspector |
+| `Space` | cycle status | | `d` | delete task |
+| `1`–`4` | set priority | | `/` | focus search |
+| `a` `g` `v` | decomposer · git diff · DAG | | `t` `?` | theme · help |
+| `Esc` | dismiss anything (capture phase) | | | |
+
+**AI cascade** — every AI endpoint falls through three tiers and never 5xxs on model
+unavailability:
+```
+Tier 1  OpenAI-compatible API (10s)  →  Tier 2  Ollama (4s)  →  Tier 3  deterministic generator
+```
+Tier 3 output is currently indistinguishable from real model output to the caller
+([D6 RISK-12](./documentation/D6-risks-delegation-policies.md)).
+
+## Project status
+
+The backend HTTP surface is smoke-tested end to end (6/6 passing). **The frontend has no automated
+tests**, including the DAG engine — the most intricate logic in the repository. Overall: 33% of
+requirements automated, 26% unverified. Full breakdown in [D8 §5](./documentation/D8-rtm.md).
+
+Known defects are catalogued in [D7 Part II](./documentation/D7-development-book.md) and risk-rated
+in [D6 §4](./documentation/D6-risks-delegation-policies.md). Four are critical and should be
+addressed before any production use: unverified Google ID tokens, a hardcoded JWT secret, absent
+project-scoped authorisation, and inconsistent task identity across layers.
+
+## Contributors
+
+- **Lead Architect & Developer** — Phạm Minh Tú (`tupm`)
+- Phạm Văn Huynh
+- Đàm Đức Đôn
+
+MIT License.

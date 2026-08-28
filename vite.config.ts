@@ -4,6 +4,12 @@ import tailwindcss from '@tailwindcss/vite';
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Frontend sources live under source/frontend (see documentation/D3-architecture.md)
+  root: 'source/frontend',
+  build: {
+    outDir: '../../dist',
+    emptyOutDir: true,
+  },
   plugins: [
     vue(),
     tailwindcss()

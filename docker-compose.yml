@@ -1,7 +1,7 @@
 services:
   koshi-backend:
     build:
-      context: ./backend
+      context: ./source/backend
       dockerfile: Dockerfile
     container_name: koshi-backend
     restart: unless-stopped

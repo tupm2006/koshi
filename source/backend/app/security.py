@@ -67,3 +67,10 @@ async def get_current_pm_user(
             detail="Access forbidden: Project Manager role required"
         )
     return current_user
+
+def require_role(role: RoleEnum):
+    async def _guard(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.role != role:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        return current_user
+    return _guard
