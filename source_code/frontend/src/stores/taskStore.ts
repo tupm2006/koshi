@@ -441,10 +441,12 @@ export const useTaskStore = defineStore('taskStore', {
 
     createTask(title: string, priority: TaskPriority = 'MEDIUM', status: TaskStatus = 'TODO'): Task | null {
       if (!title.trim()) return null;
-      const nextNum = this.tasks.length > 0
-        ? Math.max(...this.tasks.map((t) => parseInt(t.id.replace(/\D/g, ''), 10) || 100)) + 1
-        : 101;
-      const tempId = `TSK-temp-${Date.now()}-${nextNum}`;
+      const highestNum = this.tasks.reduce((max, t) => {
+        const n = parseInt(t.id.replace(/\D/g, ''), 10);
+        return !isNaN(n) && n > max ? n : max;
+      }, 100);
+      const nextNum = highestNum + 1;
+      const tempId = `TSK-T${nextNum}`;
       const now = Date.now();
 
       const newTask: Task = {
@@ -470,37 +472,31 @@ export const useTaskStore = defineStore('taskStore', {
           priority: newTask.priority,
           complexity_points: 2,
         })
-        .then((serverTask) => {
-          if (serverTask && serverTask.id) {
-            const realId = `TSK-${serverTask.id}`;
-            // Reconcile temporary ID to permanent server ID across tasks and dependency arrays
+        .then((created) => {
+          if (created && created.id) {
+            const permanentId = `TSK-${created.id}`;
             this.tasks = this.tasks.map((t) => {
               let updated = t;
-              if (t.id === tempId) {
-                updated = { ...updated, id: realId };
-              }
-              if (t.dependencies && t.dependencies.includes(tempId)) {
+              if (t.id === tempId) updated = { ...updated, id: permanentId };
+              if (t.dependencies?.includes(tempId)) {
                 updated = {
                   ...updated,
-                  dependencies: (t.dependencies || []).map((d) => (d === tempId ? realId : d)),
+                  dependencies: t.dependencies.map((d) => (d === tempId ? permanentId : d)),
                 };
               }
               return updated;
             });
-            if (this.activeDetailTaskId === tempId) {
-              this.activeDetailTaskId = realId;
-            }
-            if (this.editingTaskId === tempId) {
-              this.editingTaskId = realId;
-            }
+            if (this.activeDetailTaskId === tempId) this.activeDetailTaskId = permanentId;
+            if (this.editingTaskId === tempId) this.editingTaskId = permanentId;
             this.persist();
           }
         })
-        .catch((e) => console.warn('Background API create failed:', e));
+        .catch((err) => console.warn('[taskStore] Background sync failed:', err));
       }
 
       return newTask;
     },
+
 
     updateTask(id: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>) {
       this.tasks = this.tasks.map((t) => {

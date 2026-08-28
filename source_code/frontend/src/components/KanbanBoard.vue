@@ -100,11 +100,11 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
 </script>
 
 <template>
-  <div class="h-full grid grid-cols-1 md:grid-cols-4 gap-4 items-start">
+  <div class="h-full flex md:grid md:grid-cols-4 gap-3 md:gap-4 items-start overflow-x-auto md:overflow-x-visible pb-2 md:pb-0">
     <div
       v-for="(col, colIndex) in COLUMNS"
       :key="col.status"
-      class="flex flex-col h-full max-h-full bg-slate-200/60 dark:bg-slate-900/80 border rounded-lg p-3 shadow-2xs"
+      class="flex flex-col h-full max-h-full min-w-[270px] md:min-w-0 flex-1 bg-slate-200/60 dark:bg-slate-900/80 border rounded-lg p-3 shadow-2xs shrink-0 md:shrink"
       :class="taskStore.kanbanColIndex === colIndex ? 'border-slate-400 dark:border-slate-700' : 'border-slate-300 dark:border-slate-800'"
       @dragover="handleDragOver"
       @drop="(e) => handleDrop(e, col.status, colIndex)"
@@ -113,6 +113,7 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
     >
       <!-- Column Header -->
       <div class="shrink-0 pb-2.5 border-b border-slate-300 dark:border-slate-800 flex items-center justify-between select-none">
+
         <div class="flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full" :class="col.dotClass"></span>
           <h3 class="text-xs md:text-sm font-mono font-bold text-slate-800 dark:text-slate-200">{{ col.label }}</h3>

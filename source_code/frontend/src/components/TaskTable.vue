@@ -164,15 +164,15 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
 
 <template>
   <div class="relative w-full overflow-hidden flex flex-col bg-white dark:bg-slate-900">
-    <!-- Desktop Table Header Bar (Fixed h-10) -->
-    <div class="hidden md:grid grid-cols-[80px_120px_1fr_90px_110px_100px_70px] items-center gap-3 px-4 h-10 text-xs font-mono font-bold text-slate-700 dark:text-slate-300 border-b border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-950/40 select-none shrink-0">
-      <span>ID</span>
-      <span>Status</span>
-      <span>Title</span>
-      <span>Priority</span>
-      <span>Complexity</span>
-      <span>Due</span>
-      <span class="text-right">Actions</span>
+    <!-- Sticky Table Header (Desktop >= md) -->
+    <div class="sticky top-0 z-20 hidden md:grid grid-cols-[90px_110px_1fr_90px_100px_90px_60px] items-center gap-3 px-4 h-9 bg-slate-50 dark:bg-slate-900 border-b border-slate-300 dark:border-slate-800 text-[11px] font-mono font-medium text-slate-500 uppercase tracking-wider select-none shrink-0 min-w-0">
+      <span class="truncate">ID</span>
+      <span class="truncate">Status</span>
+      <span class="truncate">Title</span>
+      <span class="truncate">Priority</span>
+      <span class="truncate">Complexity</span>
+      <span class="truncate">Due</span>
+      <span class="text-right truncate">Actions</span>
     </div>
 
     <!-- Empty State -->
@@ -210,20 +210,20 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
         role="listitem"
       >
         <!-- Desktop Row View (>= md) -->
-        <div class="relative z-10 hidden md:grid grid-cols-[80px_120px_1fr_90px_110px_100px_70px] items-center gap-3 px-4 w-full h-full">
+        <div class="relative z-10 hidden md:grid grid-cols-[90px_110px_1fr_90px_100px_90px_60px] items-center gap-3 px-4 w-full h-full min-w-0">
           <!-- Col 1: ID & Critical Dot -->
-          <div class="flex items-center gap-1.5 font-mono text-xs">
-            <span class="text-slate-600 dark:text-slate-400 font-semibold">{{ task.id }}</span>
-            <span v-if="taskStore.criticalPathIds.has(task.id) && task.status !== 'DONE'" title="Critical Path" class="text-rose-600 dark:text-rose-400">
+          <div class="flex items-center gap-1 font-mono text-xs min-w-0 overflow-hidden">
+            <span class="text-slate-600 dark:text-slate-400 font-semibold truncate" :title="task.id">{{ task.id }}</span>
+            <span v-if="taskStore.criticalPathIds.has(task.id) && task.status !== 'DONE'" title="Critical Path" class="text-rose-600 dark:text-rose-400 shrink-0">
               <Flame class="w-3.5 h-3.5" />
             </span>
           </div>
 
           <!-- Col 2: Status -->
-          <div class="flex items-center">
+          <div class="flex items-center min-w-0">
             <button
               type="button"
-              class="h-6 inline-flex items-center gap-1.5 px-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-800/60 text-[11px] font-mono font-semibold uppercase tracking-wider cursor-pointer"
+              class="h-6 inline-flex items-center gap-1.5 px-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-800/60 text-[11px] font-mono font-semibold uppercase tracking-wider cursor-pointer truncate"
               :class="getStatusTextColor(task.status)"
               @click.stop="taskStore.cycleStatus(task.id)"
               title="Click or Space to cycle"
@@ -235,12 +235,12 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
 
           <!-- Col 3: Title -->
           <div class="flex items-center min-w-0 pr-2 overflow-hidden">
-            <div v-if="taskStore.editingTaskId === task.id" class="flex items-center w-full" @click.stop>
+            <div v-if="taskStore.editingTaskId === task.id" class="flex items-center w-full min-w-0" @click.stop>
               <input
                 ref="editInputRef"
                 v-model="editInputVal"
                 type="text"
-                class="h-7 w-full bg-white dark:bg-slate-950 border border-indigo-500 dark:border-slate-600 rounded-md px-2.5 text-sm text-slate-900 dark:text-slate-100 focus:outline-none font-sans shadow-xs"
+                class="h-7 w-full bg-white dark:bg-slate-950 border border-indigo-500 dark:border-slate-600 rounded-md px-2.5 text-sm text-slate-900 dark:text-slate-100 focus:outline-none font-sans shadow-xs min-w-0"
                 @keydown="(e) => handleEditKeydown(e, task)"
                 @blur="commitInlineEdit(task)"
               />
@@ -248,7 +248,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
             <button
               v-else
               type="button"
-              class="text-left w-full truncate text-sm font-medium text-slate-950 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-white cursor-pointer bg-transparent border-0 p-0 font-sans block leading-none"
+              class="text-left w-full truncate text-sm font-medium text-slate-950 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-white cursor-pointer bg-transparent border-0 p-0 font-sans block leading-none min-w-0 overflow-hidden"
               @dblclick.stop="startInlineEdit(task)"
               title="Double click or 'i' to edit title"
             >
@@ -264,34 +264,34 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
           </div>
 
           <!-- Col 4: Priority -->
-          <div class="flex items-center font-mono">
+          <div class="flex items-center font-mono min-w-0">
             <button
               type="button"
-              class="h-6 px-2 inline-flex items-center justify-center rounded-md border text-[11px] font-mono font-semibold uppercase tracking-wider cursor-pointer shadow-2xs"
+              class="h-6 px-2 inline-flex items-center justify-center rounded-md border text-[11px] font-mono font-semibold uppercase tracking-wider cursor-pointer shadow-2xs truncate"
               :class="getPriorityBadge(task.priority)"
               @click="(e) => cyclePriority(e, task.id, task.priority)"
               title="Click or 1-4 to change"
             >
-              {{ task.priority }}
+              <span class="truncate">{{ task.priority }}</span>
             </button>
           </div>
 
           <!-- Col 5: Complexity / Dep -->
-          <div class="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 font-mono truncate">
-            <span v-if="task.complexity" class="text-slate-800 dark:text-slate-300 font-semibold">[{{ task.complexity }}]</span>
+          <div class="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 font-mono min-w-0 overflow-hidden truncate">
+            <span v-if="task.complexity" class="text-slate-800 dark:text-slate-300 font-semibold shrink-0">[{{ task.complexity }}]</span>
             <span v-if="task.dependencies && task.dependencies.length > 0" class="text-slate-600 dark:text-slate-400 truncate" :title="`Deps: ${task.dependencies.join(', ')}`">
               ← {{ task.dependencies.join(', ') }}
             </span>
           </div>
 
           <!-- Col 6: Due Date -->
-          <div class="flex items-center text-xs text-slate-600 dark:text-slate-400 font-mono truncate">
-            <span v-if="task.dueDate">{{ new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }}</span>
-            <span v-else>-</span>
+          <div class="flex items-center text-xs text-slate-600 dark:text-slate-400 font-mono min-w-0 truncate">
+            <span v-if="task.dueDate" class="truncate">{{ new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }}</span>
+            <span v-else class="text-slate-400">-</span>
           </div>
 
           <!-- Col 7: Actions -->
-          <div class="flex items-center justify-end">
+          <div class="flex items-center justify-end min-w-0">
             <div class="opacity-0 group-hover:opacity-100 flex items-center gap-1">
               <button
                 type="button"

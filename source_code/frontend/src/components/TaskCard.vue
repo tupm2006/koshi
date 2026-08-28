@@ -60,9 +60,9 @@ function getPriorityBadge(p: TaskPriority) {
     role="article"
   >
     <!-- Top Row: ID & Badges -->
-    <div class="flex items-center justify-between gap-1 mb-1.5 text-xs font-mono">
-      <span class="text-slate-500 dark:text-slate-400 font-semibold">{{ task.id }}</span>
-      <div class="flex items-center gap-1.5">
+    <div class="flex items-center justify-between gap-1 mb-1.5 text-xs font-mono min-w-0">
+      <span class="text-slate-500 dark:text-slate-400 font-semibold truncate min-w-0" :title="task.id">{{ task.id }}</span>
+      <div class="flex items-center gap-1.5 shrink-0">
         <span v-if="isCriticalPath && task.status !== 'DONE'" title="Critical Path" class="text-rose-600 dark:text-rose-400">
           <Flame class="w-3.5 h-3.5" />
         </span>
@@ -71,6 +71,7 @@ function getPriorityBadge(p: TaskPriority) {
         </span>
       </div>
     </div>
+
 
     <!-- Title -->
     <h4
