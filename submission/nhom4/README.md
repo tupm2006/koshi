@@ -5,10 +5,10 @@
 
 [![Live Demo](https://img.shields.io/badge/Live%20Production-koshi.tupm.qzz.io-emerald?style=flat-square)](https://koshi.tupm.qzz.io)
 [![Runtime](https://img.shields.io/badge/Runtime-Vue%203%20Composition%20API-42b883?style=flat-square)](https://vuejs.org)
+[![Backend](https://img.shields.io/badge/Backend-FastAPI%20%2B%20SQLite-009688?style=flat-square)](https://fastapi.tiangolo.com)
 [![Memory Footprint](https://img.shields.io/badge/Idle%20RAM-%3C15MB-blue?style=flat-square)](#)
 [![Action Latency](https://img.shields.io/badge/Action%20Latency-%3C50ms-cyan?style=flat-square)](#)
-[![Storage](https://img.shields.io/badge/Persistence-Local--First%20IndexedDB-violet?style=flat-square)](#)
-[![Documentation](https://img.shields.io/badge/Specs-URD%20%26%20SRS-indigo?style=flat-square)](./docs/URD.md)
+[![Documentation](https://img.shields.io/badge/Specs-URD%20%26%20SRS-indigo?style=flat-square)](./URD.md)
 
 ---
 
@@ -30,14 +30,30 @@ Modern Project Management tools (Jira, Notion, ClickUp, Linear) have succumbed t
 
 **KOSHI** eliminates these systemic bottlenecks by operating on five strict architectural principles:
 1. **Vue 3 Composition API & Pinia Reactivity**: Fine-grained reactive state and zero visual lag.
-2. **Modal-Less 2D Vim Keyboard Traversal**: High-velocity hotkeys (`b` view toggle, `h`/`j`/`k`/`l` spatial grid navigation, `H`/`L` lateral card shifts, `Space` cyclic status cycling, inline `Enter` edits).
+2. **Modal-Less 2D Spatial Keyboard Traversal**: High-velocity hotkeys (`b` view toggle, `h`/`j`/`k`/`l` spatial grid navigation, `H`/`L` lateral card shifts, `Space` cyclic status cycling, inline `Enter` edits).
 3. **Deterministic State Transitions**: Cyclic invariant: `TODO` $\rightarrow$ `IN_PROGRESS` $\rightarrow$ `BLOCKED` $\rightarrow$ `DONE` $\rightarrow$ `TODO`.
 4. **Topological DAG Prioritization**: Computes true critical paths mathematically instead of arbitrary story-point poker.
-5. **Local-First Persistence**: Zero-latency IndexedDB offline persistence with seamless background FastAPI backend synchronization.
+5. **Local-First Persistence & FastAPI Backend**: Zero-latency IndexedDB offline persistence with seamless background FastAPI backend synchronization.
 
 ---
 
-## 2. Core Architecture & Tech Stack
+## 2. Directory Structure & Architecture
+
+```
+koshi/
+├── URD.md                   # User Requirements Document (ISO/IEC/IEEE 29148:2018)
+├── SRS.md                   # Software Requirements Specification
+├── user_story.md            # Agile User Stories & Acceptance Criteria
+├── nhom4.docx               # Compiled Formal Academic Word Report
+├── README.md                # Project Architecture & Quickstart
+├── CLAUDE.md                # Engineering Guidelines & Constraints
+├── docker-compose.yml       # Production Multi-Container Orchestration
+├── docs/                    # Architectural Specifications & Reports
+└── source_code/             # Monorepo Source Code
+    ├── frontend/            # Vue 3 + TypeScript + Tailwind CSS Frontend
+    ├── backend/             # FastAPI + SQLAlchemy 2.0 + SQLite Backend
+    └── scripts/             # Word Generator & Packaging Scripts
+```
 
 ```mermaid
 graph TB
@@ -45,7 +61,7 @@ graph TB
         App[App.vue Main Shell]
         Table[TaskTable.vue High-Density Grid]
         Kanban[KanbanBoard.vue 2D Spatial Board]
-        Modals[AI / DAG / Diff / Create Modals]
+        Modals[AI / DAG / Diff / Create / Auth Modals]
     end
 
     subgraph State & Logic Engine
@@ -57,7 +73,7 @@ graph TB
 
     subgraph Backend & Storage Layer
         FastAPI[FastAPI Python Backend]
-        Gemini[Google Gemini 1.5 AI Service]
+        AI[AI Cascading Service]
         SQLite[(SQLite Database)]
         IDB[(Client IndexedDB)]
     end
@@ -71,15 +87,15 @@ graph TB
     Store --> Kbd
     Store --> API
     API --> FastAPI
-    FastAPI --> Gemini
+    FastAPI --> AI
     FastAPI --> SQLite
     Store <--> IDB
 ```
 
-* **Frontend**: Vue 3 + Pinia + TypeScript + Vite + Tailwind CSS.
-* **Backend**: FastAPI (Python 3.11) + SQLAlchemy 2.0 + Google Gemini AI.
-* **Storage**: IndexedDB (`idb-keyval`) locally, SQLite / PostgreSQL on server.
-* **Deployment**: Docker Compose (Nginx + Uvicorn) behind Caddy reverse proxy on `umi`.
+* **Frontend**: Vue 3 + Pinia + TypeScript + Vite + Tailwind CSS (`source_code/frontend/`).
+* **Backend**: FastAPI (Python 3.11+) + SQLAlchemy 2.0 + OpenAI / Ollama fallback (`source_code/backend/`).
+* **Storage**: IndexedDB (`idb-keyval`) locally, SQLite on server.
+* **Deployment**: Docker Compose (`koshi` + `koshi-backend`).
 
 ---
 
@@ -100,7 +116,7 @@ Parses conversational meeting transcripts to extract attendees, recorded decisio
 Evaluates developer skill matches, current active WIP count, and complexity points to balance team velocity.
 
 ### 3.5. Git Diff State Synchronizer
-Parses Unified Git Diffs and commit messages (e.g. `feat: resolve #TSK-101`) to automatically transition task states.
+Parses Unified Git Diffs and commit messages to automatically transition task states.
 
 ### 3.6. Topological DAG Critical Path Evaluator
 Constructs an adjacency graph of task dependencies, checks for circular dependencies via Kahn's algorithm, and computes the longest complexity-weighted path ($S=1, M=2, L=3, XL=5$), flagging bottlenecks with the `Flame` indicator.
@@ -133,9 +149,11 @@ Constructs an adjacency graph of task dependencies, checks for circular dependen
 
 ## 5. Specification Documents
 
-Detailed user requirements, IEEE 29148 functional specifications, and traceability matrices are maintained in:
-- [docs/URD.md](./docs/URD.md) — User Requirements Document
-- [docs/SRS.md](./docs/SRS.md) — System Requirements Specification
+Detailed user requirements, IEEE 29148 functional specifications, and user stories:
+- [URD.md](./URD.md) — User Requirements Document
+- [SRS.md](./SRS.md) — System Requirements Specification
+- [user_story.md](./user_story.md) — Agile User Stories & Acceptance Criteria
+- [nhom4.docx](./nhom4.docx) — Formal Academic Word Report
 
 ---
 
@@ -144,29 +162,29 @@ Detailed user requirements, IEEE 29148 functional specifications, and traceabili
 ### 6.1. Local Development
 ```bash
 # Frontend
-pnpm install
-pnpm run dev
+cd source_code/frontend
+npm install
+npm run dev
 
 # Backend
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+cd source_code/backend
+python3 init_db.py
 uvicorn app.main:app --reload --port 8000
 ```
 
 ### 6.2. Production Build
 ```bash
-pnpm run build
+cd source_code/frontend
+npm run build
 ```
 
 ---
 
 ## 7. License & Contributors
 
+* **Team**: Nhóm 04 (ICTU)
 * **Lead Architect & Developer**: Phạm Minh Tú (`tupm`)
-* **Contributors**:
-  * Phạm Văn Huynh
-  * Đàm Đức Đôn
+* **Fullstack Contributor & Testing**: Phạm Văn Huynh
+* **Frontend Contributor & Documentation**: Đàm Đức Đôn
 
 Released under the **MIT License**.

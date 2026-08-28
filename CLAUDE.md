@@ -2,6 +2,7 @@
 
 ## Overview & Authorship
 - **Project**: Koshi (輿) Project Management Engine
+- **Team**: Nhóm 04 (ICTU)
 - **Lead Architect & Developer**: Phạm Minh Tú
 - **Fullstack Contributor & Testing**: Phạm Văn Huynh
 - **Frontend Contributor & Documentation**: Đàm Đức Đôn
@@ -25,20 +26,27 @@
 
 ---
 
+## Directory Organization
+- **Root**: Specifications (`URD.md`, `SRS.md`, `user_story.md`, `nhom4.docx`, `README.md`, `CLAUDE.md`, `docker-compose.yml`).
+- **`source_code/frontend/`**: Vue 3.5 SPA, Tailwind CSS v4, Pinia, TypeScript.
+- **`source_code/backend/`**: FastAPI REST API, SQLAlchemy 2.0, SQLite, AI cascade services.
+- **`source_code/scripts/`**: Report generator (`generate_docx.py`) and packaging script (`package_submission.sh`).
+- **`docs/`**: ISO-29148 requirements specifications and architecture design.
+
+---
+
 ## Common Development Commands
 
-### Frontend (`/`)
-- **Install Dependencies**: `pnpm install`
-- **Development Server**: `pnpm run dev`
-- **Production Build Check**: `pnpm run build` (runs `vue-tsc -b && vite build`)
+### Frontend (`source_code/frontend`)
+- **Install Dependencies**: `cd source_code/frontend && npm install`
+- **Development Server**: `npm run dev`
+- **Production Build Check**: `npm run build` (runs `vue-tsc -b && vite build`)
 
-### Backend (`/backend`)
-- **Initialize Database**: `python init_db.py`
-- **Run Backend Server**: `uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload`
-- **Run Unit/Integration Tests**: `pytest`
+### Backend (`source_code/backend`)
+- **Initialize Database**: `python3 source_code/backend/init_db.py`
+- **Run Backend Server**: `cd source_code/backend && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload`
+- **Run Unit/Integration Tests**: `pytest source_code/backend/tests`
 
-### Production Deployment
-```bash
-# Push directly to umi remote container
-tar --exclude='.git' --exclude='node_modules' --exclude='dist' -czf - -C /home/tupm/.gemini/antigravity-ide/scratch/koshi . | ssh umi "tar -xzf - -C /home/tupm/docker/koshi" && ssh umi "cd /home/tupm/docker/koshi && docker compose build && docker compose up -d"
-```
+### Package & Submission
+- **Generate Docx**: `python3 source_code/scripts/generate_docx.py`
+- **Package Archive**: `bash source_code/scripts/package_submission.sh`

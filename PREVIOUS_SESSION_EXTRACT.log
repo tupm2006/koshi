@@ -1,0 +1,3 @@
+chat.ChatSessionStore.index|{"version":1,"entries":{}}
+chat.participantNameRegistry|{"vscode":["github"],"workspace":["github"],"terminal":["github"],"github":["github"],"azure":["ms-azuretools"],"teams":["teamsdevapp"],"quantum":["quantum"],"apicenter":["apidev"],"stripe":["stripe"],"mongodb":["mongodb"],"databricks":["databricks"],"playwright":["ms-playwright"],"figma":["figma"],
+chat.workspaceTransfer|[]
