@@ -1,36 +1,117 @@
 import os
+import sys
 from docx import Document
 
 TEMPLATE_PATH = os.path.expanduser("~/Documents/BAI DU AN_UNG DUNG AI.docx")
 OUTPUT_PATH = os.path.expanduser("~/koshi/nhom4.docx")
 
 if not os.path.exists(TEMPLATE_PATH):
-    raise FileNotFoundError(f"Template not found at {TEMPLATE_PATH}. Ensure the file exists.")
+    print(f"[!] Template not found at: {TEMPLATE_PATH}", file=sys.stderr)
+    sys.exit(1)
 
 doc = Document(TEMPLATE_PATH)
 
-def replace_text_in_paragraph(p, search_text, replace_text):
-    if search_text in p.text:
-        p.text = p.text.replace(search_text, replace_text)
+def replace_text(container, old_text, new_text):
+    """Replaces text across all runs in a paragraph or cell while preserving typography."""
+    if hasattr(container, "paragraphs"):
+        for p in container.paragraphs:
+            replace_text(p, old_text, new_text)
+    elif hasattr(container, "text"):
+        if old_text in container.text:
+            # Check if contained within a single run
+            replaced = False
+            for run in getattr(container, "runs", []):
+                if old_text in run.text:
+                    run.text = run.text.replace(old_text, new_text)
+                    replaced = True
+            if not replaced:
+                # If fragmented across runs, update container directly
+                container.text = container.text.replace(old_text, new_text)
 
-def replace_text_in_table(table, search_text, replace_text):
+print("[1/5] Updating Cover Page & Metadata across all tables/paragraphs...")
+METADATA_REPLACEMENTS = [
+    ("HỆ THỐNG QUẢN LÝ BÁN HÀNG CÓ TÍCH HỢP AI", "HỆ THỐNG QUẢN LÝ DỰ ÁN VÀ TIẾN ĐỘ CÔNG VIỆC KOSHI CÓ TÍCH HỢP AI"),
+    ("Hệ thống quản lý bán hàng có tích hợp AI", "Hệ thống quản lý dự án và tiến độ công việc Koshi có tích hợp AI"),
+    ("NHÓM 01", "NHÓM 04"),
+    ("Nhóm 01", "Nhóm 04"),
+    ("NHÓM 1", "NHÓM 04"),
+    ("Lương Văn Trà (#)", "Phạm Minh Tú (#)"),
+    ("Lương Văn Trà", "Phạm Minh Tú"),
+    ("Tráng A Thư", "Phạm Văn Huynh"),
+    ("Nguyễn Mạnh Dương", "Đàm Đức Đôn"),
+]
+
+# Process all body paragraphs
+for p in doc.paragraphs:
+    for old_val, new_val in METADATA_REPLACEMENTS:
+        replace_text(p, old_val, new_val)
+
+# Process all tables (including the cover page table)
+for table in doc.tables:
     for row in table.rows:
         for cell in row.cells:
-            for p in cell.paragraphs:
-                if search_text in p.text:
-                    p.text = p.text.replace(search_text, replace_text)
+            for old_val, new_val in METADATA_REPLACEMENTS:
+                replace_text(cell, old_val, new_val)
 
-print("[1/6] Updating Cover Page metadata in Table 0...")
-# Table 0 is the Cover Page Table in the template
-t0 = doc.tables[0]
-replace_text_in_table(t0, "HỆ THỐNG QUẢN LÝ BÁN HÀNG CÓ TÍCH HỢP AI", "HỆ THỐNG QUẢN LÝ DỰ ÁN VÀ TIẾN ĐỘ CÔNG VIỆC KOSHI CÓ TÍCH HỢP AI")
-replace_text_in_table(t0, "NHÓM 01", "NHÓM 04")
-replace_text_in_table(t0, "Lương Văn Trà (#)", "Phạm Minh Tú (#)")
-replace_text_in_table(t0, "Lương Văn Trà", "Phạm Minh Tú")
-replace_text_in_table(t0, "Tráng A Thư", "Phạm Văn Huynh")
-replace_text_in_table(t0, "Nguyễn Mạnh Dương", "Đàm Đức Đôn")
+print("[2/5] Updating Task Assignment Tables (Phân công nhiệm vụ)...")
+# Locate task assignment tables by matching their headers
+for table in doc.tables:
+    table_text = " ".join(cell.text for row in table.rows for cell in row.cells)
+    
+    # Table 1: Progress allocation (Tiến độ thực hiện)
+    if "Tên nhiệm vụ" in table_text and "Người thực hiện" in table_text:
+        progress_data = [
+            ("1", "Phân tích yêu cầu bài toán, khảo sát hiện trạng, lập URD & SRS chuẩn ISO/IEC/IEEE 29148", "Phạm Minh Tú"),
+            ("2", "Thiết kế mô hình Actor, Use Case và các đặc tả yêu cầu chức năng/phi chức năng", "Phạm Minh Tú"),
+            ("3", "Xác định mô hình CSDL quan hệ sơ bộ, phân quyền dự án và các thực thể cốt lõi", "Phạm Văn Huynh"),
+            ("4", "Xác định phạm vi ứng dụng AI và khảo sát các luồng xử lý NLP/LLM", "Đàm Đức Đôn"),
+            ("5", "Tổng hợp báo cáo kỹ thuật Chương 1 (KT1) và rà soát tài liệu", "Cả nhóm")
+        ]
+        for idx, (stt, t_name, assignee) in enumerate(progress_data, start=1):
+            if idx < len(table.rows):
+                cells = table.rows[idx].cells
+                if len(cells) >= 3:
+                    cells[0].text = stt
+                    cells[1].text = t_name
+                    cells[2].text = assignee
+        for idx in range(len(progress_data) + 1, len(table.rows)):
+            for cell in table.rows[idx].cells:
+                cell.text = ""
 
-print("[2/6] Updating Table of Contents...")
+    # Table 2: Member allocation & signature table
+    elif "Thành Viên" in table_text and "Chữ ký" in table_text:
+        member_data = [
+            ("1", "Phạm Minh Tú (#)", "Trưởng nhóm: Phân tích yêu cầu hệ thống, mô hình Use Case, URD/SRS ISO standard và điều phối kỹ thuật.", ""),
+            ("2", "Phạm Văn Huynh", "Phụ trách khảo sát hiện trạng, phân tích yêu cầu phi chức năng và thiết kế sơ bộ thực thể CSDL.", ""),
+            ("3", "Đàm Đức Đôn", "Phụ trách xác định phạm vi tích hợp AI, khảo sát mô hình LLM và tổng hợp báo cáo kỹ thuật.", "")
+        ]
+        for idx, (stt, name, role_desc, sig) in enumerate(member_data, start=1):
+            if idx < len(table.rows):
+                cells = table.rows[idx].cells
+                if len(cells) >= 4:
+                    cells[0].text = stt
+                    cells[1].text = name
+                    cells[2].text = role_desc
+                    cells[3].text = sig
+
+print("[3/5] Stripping CD Disc section and label notes...")
+cd_markers = [
+    "Ghi chú:",
+    "Mỗi nhóm in 1 quyển báo cáo, kèm theo 1 đĩa CD",
+    "Nội dung đĩa CD bao gồm",
+    "Hướng dẫn cái đặt chương trình thử nghiệm",
+    "Nhãn đĩa CD theo mẫu sau",
+    "CNTT K23D"
+]
+for p in doc.paragraphs:
+    if any(m.lower() in p.text.lower() for m in cd_markers):
+        p.text = ""
+        # Remove any inline drawing / shape nodes if present
+        for elem in p._element.xpath('.//*[local-name()="drawing" or local-name()="shape" or local-name()="group"]'):
+            if elem.getparent() is not None:
+                elem.getparent().remove(elem)
+
+# Clean TOC and Introduction
 doc.paragraphs[6].text = "CHƯƠNG 1. PHÂN TÍCH YÊU CẦU HỆ THỐNG\t1"
 doc.paragraphs[7].text = (
     "  1.1. Bối cảnh bài toán và lý do phát triển\t1\n"
@@ -47,44 +128,6 @@ doc.paragraphs[11].text = "  3.1. Thử nghiệm AI và đánh giá (KT3)\t7"
 doc.paragraphs[12].text = "KẾT LUẬN\t8"
 doc.paragraphs[13].text = "TÀI LIỆU THAM KHẢO\t9"
 
-print("[3/6] Updating Task Allocation Tables (KT1 Scope)...")
-# Table 1: Progress allocation (doc.tables[1])
-t1 = doc.tables[1]
-progress_data = [
-    ("1", "Phân tích yêu cầu bài toán, khảo sát hiện trạng, lập URD & SRS chuẩn ISO/IEC/IEEE 29148", "Phạm Minh Tú"),
-    ("2", "Thiết kế mô hình Actor, Use Case và các đặc tả yêu cầu chức năng/phi chức năng", "Phạm Minh Tú"),
-    ("3", "Xác định mô hình CSDL quan hệ sơ bộ, phân quyền dự án và các thực thể cốt lõi", "Phạm Văn Huynh"),
-    ("4", "Xác định phạm vi ứng dụng AI và khảo sát các luồng xử lý NLP/LLM", "Đàm Đức Đôn"),
-    ("5", "Tổng hợp báo cáo kỹ thuật Chương 1 (KT1), kiểm thử và rà soát tài liệu", "Cả nhóm")
-]
-for r_idx, (stt, task_name, assignee) in enumerate(progress_data, start=1):
-    if r_idx < len(t1.rows):
-        row = t1.rows[r_idx]
-        if len(row.cells) >= 3:
-            row.cells[0].paragraphs[0].text = stt
-            row.cells[1].paragraphs[0].text = task_name
-            row.cells[2].paragraphs[0].text = assignee
-for r_idx in range(len(progress_data) + 1, len(t1.rows)):
-    for cell in t1.rows[r_idx].cells:
-        cell.text = ""
-
-# Table 2: Member tasks & signatures (doc.tables[2])
-t2 = doc.tables[2]
-member_data = [
-    ("1", "Phạm Minh Tú\n(#)", "Trưởng nhóm: Phân tích yêu cầu hệ thống, mô hình Use Case, URD/SRS ISO standard và điều phối kỹ thuật.", ""),
-    ("2", "Phạm Văn Huynh", "Phụ trách khảo sát hiện trạng, phân tích yêu cầu phi chức năng và thiết kế sơ bộ thực thể CSDL.", ""),
-    ("3", "Đàm Đức Đôn", "Phụ trách xác định phạm vi tích hợp AI, khảo sát mô hình LLM và tổng hợp báo cáo kỹ thuật.", "")
-]
-for r_idx, (stt, name, role_desc, sig) in enumerate(member_data, start=1):
-    if r_idx < len(t2.rows):
-        row = t2.rows[r_idx]
-        if len(row.cells) >= 4:
-            row.cells[0].paragraphs[0].text = stt
-            row.cells[1].paragraphs[0].text = name
-            row.cells[2].paragraphs[0].text = role_desc
-            row.cells[3].paragraphs[0].text = sig
-
-print("[4/6] Updating Introduction and Stripping CD Disc page...")
 doc.paragraphs[24].text = "MỞ ĐẦU"
 doc.paragraphs[25].text = (
     "Ngày nay, công nghệ thông tin phát triển đồng nghĩa với việc phát triển các phần mềm ứng dụng "
@@ -101,11 +144,7 @@ doc.paragraphs[26].text = (
 )
 doc.paragraphs[27].text = "Nhóm 04 chúng em xin chân thành cảm ơn giảng viên ThS. Nguyễn Thị Tuyển đã tận tình hướng dẫn để nhóm hoàn thành tốt Bài kiểm tra 1 (KT1) này!"
 
-# Clear CD Disc guidelines and placeholders (P28 to P37)
-for i in range(28, 38):
-    doc.paragraphs[i].text = ""
-
-print("[5/6] Populating ONLY Chapter 1 (Strict Scope Lock)...")
+print("[4/5] Populating ONLY Chapter 1 (Strict Scope Lock)...")
 ch1_full_content = """1.1. Bối cảnh bài toán và lý do phát triển
 Koshi được định vị là hệ thống quản lý công việc và tiến độ sprint nội bộ dành cho các đội ngũ kỹ sư phần mềm chuyên sâu. Bối cảnh nghiệp vụ tập trung giải quyết nhu cầu của 3 nhóm đối tượng chính (User Personas):
 • Lead Architect / Senior Engineer: Đòi hỏi thao tác 100% bằng bàn phím không dùng chuột (h/j/k/l, Space, i, n, Esc), chuyển đổi tức thì giữa dạng Bảng (Table) và Kanban 2D, phát hiện sớm các điểm nghẽn tiến độ (Critical Path) trên đồ thị phụ thuộc.
@@ -157,12 +196,12 @@ doc.paragraphs[42].text = ""
 
 # Scope lock placeholders for Chapter 2, Chapter 3, and Conclusion
 doc.paragraphs[43].text = "CHƯƠNG 2. THIẾT KẾ HỆ THỐNG (BÀI KIỂM TRA 2)"
-doc.paragraphs[44].text = "[Nội dung thiết kế kiến trúc và CSDL chi tiết sẽ được hoàn thiện trong Bài kiểm tra 2 - KT2]"
+doc.paragraphs[44].text = "[Nội dung thiết kế kiến trúc và CSDL sẽ được hoàn thiện trong Bài kiểm tra 2 - KT2]"
 doc.paragraphs[45].text = ""
 doc.paragraphs[46].text = ""
 
 doc.paragraphs[47].text = "CHƯƠNG 3. TÍCH HỢP AI VÀ ĐÁNH GIÁ (BÀI KIỂM TRA 3)"
-doc.paragraphs[48].text = "[Nội dung kết quả thử nghiệm AI và triển khai thực tế sẽ được hoàn thiện trong Bài kiểm tra 3 - KT3]"
+doc.paragraphs[48].text = "[Nội dung kết quả thử nghiệm và đánh giá AI sẽ được hoàn thiện trong Bài kiểm tra 3 - KT3]"
 doc.paragraphs[49].text = ""
 doc.paragraphs[50].text = ""
 doc.paragraphs[51].text = ""
@@ -176,7 +215,6 @@ doc.paragraphs[57].text = ""
 doc.paragraphs[58].text = ""
 doc.paragraphs[59].text = ""
 
-print("[6/6] Updating References and Saving Document...")
 doc.paragraphs[60].text = "TÀI LIỆU THAM KHẢO"
 doc.paragraphs[61].text = "[1] ISO/IEC/IEEE 29148:2018, 'Systems and software engineering — Life cycle processes — Requirements engineering', IEEE Standards Association, 2018."
 doc.paragraphs[62].text = "[2] Khoa Công nghệ Thông tin - Trường Đại học CNTT & Truyền thông Thái Nguyên (ICTU), 'Đề cương chi tiết và Quy chuẩn Đánh giá Dự án Học phần Ứng dụng Trí tuệ Nhân tạo', Thái Nguyên, 2026."
@@ -185,8 +223,9 @@ doc.paragraphs[64].text = "[4] You, E. et al., 'Vue 3 Composition API & Pinia St
 doc.paragraphs[65].text = "[5] Google Cloud AI & DeepMind, 'Gemini API Technical Guidelines and Prompt Engineering Matrix', Online: https://ai.google.dev/, 2026."
 doc.paragraphs[66].text = ""
 
+print("[5/5] Saving strictly mutated document to nhom4.docx...")
 doc.save(OUTPUT_PATH)
-print(f"[✓] Document strictly mutated and saved to: {OUTPUT_PATH}")
+print(f"[✓] Successfully compiled: {OUTPUT_PATH}")
 
 if __name__ == "__main__":
     pass
