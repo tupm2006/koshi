@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { useTaskStore } from '../stores/taskStore';
 import type { Task, TaskPriority, TaskStatus } from '../types/task';
-import { Flame, Clock, Plus, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-vue-next';
+import { Plus } from 'lucide-vue-next';
+import TaskCard from './TaskCard.vue';
 
 defineProps<{
   onOpenCreate: () => void;
@@ -133,68 +134,17 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
         <div
           v-for="(task, rowIndex) in taskStore.filteredTasks.filter((t) => t.status === col.status)"
           :key="task.id"
-          class="group rounded-md p-3 shadow-xs cursor-grab active:cursor-grabbing select-none border"
-          :class="taskStore.activeKanbanTask?.id === task.id
-            ? 'ring-2 ring-inset ring-indigo-500 dark:ring-indigo-400 border-indigo-500 dark:border-indigo-400 bg-slate-50 dark:bg-slate-800/90 shadow-sm'
-            : 'border-slate-300 dark:border-slate-700/80 bg-white dark:bg-slate-900 hover:border-slate-400 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800'"
           draggable="true"
           @dragstart="(e) => handleDragStart(e, task.id)"
-          @click="selectCard(task, colIndex, rowIndex)"
-          @dblclick="taskStore.openDetail(task.id)"
-          role="article"
         >
-          <!-- Top Row: ID & Badges -->
-          <div class="flex items-center justify-between gap-1 mb-1.5 text-xs font-mono">
-            <span class="text-slate-500 dark:text-slate-400 font-semibold">{{ task.id }}</span>
-            <div class="flex items-center gap-1.5">
-              <span v-if="taskStore.criticalPathIds.has(task.id) && task.status !== 'DONE'" title="Critical Path" class="text-rose-600 dark:text-rose-400">
-                <Flame class="w-3.5 h-3.5" />
-              </span>
-              <span class="h-5 px-1.5 inline-flex items-center justify-center rounded-md border text-[11px] uppercase font-bold" :class="getPriorityBadge(task.priority)">
-                {{ task.priority.slice(0, 4) }}
-              </span>
-            </div>
-          </div>
-
-          <!-- Title -->
-          <h4 class="text-sm font-medium font-sans text-slate-900 dark:text-slate-100 mb-2 leading-snug" :class="task.status === 'DONE' ? 'line-through text-slate-400 dark:text-slate-500 font-normal' : ''">
-            {{ task.title }}
-          </h4>
-
-          <!-- Blocking Reason -->
-          <div v-if="task.blockingReason && task.status === 'BLOCKED'" class="flex items-center gap-1.5 text-xs text-rose-700 dark:text-rose-400/90 font-mono mb-2 bg-rose-50 dark:bg-rose-950/30 p-1.5 rounded-md border border-rose-200 dark:border-rose-900/40">
-            <AlertCircle class="w-3.5 h-3.5 shrink-0" />
-            <span class="truncate">{{ task.blockingReason }}</span>
-          </div>
-
-          <!-- Footer Row -->
-          <div class="flex items-center justify-between text-xs font-mono text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
-            <div class="flex items-center gap-1">
-              <Clock v-if="task.dueDate" class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-              <span v-if="task.dueDate">{{ new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }}</span>
-              <span v-else>-</span>
-            </div>
-
-            <!-- Quick Column Shift Controls -->
-            <div class="flex items-center gap-1 opacity-60 group-hover:opacity-100">
-              <button
-                type="button"
-                class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
-                @click.stop="moveStatus(task, 'left')"
-                title="Move left (H)"
-              >
-                <ChevronLeft class="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
-                @click.stop="moveStatus(task, 'right')"
-                title="Move right (L)"
-              >
-                <ChevronRight class="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
+          <TaskCard
+            :task="task"
+            :is-selected="taskStore.activeKanbanTask?.id === task.id"
+            :is-critical-path="taskStore.criticalPathIds.has(task.id)"
+            @select="() => selectCard(task, colIndex, rowIndex)"
+            @open-detail="() => taskStore.openDetail(task.id)"
+            @cycle-status="(_, dir) => moveStatus(task, dir === 'prev' ? 'left' : 'right')"
+          />
         </div>
       </div>
 
