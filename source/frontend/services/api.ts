@@ -5,12 +5,41 @@
 
 const API_BASE = '/api';
 
+/**
+ * A user account. Note there is no `role` field: roles are per-project and
+ * live on ProjectMember, reachable via `my_role` on a Project.
+ */
 export interface UserProfile {
   id: number;
   email: string;
   full_name: string;
-  role: 'PM' | 'MEMBER';
   skills: string;
+  avatar_url?: string | null;
+}
+
+export type ProjectRole = 'PM' | 'MEMBER';
+
+export interface Project {
+  id: number;
+  name: string;
+  description: string;
+  owner_id: number | null;
+  created_at: string;
+  /** The calling user's role in this project. */
+  my_role: ProjectRole | null;
+  member_count: number;
+}
+
+export interface ProjectMember {
+  user_id: number;
+  project_id: number;
+  role: ProjectRole;
+  full_name: string;
+  email: string;
+  skills: string;
+  avatar_url?: string | null;
+  active_tasks_count: number;
+  wip_points: number;
 }
 
 export interface AuthResponse {
@@ -69,10 +98,14 @@ export class ApiClient {
   }
 
   // Auth Endpoints
-  async register(email: string, password: string, full_name: string, role: string = 'MEMBER'): Promise<AuthResponse> {
+  /**
+   * Create an account. No role is sent or accepted — a new account has no
+   * authority anywhere until it creates a project or is invited to one.
+   */
+  async register(email: string, password: string, full_name: string, skills?: string): Promise<AuthResponse> {
     const data = await this.request<AuthResponse>('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password, full_name, role }),
+      body: JSON.stringify({ email, password, full_name, skills }),
     });
     this.setToken(data.access_token);
     return data;
@@ -95,8 +128,51 @@ export class ApiClient {
     this.setToken(null);
   }
 
+  // Project Endpoints (personal dashboard)
+  async listProjects(): Promise<Project[]> {
+    return this.request<Project[]>('/projects');
+  }
+
+  async createProject(name: string, description = ''): Promise<Project> {
+    return this.request<Project>('/projects', {
+      method: 'POST',
+      body: JSON.stringify({ name, description }),
+    });
+  }
+
+  async getProject(projectId: number): Promise<Project> {
+    return this.request<Project>(`/projects/${projectId}`);
+  }
+
+  async deleteProject(projectId: number): Promise<void> {
+    return this.request<void>(`/projects/${projectId}`, { method: 'DELETE' });
+  }
+
+  // Per-project role management (PM only, enforced server-side)
+  async listMembers(projectId: number): Promise<ProjectMember[]> {
+    return this.request<ProjectMember[]>(`/projects/${projectId}/members`);
+  }
+
+  async addMember(projectId: number, email: string, role: ProjectRole = 'MEMBER'): Promise<ProjectMember> {
+    return this.request<ProjectMember>(`/projects/${projectId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ email, role }),
+    });
+  }
+
+  async updateMemberRole(projectId: number, userId: number, role: ProjectRole): Promise<ProjectMember> {
+    return this.request<ProjectMember>(`/projects/${projectId}/members/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    });
+  }
+
+  async removeMember(projectId: number, userId: number): Promise<void> {
+    return this.request<void>(`/projects/${projectId}/members/${userId}`, { method: 'DELETE' });
+  }
+
   // Task Endpoints
-  async getTasks(projectId: number = 1): Promise<any[]> {
+  async getTasks(projectId: number): Promise<any[]> {
     return this.request<any[]>(`/tasks?project_id=${projectId}`);
   }
 
@@ -127,7 +203,7 @@ export class ApiClient {
   }
 
   // AI Workflows & Analysis
-  async getWeeklySummary(projectId: number = 1): Promise<{ status: string; summary: string }> {
+  async getWeeklySummary(projectId: number): Promise<{ status: string; summary: string }> {
     return this.request<{ status: string; summary: string }>(`/ai/weekly-summary?project_id=${projectId}`, {
       method: 'POST',
     });
@@ -140,7 +216,7 @@ export class ApiClient {
     });
   }
 
-  async recommendAssignment(title: string, description: string, projectId: number = 1): Promise<any> {
+  async recommendAssignment(title: string, description: string, projectId: number): Promise<any> {
     return this.request<any>(`/ai/recommend-assignment?project_id=${projectId}`, {
       method: 'POST',
       body: JSON.stringify({ title, description }),
@@ -169,11 +245,11 @@ export class ApiClient {
   }
 
   // Workload & Delayed Tasks
-  async getWorkloads(): Promise<any[]> {
-    return this.request<any[]>('/stats/workload');
+  async getWorkloads(projectId: number): Promise<any[]> {
+    return this.request<any[]>(`/stats/workload?project_id=${projectId}`);
   }
 
-  async getDelayedTasks(projectId: number = 1): Promise<any[]> {
+  async getDelayedTasks(projectId: number): Promise<any[]> {
     return this.request<any[]>(`/stats/delayed-tasks?project_id=${projectId}`);
   }
 }

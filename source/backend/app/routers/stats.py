@@ -3,20 +3,26 @@ from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
 from app.database import get_db
-from app.models.entities import User, Task, TaskStatusEnum
+from app.models.entities import User, Task, ProjectMember, TaskStatusEnum
 from app.schemas.stats import MemberWorkloadOut, DelayedTaskOut
-from app.security import get_current_user
+from app.security import get_current_user, require_member
 
 router = APIRouter(prefix="/stats", tags=["Statistics & Workload"])
 
 @router.get("/workload", response_model=List[MemberWorkloadOut])
-def get_member_workloads(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    users = db.query(User).all()
+def get_member_workloads(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """Workload for the members of one project. Requires membership of it."""
+    require_member(db, project_id, current_user)
+
+    members = db.query(ProjectMember).filter(ProjectMember.project_id == project_id).all()
+    users = [m.user for m in members if m.user is not None]
+    role_by_user = {m.user_id: m.role.value for m in members}
     results = []
-    
+
     for u in users:
         active_tasks = db.query(Task).filter(
             Task.assignee_id == u.id,
+            Task.project_id == project_id,
             Task.status.in_([TaskStatusEnum.TODO, TaskStatusEnum.IN_PROGRESS, TaskStatusEnum.BLOCKED])
         ).all()
         
@@ -30,7 +36,7 @@ def get_member_workloads(db: Session = Depends(get_db), current_user: User = Dep
             user_id=u.id,
             full_name=u.full_name,
             email=u.email,
-            role=u.role.value,
+            role=role_by_user.get(u.id, "MEMBER"),
             skills=skills_list,
             active_tasks_count=len(active_tasks),
             total_complexity_points=points,
@@ -41,6 +47,7 @@ def get_member_workloads(db: Session = Depends(get_db), current_user: User = Dep
 
 @router.get("/delayed-tasks", response_model=List[DelayedTaskOut])
 def get_delayed_tasks(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    require_member(db, project_id, current_user)
     now = datetime.utcnow()
     tasks = db.query(Task).filter(
         Task.project_id == project_id,

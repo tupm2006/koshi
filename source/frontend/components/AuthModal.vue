@@ -14,7 +14,6 @@ const mode = ref<'LOGIN' | 'REGISTER'>('LOGIN');
 const email = ref('pm@tupm.qzz.io');
 const password = ref('koshi123');
 const fullName = ref('Phạm Minh Tú');
-const role = ref<'PM' | 'MEMBER'>('PM');
 const skills = ref('architecture,fastapi,vue');
 const errorMsg = ref<string | null>(null);
 const isSubmitting = ref(false);
@@ -27,7 +26,7 @@ async function handleSubmit() {
       const res = await api.login(email.value, password.value);
       taskStore.currentUser = res.user;
     } else {
-      const res = await api.register(email.value, password.value, fullName.value, role.value);
+      const res = await api.register(email.value, password.value, fullName.value, skills.value);
       taskStore.currentUser = res.user;
     }
     await taskStore.syncWithBackend();
@@ -63,7 +62,7 @@ function handleQuickSwitch(targetEmail: string) {
             <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">
               {{ mode === 'LOGIN' ? 'User Authentication' : 'Create Account' }}
             </h2>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">Role-Based Access Control (RBAC)</p>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">Roles are assigned per project</p>
           </div>
         </div>
         <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="emit('close')">
@@ -102,28 +101,19 @@ function handleQuickSwitch(targetEmail: string) {
             class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 font-sans"
           />
         </div>
-        <div v-if="mode === 'REGISTER'" class="grid grid-cols-2 gap-2">
-          <div>
-            <label for="vue-reg-role" class="block font-mono text-slate-700 dark:text-slate-300 mb-1 font-medium">Role</label>
-            <select
-              id="vue-reg-role"
-              v-model="role"
-              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 font-mono"
-            >
-              <option value="PM">Project Manager (PM)</option>
-              <option value="MEMBER">Team Member</option>
-            </select>
-          </div>
-          <div>
-            <label for="vue-reg-skills" class="block font-mono text-slate-700 dark:text-slate-300 mb-1 font-medium">Skills</label>
-            <input
-              id="vue-reg-skills"
-              v-model="skills"
-              type="text"
-              placeholder="e.g. python,vue"
-              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 font-sans"
-            />
-          </div>
+        <div v-if="mode === 'REGISTER'">
+          <label for="vue-reg-skills" class="block font-mono text-slate-700 dark:text-slate-300 mb-1 font-medium">Skills</label>
+          <input
+            id="vue-reg-skills"
+            v-model="skills"
+            type="text"
+            placeholder="e.g. python,vue"
+            class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 font-sans"
+          />
+          <p class="mt-1.5 text-[10px] font-mono text-slate-500 dark:text-slate-400 leading-relaxed">
+            No role needed here. Create a project from your dashboard to become its
+            Project Manager, or ask a PM to add you to theirs.
+          </p>
         </div>
 
         <div>

@@ -2,9 +2,11 @@ import pytest
 from fastapi.testclient import TestClient
 from datetime import datetime, timedelta
 
-def test_mandated_ai_features(client: TestClient, pm_auth_headers: dict):
+def test_mandated_ai_features(client: TestClient, pm_auth_headers: dict, project_with_member):
+    project_id, _ = project_with_member
+
     # 1. Feature A: Weekly Progress Summary
-    summary_res = client.post("/api/ai/weekly-summary?project_id=1", headers=pm_auth_headers)
+    summary_res = client.post(f"/api/ai/weekly-summary?project_id={project_id}", headers=pm_auth_headers)
     assert summary_res.status_code == 200
     summary_data = summary_res.json()
     assert summary_data["status"] == "success"
@@ -32,7 +34,7 @@ def test_mandated_ai_features(client: TestClient, pm_auth_headers: dict):
         "title": "Tối ưu hóa Database Indexing & Query Latency",
         "description": "Cấu hình composite indexes và đo lường latency dưới 10ms."
     }
-    rec_res = client.post("/api/ai/recommend-assignment?project_id=1", json=rec_payload, headers=pm_auth_headers)
+    rec_res = client.post(f"/api/ai/recommend-assignment?project_id={project_id}", json=rec_payload, headers=pm_auth_headers)
     assert rec_res.status_code == 200
     rec_data = rec_res.json()
     assert rec_data["status"] == "success"
@@ -45,9 +47,11 @@ def test_mandated_ai_features(client: TestClient, pm_auth_headers: dict):
     decomp_data = decomp_res.json()
     assert len(decomp_data["subtasks"]) == 3
 
-def test_workload_and_delayed_tasks_stats(client: TestClient, pm_auth_headers: dict):
-    # Test Workload stats endpoint
-    workload_res = client.get("/api/stats/workload", headers=pm_auth_headers)
+def test_workload_and_delayed_tasks_stats(client: TestClient, pm_auth_headers: dict, project_with_member):
+    project_id, _ = project_with_member
+
+    # Test Workload stats endpoint (now scoped to one project's members)
+    workload_res = client.get(f"/api/stats/workload?project_id={project_id}", headers=pm_auth_headers)
     assert workload_res.status_code == 200
     workloads = workload_res.json()
     assert isinstance(workloads, list)
@@ -55,6 +59,6 @@ def test_workload_and_delayed_tasks_stats(client: TestClient, pm_auth_headers: d
     assert "total_complexity_points" in workloads[0]
 
     # Test Delayed tasks endpoint
-    delayed_res = client.get("/api/stats/delayed-tasks?project_id=1", headers=pm_auth_headers)
+    delayed_res = client.get(f"/api/stats/delayed-tasks?project_id={project_id}", headers=pm_auth_headers)
     assert delayed_res.status_code == 200
     assert isinstance(delayed_res.json(), list)

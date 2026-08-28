@@ -1,7 +1,7 @@
 # D3 — Architecture
 
 **Purpose:** how the parts interact, where the boundaries are, and which direction data flows.
-**Last verified against code:** 2026-08-28
+**Last verified against code:** 2026-08-28 (rev 2 — per-project roles)
 
 ---
 
@@ -191,6 +191,41 @@ sequenceDiagram
 Note the **duplicated cycle logic**: the client advances the status *and* the server independently
 advances it. Both implement the same 4-cycle (D4 §3.1). If they ever diverge, the client wins
 visually and the server wins on reload — a real hazard tracked as RISK-04 in D6.
+
+## 5b. Authorisation model
+
+Authorisation is **relational, not attributive**: permission is not a property of a user, it is a
+property of the (user, project) pair recorded in `project_members`.
+
+```
+User ──┬── ProjectMember{role: PM}     ──▶ Project "Apollo"
+       └── ProjectMember{role: MEMBER} ──▶ Project "Zephyr"
+```
+
+The same account is therefore an administrator in one project and an ordinary contributor in
+another, with no global role to reconcile.
+
+Every project-scoped endpoint resolves the caller's membership before doing anything else:
+
+```
+request ──▶ get_current_user      (401 if the token is absent or invalid)
+        ──▶ require_member(...)   (404 if the project is absent OR the caller is not a member)
+        ──▶ require_project_pm()  (403 if the caller is a member but not a PM)
+        ──▶ handler
+```
+
+Two deliberate choices in that ladder:
+
+1. **Non-membership yields `404`, not `403`.** A `403` confirms the project exists. For a resource
+   the caller has no right to know about, that is itself a disclosure, so unknown and forbidden are
+   made indistinguishable.
+2. **`403` is reserved for members who lack the *role*.** Once the caller is known to belong, there
+   is nothing left to hide, and a precise error is more useful than a misleading one.
+
+The client mirrors these rules for affordances only — `taskStore.isProjectManager` hides PM
+controls. It is **not** a security boundary: the server re-checks every request independently, and
+the tests in `test_projects_and_roles.py` assert the server refuses even when the UI would not have
+offered the action.
 
 ## 6. Deployment architecture
 

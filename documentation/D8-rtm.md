@@ -7,7 +7,7 @@ assessed in both directions.
 - **Reverse** (*"I'm editing `dagSorter.ts` — what does it serve, and what proves it still works?"*) → §3.
 
 All paths are relative to the repository root. All requirement IDs come from D1 §3.
-**Last verified against code:** 2026-08-28.
+**Last verified against code:** 2026-08-28 (rev 2 — per-project roles).
 
 ---
 
@@ -34,7 +34,7 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 | FR-INT-04 | Status cycle | `taskStore.ts::STATUS_ORDER` + `lib/keyboard.ts` (`Space`) | server twin ✅ `test_tasks.py` | 🟡 |
 | FR-INT-05 | Lateral shift | `lib/keyboard.ts` (`H`/`L`), `taskStore.ts::syncKanbanFocusToTask` | manual | 🟡 |
 | FR-INT-06 | Priority hotkeys | `lib/keyboard.ts` (`1`–`4`) | manual | 🟡 |
-| FR-INT-07 | Create / edit / inspect | `lib/keyboard.ts` (`n`/`i`/`Enter`), `CreateTaskModal.vue`, `TaskDetailModal.vue` | manual | ⚠️🟡 README says `c`/`Enter` — D7 DEC-005 |
+| FR-INT-07 | Create / edit / inspect | `lib/keyboard.ts` (`n`/`i`/`Enter`), `CreateTaskModal.vue`, `TaskDetailModal.vue` | manual | 🟡 some UI tooltips still say `c` — F-20 |
 | FR-INT-08 | Delete | `lib/keyboard.ts` (`d`/`Backspace`), `taskStore.ts::deleteTask` | manual | 🟡 |
 | FR-INT-09 | Search focus | `lib/keyboard.ts` (`/`), `taskStore.ts::filter.searchQuery` | manual | 🟡 |
 | FR-INT-10 | Input guards | `lib/keyboard.ts::isInputActive` | — | ❌ |
@@ -47,7 +47,7 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 
 | Req | Work item | Implementation | Verification | St |
 |:--|:--|:--|:--|:--:|
-| FR-DOM-01 | Status enum | `types/task.ts::TaskStatus`, `entities.py::TaskStatusEnum`, `db/schema.sql` CHECK | ✅ `test_tasks.py` | ✅ |
+| FR-DOM-01 | Status enum | `types/task.ts::TaskStatus`, `entities.py::TaskStatusEnum` | ✅ `test_tasks.py` | ✅ |
 | FR-DOM-02 | Cycle invariant | `taskStore.ts::STATUS_ORDER` **and** `routers/tasks.py::cycle_task_status` | ✅ `test_task_lifecycle_and_comments` | ⚠️✅ duplicated logic — RISK-04 |
 | FR-DOM-03 | Priority enum | `types/task.ts`, `entities.py::TaskPriorityEnum` | ✅ `test_tasks.py` | ✅ |
 | FR-DOM-04 | Complexity | `entities.py::complexity_points`, `schemas/task.py` (`ge=1,le=8`) | ✅ create path | ⚠️✅ no bound on update — F-08 |
@@ -63,7 +63,7 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 |:--|:--|:--|:--|:--:|
 | FR-GRAPH-01 | Topological sort | `lib/dagSorter.ts::topologicalSort` | — | ❌ **GAP-01** |
 | FR-GRAPH-02 | Deterministic tie-break | `dagSorter.ts` queue sort (priority → dueDate → createdAt) | — | ❌ **GAP-01** |
-| FR-GRAPH-03 | Cycle tolerance | `dagSorter.ts` tail block (`result.length < tasks.length`) | — | ❌ ⚠️ diverges from SRS — D7 DEC-002 |
+| FR-GRAPH-03 | Cycle tolerance | `dagSorter.ts` tail block (`result.length < tasks.length`) | — | ❌ — D7 DEC-002 |
 | FR-GRAPH-04 | Critical path | `dagSorter.ts::computeCriticalPath` (memoised longest weighted path) | — | ❌ **GAP-01** |
 | FR-GRAPH-05 | DAG visualiser | `DAGVisualizerModal.vue`, `lib/keyboard.ts` (`v`) | manual | 🟡 |
 
@@ -71,7 +71,7 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 
 | Req | Work item | Implementation | Verification | St |
 |:--|:--|:--|:--|:--:|
-| FR-PERS-01 | IndexedDB write | `taskStore.ts` `set('koshi_tasks_v1', …)` via `idb-keyval` | — | 🟡 |
+| FR-PERS-01 | IndexedDB write | `taskStore.ts::persist` → `tasksKey(projectId)` / `GUEST_DB_KEY` via `idb-keyval` | — | 🟡 |
 | FR-PERS-02 | Offline operation | `taskStore.ts` local-first ordering (INV-03) | — | 🟡 |
 | FR-PERS-03 | Passive offline badge | `taskStore.ts::isBackendConnected`, `App.vue` | — | 🟡 |
 | FR-PERS-04 | Token persistence | `services/api.ts::setToken` → `localStorage['koshi_jwt_token']` | — | 🟡 |
@@ -82,11 +82,29 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 | Req | Work item | Implementation | Verification | St |
 |:--|:--|:--|:--|:--:|
 | FR-AUTH-01 | Register / login | `routers/auth.py`, `security.py` (bcrypt) | ✅ `test_register_and_login_flow` | ✅ |
-| FR-AUTH-02 | Google OAuth | `routers/auth.py::google_auth` | ✅ `test_google_oauth_and_user_management_flow` | ⚠️✅ test exercises the **unverified** fallback path — RISK-01 |
-| FR-AUTH-03 | Bearer required | `security.py::get_current_user`, `Depends` on every router | ✅ `test_unauthenticated_request_rejected` | ✅ |
-| FR-AUTH-04 | PM role gate | `security.py::require_role`, `routers/users.py::update_user_profile` | ✅ positive case only | ⚠️✅ negative case untested — GAP-02; function restored in DEC-004 |
-| FR-AUTH-05 | First user → PM | `routers/auth.py::google_auth` | — | ❌ |
-| *(implicit)* | Project-scoped authz | **absent** | — | ❌ **RISK-03** |
+| FR-AUTH-02 | Roleless registration | `schemas/auth.py::UserRegister`, `routers/auth.py::register_user` | ✅ `test_registration_accepts_no_role_and_grants_none`, `test_registration_ignores_a_submitted_role` | ✅ |
+| FR-AUTH-03 | Google OAuth, signature-verified | `routers/auth.py::google_auth`, `config.ALLOW_UNVERIFIED_GOOGLE_TOKENS` | ✅ `test_google_oauth_...`, `test_unverified_google_token_rejected_when_flag_disabled` | ✅ |
+| FR-AUTH-04 | Bearer required | `security.py::get_current_user` | ✅ `test_unauthenticated_request_rejected` | ✅ |
+| FR-AUTH-05 | Creator → PM | `routers/projects.py::create_project` | ✅ `test_creator_becomes_pm_of_their_own_project` | ✅ |
+| FR-AUTH-06 | PM administers membership | `routers/projects.py` member routes, `security.py::require_project_pm` | ✅ `test_pm_can_assign_and_change_roles` | ✅ |
+| FR-AUTH-07 | MEMBER restrictions | same guards | ✅ `test_member_cannot_change_roles`, `..._add_or_remove_members`, `..._create_sprints` | ✅ |
+| FR-AUTH-08 | Last-PM protection | `routers/projects.py` demote/remove guards | ✅ `test_cannot_demote_the_last_pm` | ✅ |
+| FR-AUTH-09 | Non-members refused (404) | `security.py::require_member` + every project-scoped router | ✅ four `test_non_member_cannot_*` tests | ✅ |
+| FR-AUTH-10 | Self-only profile edit | `routers/users.py::update_user_profile` | ✅ `test_user_can_edit_own_profile`, `test_user_cannot_edit_another_profile` | ✅ |
+
+### 2.5b Projects & dashboard
+
+| Req | Work item | Implementation | Verification | St |
+|:--|:--|:--|:--|:--:|
+| FR-PROJ-01 | Create project | `routers/projects.py::create_project`, `ProjectDashboard.vue`, `taskStore.createProject` | ✅ | ✅ |
+| FR-PROJ-02 | Dashboard feed scoped to caller | `routers/projects.py::list_my_projects` | ✅ `test_dashboard_lists_only_my_projects` | ✅ |
+| FR-PROJ-03 | Project switching | `taskStore.selectProject`, `App.vue` header pill | — | 🟡 |
+| FR-PROJ-04 | Add member by email | `routers/projects.py::add_member`, `ProjectDashboard.vue` | ✅ | ✅ |
+| FR-PROJ-05 | Roster with workload | `routers/projects.py::_member_out` | ✅ (shape) | 🟡 display |
+| FR-PROJ-06 | PM-only controls | `taskStore.isProjectManager` (UI) + `require_project_pm` (server) | ✅ server side | 🟡 UI — GAP-09 |
+| FR-PROJ-07 | Delete project | `routers/projects.py::delete_project` | — | ❌ |
+| FR-PROJ-08 | Empty account opens dashboard | `taskStore.init` | — | 🟡 |
+| — | Roles independent across projects | `entities.py::ProjectMember` | ✅ `test_roles_are_independent_across_projects` | ✅ |
 
 ### 2.6 AI workflows
 
@@ -128,9 +146,9 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | `lib/dagSorter.ts` | FR-GRAPH-01…04 | **none** | 🟡 ⚠️ test first (P4) |
 | `lib/gitParser.ts` | FR-AI-05 | **none** | 🟡 |
 | `lib/aiDecomposer.ts` | FR-AI-04 (tier 1) | none | 🟡 |
-| `stores/taskStore.ts` | FR-INT-02…09, FR-DOM-02, FR-PERS-01…03, FR-PERS-05 | none | 🟡 **widest blast radius** |
+| `stores/taskStore.ts` | FR-INT-02…09, FR-DOM-02, FR-PERS-01…03, FR-PERS-05, FR-PROJ-01…03, FR-PROJ-08 | none | 🟡 **widest blast radius** |
 | `stores/themeStore.ts` | FR-INT-12, NFR-02, NFR-05 | none | 🟢 |
-| `services/api.ts` | FR-AUTH-01…04, FR-PERS-04, FR-AI-01…05 · **contract C1↔C3** | backend side only | 🔴 for shapes |
+| `services/api.ts` | FR-AUTH-01…03, FR-PROJ-01…07, FR-PERS-04, FR-AI-01…05 · **contract C1↔C3** | backend side only | 🔴 for shapes |
 | `types/task.ts` | **contract C3** — every component | `pnpm run build` | 🔴 |
 | `index.html` | NFR-05 | manual | 🟡 |
 | `App.vue` | FR-INT-01, FR-INT-11, FR-PERS-03 | none | 🟡 |
@@ -138,24 +156,27 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | `components/KanbanBoard.vue` | FR-INT-03, FR-INT-05, INV-01 | none | 🟢 styling / 🟡 logic |
 | `components/TaskDetailModal.vue` | FR-DOM-06, FR-DOM-09, FR-INT-07 | none | 🟡 |
 | `components/*Modal.vue` (AI) | FR-AI-01…05 | none | 🟢 styling / 🟡 logic |
+| `components/ProjectDashboard.vue` | FR-PROJ-01…08, FR-AUTH-06 | server side only | 🟡 |
+| `components/AuthModal.vue` | FR-AUTH-01, 02 | server side only | 🟡 |
 
 ### 3.2 Backend
 
 | File | Serves | Verified by | Zone |
 |:--|:--|:--|:--:|
-| `app/security.py` | FR-AUTH-01, 03, 04 · contract C5 | `test_auth.py` | 🔴 |
-| `app/routers/auth.py` | FR-AUTH-01, 02, 05 | `test_auth.py` | 🔴 |
-| `app/routers/users.py` | FR-AUTH-04 | `test_auth.py` (positive only) | 🔴 |
-| `app/routers/tasks.py` | FR-DOM-02, 08, 09 · contract C1 | `test_tasks.py` | 🟡 logic / 🔴 shapes |
-| `app/routers/projects.py` | FR-DOM-08 | `test_tasks.py` | 🟡 |
-| `app/routers/sprints.py` | FR-DOM-08 | `test_tasks.py` | 🟡 |
-| `app/routers/stats.py` | FR-AI-07, 08 | `test_ai_and_stats.py` | 🟡 |
+| `app/security.py` | FR-AUTH-04, 06, 07, 09 · contracts C5, C8 | `test_auth.py`, `test_projects_and_roles.py` | 🔴 **the authorisation boundary** |
+| `app/routers/auth.py` | FR-AUTH-01, 02, 03 | `test_auth.py`, `test_projects_and_roles.py` | 🔴 |
+| `app/routers/users.py` | FR-AUTH-10 | `test_projects_and_roles.py` (both paths) | 🔴 |
+| `app/routers/projects.py` | FR-AUTH-05…09, FR-PROJ-01…07 | `test_projects_and_roles.py` | 🔴 |
+| `app/routers/tasks.py` | FR-DOM-02, 08, 09, FR-AUTH-09 · contract C1 | `test_tasks.py`, `test_projects_and_roles.py` | 🟡 logic / 🔴 shapes & guards |
+| `app/routers/sprints.py` | FR-DOM-08, FR-AUTH-07 | `test_tasks.py`, `test_projects_and_roles.py` | 🟡 |
+| `app/routers/stats.py` | FR-AI-07, 08, FR-AUTH-09 | `test_ai_and_stats.py`, `test_projects_and_roles.py` | 🟡 |
 | `app/routers/ai.py` | FR-AI-01…04 | `test_ai_and_stats.py` | 🟡 (🔴 for FR-AI-04) |
 | `app/services/ai_service.py` | FR-AI-01…03, 06 | `test_ai_and_stats.py` (tier-3 path) | 🟡 ⚠️ prompt text drives fallback routing — F-10 |
-| `app/models/entities.py` | FR-DOM-01…09 · **contract C2** | all backend tests | 🔴 |
+| `app/models/entities.py` | FR-DOM-01…09, FR-AUTH-05…09 · **contracts C2, C8** | all backend tests | 🔴 |
 | `app/schemas/*.py` | **contract C1** | all backend tests | 🔴 |
 | `app/main.py` | seeding, CORS, mounting | `conftest.py` imports it | 🟡 (🔴 for CORS — RISK-05) |
-| `app/config.py` | **contract C7** | — | 🔴 (secrets) |
+| `app/config.py` | **contract C7**, NFR-09 | — | 🔴 (secrets) |
+| `app/main.py::_check_production_safety` | NFR-09 | ✅ `test_startup_safety.py` | 🔴 |
 | `db/schema.sql` | reference only | — | 🟢 ⚠️ stale — D4 §2.3 |
 
 ### 3.3 Build & deploy
@@ -181,6 +202,9 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | An ORM column | `entities.py`, `db/schema.sql`, affected schemas, **migration plan** (RISK-10) | `pytest` 🔴 |
 | Critical-path weights | `dagSorter.ts`, D4 §3.2 | **write GAP-01 tests first** |
 | An AI prompt | `ai_service.py` only — **check `_deterministic_fallback` substring routing** (F-10) | `pytest` |
+| A role or permission rule | `security.py` guards, every calling router, `taskStore.isProjectManager`, `ProjectDashboard.vue`, D1 §3.5, D4 §4.3b | `pytest` 🔴 **RED zone** |
+| `ProjectMember` shape | `entities.py`, `schemas/project.py`, `services/api.ts`, `ProjectDashboard.vue`, D4 §4.3b, **migration plan** | `pytest` + `pnpm run build` 🔴 |
+| The IndexedDB key format | `taskStore.ts::tasksKey`/`GUEST_DB_KEY`, D4 §6 — bump the version segment | manual offline test |
 | Env var names | `config.py`, `docker-compose.yml`, D4 §7 | manual |
 | Build paths | `vite.config.ts`, `tsconfig.json`, `Dockerfile`, `docker-compose.yml`, D3 §6 | `pnpm run build` + `pytest` |
 
@@ -192,15 +216,21 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | Domain (FR-DOM) | 9 | 7 | 0 | 2 |
 | Graph (FR-GRAPH) | 5 | 0 | 1 | 4 |
 | Persistence (FR-PERS) | 5 | 0 | 4 | 1 |
-| Auth (FR-AUTH) | 5 | 4 | 0 | 1 |
+| Auth (FR-AUTH) | 10 | 10 | 0 | 0 |
+| Projects (FR-PROJ) | 9 | 5 | 3 | 1 |
 | AI (FR-AI) | 8 | 6 | 1 | 1 |
-| Non-functional (NFR) | 8 | 1 | 3 | 4 |
-| **Total** | **54** | **18** | **22** | **14** |
+| Non-functional (NFR) | 9 | 2 | 3 | 4 |
+| **Total** | **69** | **30** | **25** | **14** |
 
-**Reading.** 33% automated, 41% manual-only, 26% unverified. Automation is concentrated almost
-entirely in the backend HTTP surface. The frontend — which carries the product's distinguishing
-logic (graph engine, keyboard model, local-first store) — has **no automated verification at all**.
+**Reading.** 43% automated (was 33%), 36% manual-only, 20% unverified. Authorisation is now the
+**best-covered area in the repository** — all ten FR-AUTH rows are automated, including every
+negative path, which is the reverse of its position in rev 1.
 
-**Highest-leverage next work item:** D5 GAP-01 — add Vitest and test `lib/dagSorter.ts`. It converts
-4 ❌ rows to ✅, requires no framework mocking (the module is pure), and protects the code most
-likely to be silently broken by an AI edit.
+The imbalance is unchanged in shape though: automation is still almost entirely backend. The
+frontend carries the product's distinguishing logic (graph engine, keyboard model, local-first
+store, and now the dashboard) with **no automated verification at all**.
+
+**Highest-leverage next work item:** unchanged — D5 GAP-01, add Vitest and test `lib/dagSorter.ts`.
+It converts 4 ❌ rows to ✅, needs no framework mocking (the module is pure), and protects the code
+most likely to be silently broken by an AI edit. GAP-01 is now the single largest remaining
+cluster of unverified requirements in the repository.

@@ -2,7 +2,7 @@
 
 **System:** Koshi (輿) Project Management Engine
 **Status of this document:** Authoritative for *what must be true*. It does not describe *how*.
-**Last verified against code:** 2026-08-28
+**Last verified against code:** 2026-08-28 (rev 2 — per-project roles)
 
 > Reading order for an AI agent: **D1 (what) → D2 (where) → D3 (how it fits) → D4 (what must not break) → D5 (what proves it) → D6 (what you may not do) → D7 (what was already tried) → D8 (what a change touches).**
 
@@ -19,11 +19,13 @@ Koshi targets a single team archetype — a small, keyboard-driven software team
 
 ## 2. Scope
 
-**In scope.** Single-project task tracking; four-state task lifecycle; dependency graph and critical
-path; keyboard-first traversal in table and kanban views; local-first persistence; JWT auth with
-PM/MEMBER roles; four AI-assisted PM workflows with deterministic fallback.
+**In scope.** Multi-project task tracking with a personal dashboard; four-state task lifecycle;
+dependency graph and critical path; keyboard-first traversal in table and kanban views; local-first
+persistence; JWT auth with **per-project** PM/MEMBER roles; four AI-assisted PM workflows with
+deterministic fallback.
 
-**Out of scope (v1).** Multi-tenant orgs; real-time multi-user collaboration or conflict resolution;
+**Out of scope (v1).** Organisation/tenant objects above the project; real-time multi-user
+collaboration or conflict resolution;
 file attachments; time tracking / billing; notification delivery (email, Slack); mobile native apps;
 migrations tooling (schema is created via `Base.metadata.create_all`).
 
@@ -95,15 +97,36 @@ Status reflects what is actually implemented in the code, not what is aspiration
 
 ### 3.5 Functional — Identity & access (FR-AUTH)
 
+**Roles are per-project, never global.** An account has no role of its own; it holds a role in each
+project it belongs to, and may be `PM` of one project while being `MEMBER` of another.
+
 | ID | Requirement | Priority | Status |
 |:--|:--|:--|:--|
 | FR-AUTH-01 | Users register and log in with email + password; passwords are bcrypt-hashed. | Must | Implemented |
-| FR-AUTH-02 | Users may authenticate with a Google ID token. | Should | **Partial** — falls back to *unverified* base64 payload decoding. See D6 §4 RISK-01. |
-| FR-AUTH-03 | Every route except `/api/auth/*` and `/api/health` requires a valid HS256 bearer token. | Must | Implemented |
-| FR-AUTH-04 | Two roles exist: `PM` and `MEMBER`. Changing another user's role/skills requires `PM`. | Must | Implemented |
-| FR-AUTH-05 | The first user created via Google OAuth is promoted to `PM`; later users default to `MEMBER`. | Should | Implemented |
+| FR-AUTH-02 | Registration takes **no role**. A new account has zero memberships and therefore no authority anywhere. | Must | Implemented |
+| FR-AUTH-03 | Users may authenticate with a Google ID token, with the signature verified. | Should | Implemented |
+| FR-AUTH-04 | Every route except `/api/auth/*` and `/api/health` requires a valid HS256 bearer token. | Must | Implemented |
+| FR-AUTH-05 | Creating a project makes the creator its `PM`. | Must | Implemented |
+| FR-AUTH-06 | A project `PM` may add members, remove members, and change any member's role **in that project**. | Must | Implemented |
+| FR-AUTH-07 | A `MEMBER` may read the project and its tasks but may not alter membership, roles, or sprints. | Must | Implemented |
+| FR-AUTH-08 | The last `PM` of a project cannot be demoted or removed, so a project is never left unadministered. | Should | Implemented |
+| FR-AUTH-09 | Every project-scoped endpoint refuses non-members. Non-membership returns `404`, not `403`, so project existence is not disclosed. | Must | Implemented |
+| FR-AUTH-10 | A user may edit only their own profile; roles are not editable through the profile endpoint. | Must | Implemented |
 
-### 3.6 Functional — AI workflows (FR-AI)
+### 3.6 Functional — Projects & dashboard (FR-PROJ)
+
+| ID | Requirement | Priority | Status |
+|:--|:--|:--|:--|
+| FR-PROJ-01 | Any authenticated user may create a project from their personal dashboard. | Must | Implemented |
+| FR-PROJ-02 | The dashboard lists only the projects the caller belongs to, each annotated with the caller's role in it. | Must | Implemented |
+| FR-PROJ-03 | The user may switch the active project; the board reloads for that project. | Must | Implemented |
+| FR-PROJ-04 | A PM may add an existing user to a project by email, choosing their role. | Must | Implemented |
+| FR-PROJ-05 | The member roster shows each member's role and their in-project workload (active tasks, WIP points). | Should | Implemented |
+| FR-PROJ-06 | Role-changing controls are hidden from non-PMs, and independently refused by the server. | Must | Implemented |
+| FR-PROJ-07 | A PM may delete a project they administer. | Could | Implemented |
+| FR-PROJ-08 | An account with no projects is shown the dashboard on load so it can create its first one. | Should | Implemented |
+
+### 3.7 Functional — AI workflows (FR-AI)
 
 All AI endpoints must return **schema-valid structured output** or fail closed to a deterministic
 generator. No endpoint may return free-form text where a schema is declared.
@@ -119,7 +142,7 @@ generator. No endpoint may return free-form text where a schema is declared.
 | FR-AI-07 | Team workload statistics: per-member active task count, complexity points, overload flag. | Must | Implemented |
 | FR-AI-08 | Overdue task listing with days-overdue computation. | Should | Implemented |
 
-### 3.7 Non-functional (NFR)
+### 3.8 Non-functional (NFR)
 
 | ID | Requirement | Target | Status |
 |:--|:--|:--|:--|
@@ -129,8 +152,9 @@ generator. No endpoint may return free-form text where a schema is declared.
 | NFR-04 | Text contrast meets WCAG AA. | ≥ 4.5:1 | Implemented; **unverified** (no audit tooling) |
 | NFR-05 | Theme initialises before first paint (no FOUC). | — | Implemented via synchronous `<head>` script |
 | NFR-06 | AI tier-1 timeout 10 s; tier-2 timeout 4 s; tier-3 is synchronous. | — | Implemented |
-| NFR-07 | Backend test suite passes on a clean checkout. | 100% | Implemented (6/6) — **was broken until D7 / DEC-004** |
+| NFR-07 | Backend test suite passes on a clean checkout. | 100% | Implemented (29/29) — was broken until D7 / DEC-004 |
 | NFR-08 | Frontend has automated tests. | — | **Not met** — zero frontend tests exist. See D5 §6. |
+| NFR-09 | The service refuses to start in a non-development environment while any insecure default is in force. | — | Implemented & tested — `main.py::_check_production_safety` |
 
 ## 4. Explicit non-goals
 
@@ -147,5 +171,7 @@ generator. No endpoint may return free-form text where a schema is declared.
 |:--|:--|:--|
 | OQ-01 | Should task IDs be integers (server truth) or `TSK-n` strings (client truth)? See D4 §2.1. | FR-DOM-05, FR-AI-05 |
 | OQ-02 | Should `blocking_reason` become mandatory when status is `BLOCKED`? | FR-DOM-07 |
-| OQ-03 | Is unverified Google token decoding acceptable outside test environments? | FR-AUTH-02 |
+| OQ-05 | Should a project support more than two roles (e.g. a read-only VIEWER)? | FR-AUTH-06 |
+| OQ-06 | Should adding a member send an invitation, rather than requiring the account to exist already? | FR-PROJ-04 |
+| ~~OQ-03~~ | ~~Is unverified Google token decoding acceptable outside test environments?~~ **Resolved 2026-08-28:** no. It is now opt-in via `ALLOW_UNVERIFIED_GOOGLE_TOKENS`, off by default, and blocked outside development. | — |
 | OQ-04 | Should FR-AI-04 call a real model, or is deterministic decomposition the intended product? | FR-AI-04 |

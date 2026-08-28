@@ -3,7 +3,8 @@ from sqlalchemy.orm import Session
 import json
 import base64
 from app.database import get_db
-from app.models.entities import User, RoleEnum
+from app.config import settings
+from app.models.entities import User
 from app.schemas.auth import UserRegister, UserLogin, GoogleAuthRequest, UserOut, Token
 from app.security import verify_password, get_password_hash, create_access_token, get_current_user
 
@@ -23,14 +24,15 @@ def register_user(req: UserRegister, db: Session = Depends(get_db)):
         email=req.email,
         hashed_password=hashed,
         full_name=req.full_name,
-        role=req.role or RoleEnum.MEMBER,
         skills=req.skills or "general"
     )
     db.add(user)
     db.commit()
     db.refresh(user)
-    
-    access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
+
+    # No role is assigned here. The account starts with zero project memberships;
+    # roles are granted per-project once the user creates or joins one.
+    access_token = create_access_token(data={"sub": str(user.id)})
     return Token(access_token=access_token, token_type="bearer", user=user)
 
 @router.post("/login", response_model=Token)
@@ -43,7 +45,7 @@ def login_user(req: UserLogin, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
+    access_token = create_access_token(data={"sub": str(user.id)})
     return Token(access_token=access_token, token_type="bearer", user=user)
 
 @router.post("/google", response_model=Token)
@@ -63,8 +65,14 @@ def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
         full_name = id_info.get("name") or id_info.get("given_name") or email.split("@")[0]
         google_id = id_info.get("sub")
         avatar_url = id_info.get("picture")
-    except Exception:
-        # Robust fallback for JWT token decoding in test / sandbox environments
+    except Exception as verify_error:
+        # The signature could not be verified. Decoding the payload anyway lets
+        # anyone mint a session for any email, so it is opt-in and off by default.
+        if not settings.ALLOW_UNVERIFIED_GOOGLE_TOKENS:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Google ID token could not be verified",
+            )
         try:
             parts = req.credential.split(".")
             if len(parts) >= 2:
@@ -100,22 +108,18 @@ def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(user)
     else:
-        # First user is promoted to PM; subsequent users default to MEMBER
-        total_users = db.query(User).count()
-        role = RoleEnum.PM if total_users == 0 else RoleEnum.MEMBER
         user = User(
             email=email,
             full_name=full_name or email.split("@")[0],
             google_id=google_id,
             avatar_url=avatar_url,
-            role=role,
-            skills="frontend,backend,general"
+            skills="general"
         )
         db.add(user)
         db.commit()
         db.refresh(user)
 
-    access_token = create_access_token(data={"sub": str(user.id), "role": user.role.value})
+    access_token = create_access_token(data={"sub": str(user.id)})
     return Token(access_token=access_token, token_type="bearer", user=user)
 
 @router.get("/me", response_model=UserOut)

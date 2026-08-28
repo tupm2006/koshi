@@ -1,14 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.entities import Task, User, Project, TaskStatusEnum
+from app.models.entities import Task, User, Project, ProjectMember, TaskStatusEnum
 from app.schemas.ai import (
     MeetingNotesRequest, MeetingMinutesResponse,
     AssignmentRecommendRequest, AssignmentRecommendResponse, AssignmentRecommendation,
     WeeklySummaryResponse, AIDecomposeRequest, AIDecomposeResponse, DecomposedSubtask
 )
 from app.services.ai_service import AIService
-from app.security import get_current_user
+from app.security import get_current_user, require_member
 
 router = APIRouter(prefix="/ai", tags=["AI Services"])
 
@@ -21,6 +21,7 @@ async def generate_weekly_summary(
     """
     Mandated Feature A: Weekly project progress summary based on task/sprint data.
     """
+    require_member(db, project_id, current_user)
     tasks = db.query(Task).filter(Task.project_id == project_id).all()
     if not tasks:
         # Provide sample context if empty
@@ -79,12 +80,17 @@ async def recommend_assignment(
     """
     Mandated Feature C: Skill- and workload-based task assignment recommendation engine.
     """
-    users = db.query(User).all()
+    require_member(db, project_id, current_user)
+
+    # Candidates are the members of *this* project, not every user in the system.
+    members = db.query(ProjectMember).filter(ProjectMember.project_id == project_id).all()
+    users = [m.user for m in members if m.user is not None]
     workload_payload = []
-    
+
     for u in users:
         active_tasks = db.query(Task).filter(
             Task.assignee_id == u.id,
+            Task.project_id == project_id,
             Task.status.in_([TaskStatusEnum.TODO, TaskStatusEnum.IN_PROGRESS, TaskStatusEnum.BLOCKED])
         ).all()
         points = sum(t.complexity_points for t in active_tasks)

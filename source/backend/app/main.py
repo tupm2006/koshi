@@ -4,7 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
 from app.config import settings
 from app.database import engine, Base, SessionLocal
-from app.models.entities import User, Project, Sprint, Task, RoleEnum, TaskStatusEnum, TaskPriorityEnum
+from app.models.entities import (
+    User, Project, ProjectMember, Sprint, Task,
+    ProjectRoleEnum, TaskStatusEnum, TaskPriorityEnum,
+)
 from app.security import get_password_hash
 from app.routers import auth, users, projects, sprints, tasks, stats, ai
 
@@ -17,14 +20,12 @@ def seed_initial_data():
                 email="pm@tupm.qzz.io",
                 hashed_password=get_password_hash("koshi123"),
                 full_name="Phạm Minh Tú (PM)",
-                role=RoleEnum.PM,
                 skills="management,architecture,python,fastapi,vue"
             )
             member_user = User(
                 email="dev@tupm.qzz.io",
                 hashed_password=get_password_hash("koshi123"),
                 full_name="Dev Member",
-                role=RoleEnum.MEMBER,
                 skills="frontend,vue,tailwind,typescript"
             )
             db.add(pm_user)
@@ -42,6 +43,12 @@ def seed_initial_data():
             db.add(default_proj)
             db.commit()
             db.refresh(default_proj)
+
+            # Roles are granted per-project: the creator is PM here, the other
+            # user is an ordinary member of this same project.
+            db.add(ProjectMember(project_id=default_proj.id, user_id=pm_user.id, role=ProjectRoleEnum.PM))
+            db.add(ProjectMember(project_id=default_proj.id, user_id=member_user.id, role=ProjectRoleEnum.MEMBER))
+            db.commit()
             
             # Create default Sprint
             now = datetime.utcnow()
@@ -122,11 +129,40 @@ def seed_initial_data():
     finally:
         db.close()
 
+def _check_production_safety() -> None:
+    """
+    Refuse to start with development defaults outside development.
+
+    These settings are convenient locally and dangerous in production, so the
+    check fails loudly at boot rather than silently exposing the deployment.
+    """
+    if settings.ENVIRONMENT.lower() in ("development", "dev", "test", "testing"):
+        return
+
+    problems = []
+    if settings.JWT_SECRET == settings.DEV_JWT_SECRET:
+        problems.append("JWT_SECRET is still the development default; set a strong unique value.")
+    if settings.ALLOW_UNVERIFIED_GOOGLE_TOKENS:
+        problems.append("ALLOW_UNVERIFIED_GOOGLE_TOKENS is enabled; this permits forged sessions.")
+    if settings.CORS_ORIGINS.strip() == "*":
+        problems.append("CORS_ORIGINS is '*'; pin it to the deployed frontend origin(s).")
+    if settings.SEED_DEMO_DATA:
+        problems.append("SEED_DEMO_DATA is enabled; this creates accounts with known passwords.")
+
+    if problems:
+        raise RuntimeError(
+            "Refusing to start with insecure configuration in ENVIRONMENT="
+            f"{settings.ENVIRONMENT}:\n  - " + "\n  - ".join(problems)
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    _check_production_safety()
     Base.metadata.create_all(bind=engine)
-    seed_initial_data()
+    if settings.SEED_DEMO_DATA:
+        seed_initial_data()
     yield
     # Teardown
 
@@ -136,10 +172,13 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+_origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_origins,
+    # Credentialed requests cannot use a wildcard origin; browsers reject the
+    # combination. Only send credentials when the origins are pinned.
+    allow_credentials=_origins != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )

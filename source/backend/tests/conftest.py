@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 
 # Set test environment
 os.environ["DATABASE_URL"] = "sqlite:///./data/test_koshi.db"
+# The Google OAuth test exercises the unverified-token path, which is opt-in.
+os.environ["ALLOW_UNVERIFIED_GOOGLE_TOKENS"] = "true"
 
 from app.database import Base, get_db
 from app.main import app, seed_initial_data
@@ -59,7 +61,6 @@ def pm_auth_headers(client):
         "email": "test_pm@example.com",
         "password": "password123",
         "full_name": "Test PM",
-        "role": "PM",
         "skills": "architecture,python"
     }
     client.post("/api/auth/register", json=reg_payload)
@@ -73,10 +74,35 @@ def member_auth_headers(client):
         "email": "test_member@example.com",
         "password": "password123",
         "full_name": "Test Member",
-        "role": "MEMBER",
         "skills": "svelte,css"
     }
     client.post("/api/auth/register", json=reg_payload)
     login_res = client.post("/api/auth/login", json={"email": "test_member@example.com", "password": "password123"})
     token = login_res.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def project_with_member(client, pm_auth_headers, member_auth_headers):
+    """
+    A project owned by the PM fixture, with the member fixture added as MEMBER.
+
+    Returns (project_id, member_user_id). Roles here are project-scoped: the
+    same accounts may hold different roles in a different project.
+    """
+    proj = client.post(
+        "/api/projects",
+        json={"name": "Fixture Project", "description": "for tests"},
+        headers=pm_auth_headers,
+    )
+    assert proj.status_code == 201
+    project_id = proj.json()["id"]
+
+    me = client.get("/api/auth/me", headers=member_auth_headers).json()
+    add = client.post(
+        f"/api/projects/{project_id}/members",
+        json={"email": me["email"], "role": "MEMBER"},
+        headers=pm_auth_headers,
+    )
+    assert add.status_code == 201, add.text
+    return project_id, me["id"]

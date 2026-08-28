@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { api } from '../services/api';
+import { useTaskStore } from '../stores/taskStore';
 import { Sparkles, X, Copy, Check, RefreshCw, AlertCircle, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-vue-next';
 
 defineProps<{
@@ -69,11 +70,18 @@ const parsedSections = computed<ParsedSection[]>(() => {
       ];
 });
 
+const taskStore = useTaskStore();
+
 async function loadSummary() {
+  const projectId = taskStore.currentProjectId;
+  if (projectId === null) {
+    errorMsg.value = 'Select a project first.';
+    return;
+  }
   isLoading.value = true;
   errorMsg.value = null;
   try {
-    const res = await api.getWeeklySummary(1);
+    const res = await api.getWeeklySummary(projectId);
     summaryText.value = res.summary;
   } catch (e: any) {
     errorMsg.value = e.message || 'Failed to generate weekly summary';

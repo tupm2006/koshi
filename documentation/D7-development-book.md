@@ -253,6 +253,100 @@ the past tense rather than as live sources.
 
 ---
 
+### DEC-009 — Roles moved from the user to the (user, project) pair
+**Date:** 2026-08-28 · **Status:** Active · **Zone:** 🔴 RED (auth) — requested by the maintainer
+
+**Context.** `User.role` was a single global `PM | MEMBER` column chosen at registration. Three
+things were wrong with it: a user had the same authority in every project; registration asked a
+question a new user cannot meaningfully answer; and the column was nearly decorative, since only
+`PATCH /users/{id}` ever consulted it (RISK-03 — nothing else checked anything).
+
+**Decision.** Authorisation becomes relational. A new `project_members` join entity carries
+`(project_id, user_id, role)` with a uniqueness constraint on the pair, and `User.role` is removed
+entirely. Registration takes no role. Creating a project makes the creator its PM. A PM administers
+membership and roles **within that project only**.
+
+**Consequences by design:**
+- The same account can be PM of one project and MEMBER of another, with nothing to reconcile.
+- A brand-new account has zero authority anywhere until it creates or joins a project.
+- `GET /projects` became the personal dashboard feed: it returns only the caller's projects,
+  each annotated with `my_role`.
+- `/stats/workload` gained a required `project_id`; workload is now per-project rather than global.
+- `PATCH /users/{id}` became self-service; roles are no longer reachable through it.
+
+**Alternatives considered.**
+- *Keep `User.role` as a default and let projects override it.* Rejected — two sources of authority
+  is exactly the ambiguity that made the old model useless. There would be no answer to "which one
+  wins" that survives contact with a real permission check.
+- *Add an Organisation tier above Project.* Rejected as premature; nothing in the requirements needs
+  it, and it can be layered on later without changing the ProjectMember contract.
+- *Model roles as permission flags rather than a two-value enum.* Rejected for v1 — no requirement
+  distinguishes finer than "can administer" vs "can contribute" (D1 OQ-05 tracks revisiting this).
+
+**404 rather than 403 for non-members.** A `403` confirms the resource exists. For a project the
+caller has no right to know about, that is a disclosure, so unknown and forbidden are deliberately
+indistinguishable. `403` is reserved for callers who *are* members but lack the PM role — at that
+point there is nothing left to conceal and a precise error is more useful. This asymmetry is
+asserted in the tests, so it cannot be "tidied up" into consistency by accident.
+
+**Last-PM protection.** Demoting or removing the final PM of a project returns `400`. Without it a
+project could be stranded with no one able to administer it and no recovery path short of direct DB
+access.
+
+**Schema migration.** `create_all` never alters an existing table (RISK-10), so an existing database
+will **not** pick up `project_members`, nor drop `users.role`. For development the fix is to delete
+`source/backend/data/koshi.db` and let it re-seed. A deployed database needs a real migration; this
+is the clearest argument yet for adopting Alembic (RISK-10).
+
+**Verification.** 17 new tests in `tests/test_projects_and_roles.py`; suite 6 → 23 passing. Verified
+end to end against a running stack: a user registered with no role, created a project, became its
+PM, added a second user as MEMBER, was refused a role change as that MEMBER (403), and the second
+user held PM in their own project and MEMBER in the first simultaneously.
+
+**Known gap.** Fixed during the same change: the IndexedDB cache used one shared key, which under a
+multi-project model would let one project's board be read back as another's. Keys are now
+partitioned per project (`koshi_tasks_v2_p{id}`) — see D4 §6 / INV-12. Divergence *within* a single
+project is still unreconciled (RISK-13).
+
+---
+
+### DEC-010 — Insecure defaults became opt-in and boot-blocking
+**Date:** 2026-08-28 · **Status:** Active · **Zone:** 🔴 RED (auth/config) — requested by the maintainer
+
+**Context.** Four development conveniences were live in production code with no guard: an
+unverified-Google-token fallback (RISK-01), a hardcoded JWT secret in both `config.py` and
+`docker-compose.yml` (RISK-02), `allow_origins=["*"]` with `allow_credentials=True` (RISK-05), and
+unconditional demo seeding with the known password `koshi123` (RISK-11).
+
+**Decision.** Each becomes an explicit setting that is *off or safe by default*, and
+`main.py::_check_production_safety()` refuses to start when `ENVIRONMENT` is not a development value
+and any of them is still in force.
+
+| Setting | Default | Outside development |
+|:--|:--|:--|
+| `ALLOW_UNVERIFIED_GOOGLE_TOKENS` | `false` | boot fails if true |
+| `JWT_SECRET` | obvious dev placeholder | boot fails if unchanged |
+| `CORS_ORIGINS` | `*` | boot fails if `*`; `allow_credentials` auto-disabled while `*` |
+| `SEED_DEMO_DATA` | `true` | boot fails if true |
+
+**Why fail closed at boot rather than warn.** A warning in a log nobody reads is how these got
+shipped in the first place. Refusing to start is noticed immediately and cannot be ignored.
+
+**Why the unverified-token path was kept at all.** `tests/test_auth.py` exercises Google sign-in
+without network access to Google's public keys. Deleting the path would mean deleting that coverage.
+It is enabled explicitly in `conftest.py` and nowhere else.
+
+**Not fully resolved.** RISK-02 is *mitigated, not eliminated*: the secret still has a source-code
+default rather than coming from a secret store, and any database seeded under the old published
+secret should be treated as compromised — existing tokens remain forgeable by anyone who read the
+public repo. Rotating it is a deployment action, not a code change.
+
+**Verification.** `test_unverified_google_token_rejected_when_flag_disabled` asserts the `401`.
+`test_startup_safety.py` covers the boot guard itself: each of the four insecure defaults blocks
+startup, a fully safe production config starts, and development is exempt.
+
+---
+
 ## Part II — Findings ledger
 
 Observations that are not yet decisions. Each should become a decision or a work item.
@@ -260,22 +354,22 @@ Observations that are not yet decisions. Each should become a decision or a work
 | ID | Finding | Location | Severity | Status |
 |:--|:--|:--|:--:|:--|
 | F-01 | Task ID type differs across ORM (`int`), frontend (`string`), and `schema.sql` (`VARCHAR`). Dependencies are `List[str]` against `int` IDs, so the server-side graph can never resolve. | D4 VIOLATION-01 | **Critical** | Open — OQ-01, RED |
-| F-02 | Google ID token signature verification failure falls back to **unverified** base64 payload decoding. Forgeable sessions for any email. | `routers/auth.py` | **Critical** | Open — RISK-01 |
-| F-03 | JWT secret hardcoded in `config.py` and `docker-compose.yml`, both public. | | **Critical** | Open — RISK-02 |
-| F-04 | No task endpoint verifies project membership. Any user can mutate any task. | `routers/tasks.py` | High | Open — RISK-03 |
+| F-02 | Google ID token signature verification failure fell back to **unverified** base64 payload decoding. | `routers/auth.py` | Critical | ✅ Closed — DEC-010 |
+| F-03 | JWT secret hardcoded in `config.py` and `docker-compose.yml`, both public. | | Critical | ⚠️ Mitigated — DEC-010. **Rotate any deployed secret**; old tokens stay forgeable. |
+| F-04 | No task endpoint verified project membership. Any user could mutate any task. | `routers/tasks.py` | High | ✅ Closed — DEC-009 |
 | F-05 | `dagSorter.ts` — the most intricate logic in the repo — has zero tests. | | High | Open — D5 GAP-01 |
 | F-06 | `db/schema.sql` diverges from the ORM in ≥4 ways and is never executed. | | Medium | Documented — D4 §2.3 |
-| F-07 | `allow_origins=["*"]` with `allow_credentials=True` is spec-invalid. | `main.py` | Medium | Open — RISK-05 |
+| F-07 | `allow_origins=["*"]` with `allow_credentials=True` is spec-invalid. | `main.py` | Medium | ✅ Closed — DEC-010 |
 | F-08 | `complexity_points` validated `ge=1, le=8` on create, unvalidated on update. | `schemas/task.py` | Low | Open |
 | F-09 | `blocking_reason` not required when status is `BLOCKED`, despite FR-DOM-07. | | Low | Open — OQ-02 |
 | F-10 | Tier-3 AI fallback branches on **substring matches in prompt text** (`"cuộc họp"`, `"recommended_user_id"`). Rewording a prompt silently breaks fallback routing. | `ai_service.py` | Medium | Open |
 | F-11 | Tier 1 fires only if `"openai" in AI_API_URL`. Any other OpenAI-compatible vendor silently falls through to Tier 2/3 even with a valid key. | `ai_service.py` | Medium | Open |
-| F-12 | Seed data creates `pm@tupm.qzz.io` / `koshi123` whenever the users table is empty — including in production. | `main.py` | High | Open — RISK-11 |
-| F-13 | No migration tooling. `create_all` never alters existing tables, so schema changes silently no-op on a deployed volume. | | High | Open — RISK-10 |
+| F-12 | Seed data creates `pm@tupm.qzz.io` / `koshi123` whenever the users table is empty. | `main.py` | High | ✅ Closed — DEC-010 (gated by `SEED_DEMO_DATA`) |
+| F-13 | No migration tooling. `create_all` never alters existing tables, so schema changes silently no-op on a deployed volume. | | High | ⚠️ **Open and now blocking** — RISK-10. DEC-009 added `project_members` and dropped `users.role`; existing databases need a real migration or a rebuild. |
 | F-14 | `source/backend/app/data/koshi.db` (SQLite binary) and `tsconfig.tsbuildinfo` (build cache) are committed. | | Low | Open |
 | F-15 | `svelte.config.js` is dead residue from a Svelte prototype. | | Low | Open — safe to delete |
 | F-16 | `AIDecomposeResponse` uses camelCase (`acceptanceCriteria`) while every other schema uses snake_case. | `schemas/ai.py` | Low | Open |
-| F-17 | Tests require `source/backend/data/` to exist before the first run; nothing creates it. | `conftest.py` | Low | Open — document or `mkdir` in a fixture |
+| ~~F-17~~ | ~~Tests require `source/backend/data/` to exist before the first run.~~ **Incorrect when written** — `app/database.py` creates the sqlite directory itself. Corrected in D5 §1. | `database.py` | — | Withdrawn |
 | F-18 | Widespread `datetime.utcnow()` — deprecated, 47 warnings per test run. | backend | Low | Open |
 
 ## Part III — Timeline
@@ -291,3 +385,7 @@ Observations that are not yet decisions. Each should become a decision or a work
 | **2026-08-28** | `require_role` restored; backend suite green at 6/6 for the first time (DEC-004). |
 | **2026-08-28** | D1–D8 authored against the code; 18 findings and 7 prose/code conflicts recorded. |
 | **2026-08-28** | Legacy SRS/URD/architecture/codebase-map/user-stories/BAO_CAO_KT1 deleted; `README.md` and `CLAUDE.md` rewritten against the code (DEC-008). |
+| **2026-08-28** | Roles moved from `User` to `ProjectMember`; personal dashboard added; RISK-03 closed (DEC-009). |
+| **2026-08-28** | Insecure defaults gated and made boot-blocking; RISK-01/05/11/14 closed, RISK-02 mitigated (DEC-010). Suite 6 → 29. |
+| F-19 | `AuthModal.vue` quick-login buttons are still labelled "PM" / "Member". They log in as the two seeded accounts, whose roles are project-scoped; the labels describe their role in the seeded demo project only. | `AuthModal.vue` | Low | Open — cosmetic |
+| F-20 | Several UI tooltips and the footer legend still say `c` for create task; the binding is `n` (DEC-005). | `App.vue`, `MobileBottomNav.vue` | Low | Open — cosmetic, but it is the same class of drift as DEC-005 |

@@ -7,7 +7,13 @@ services:
     restart: unless-stopped
     environment:
       - DATABASE_URL=sqlite:///./data/koshi.db
-      - JWT_SECRET=koshi_super_secret_jwt_key_2026_academic_spec
+      # Required. Startup fails outside development if this is unset or left at the
+      # development default. Generate with: openssl rand -hex 32
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
+      - ENVIRONMENT=${ENVIRONMENT:-production}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://koshi.tupm.qzz.io}
+      - SEED_DEMO_DATA=${SEED_DEMO_DATA:-false}
+      - ALLOW_UNVERIFIED_GOOGLE_TOKENS=false
       - AI_API_URL=https://api.openai.com/v1/chat/completions
       - AI_API_KEY=${AI_API_KEY:-}
       - AI_MODEL_NAME=gpt-4o-mini

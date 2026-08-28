@@ -1,7 +1,7 @@
 # D5 — Tests & Acceptance Criteria
 
 **Purpose:** define what "correct" means, and record honestly what is currently verified.
-**Last verified by execution:** 2026-08-28 — `6 passed` in 5.20s (`source/backend`, Python 3.11).
+**Last verified by execution:** 2026-08-28 — `29 passed` in 20.5s (`source/backend`, Python 3.11).
 
 ---
 
@@ -13,10 +13,9 @@
 cd source/backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-mkdir -p data                 # required: DATABASE_URL points at ./data/, not auto-created
 pytest -q
 ```
-Expected: **6 passed**. Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
+Expected: **29 passed**. (`app/database.py` creates the sqlite directory itself, so no `mkdir` is needed.) Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
 
 ### Frontend
 
@@ -37,10 +36,20 @@ means the types agree, nothing more. Treat every frontend acceptance criterion b
 | Area | Automated coverage | Verdict |
 |:--|:--|:--|
 | Auth: register, duplicate, login, `/me`, 401 | ✅ `test_auth.py` | Good |
-| Google OAuth + PM role update | ✅ `test_auth.py` | Good |
+| Google OAuth happy path | ✅ `test_auth.py` | Good |
+| Google OAuth **rejects unverifiable signatures** | ✅ `test_auth.py` | Good — closes RISK-01 |
+| Registration takes no role / ignores a posted one | ✅ `test_projects_and_roles.py` | Good |
+| Project creation grants PM; dashboard scoping | ✅ `test_projects_and_roles.py` | Good |
+| Per-project role assignment (PM path) | ✅ `test_projects_and_roles.py` | Good |
+| **Negative authorisation**: MEMBER blocked from role/member/sprint changes | ✅ `test_projects_and_roles.py` | Good — closes GAP-02 |
+| **Cross-project isolation**: non-member blocked from project, tasks, AI, stats | ✅ `test_projects_and_roles.py` | Good — closes RISK-03 |
+| Last-PM protection | ✅ `test_projects_and_roles.py` | Good |
+| Same user holding different roles in different projects | ✅ `test_projects_and_roles.py` | Good |
+| Profile edit is self-only | ✅ `test_projects_and_roles.py` | Good |
 | Task lifecycle, cycle-status, comments, sprint stats | ✅ `test_tasks.py` | Good |
 | AI endpoints A–D respond with valid schemas | ✅ `test_ai_and_stats.py` | Shape only — never asserts semantic quality |
 | Workload & delayed-task stats | ✅ `test_ai_and_stats.py` | Smoke-level |
+| Production boot guard (all four insecure defaults) | ✅ `test_startup_safety.py` | Good — closes GAP-08 |
 | `dagSorter.ts` — topological sort, cycles, critical path | ❌ **none** | **Highest-risk gap.** Most intricate logic in the repo, zero tests. |
 | `gitParser.ts` — diff parsing, secret detection | ❌ **none** | The retired SRS claimed a `gitParser.test.ts`; it never existed. |
 | `keyboard.ts` — 24 bindings, input guards | ❌ **none** | Manual only |
@@ -50,12 +59,14 @@ means the types agree, nothing more. Treat every frontend acceptance criterion b
 | Performance (NFR-01, NFR-03) | ❌ **none** | Claims are unmeasured |
 | Accessibility (NFR-04) | ❌ **none** | Claims are unmeasured |
 
-**Coverage summary:** the backend HTTP surface is smoke-tested end to end. The frontend — which is
-where the product's differentiating logic lives — has zero automated verification.
+**Coverage summary:** the backend HTTP surface is well covered, and authorisation now has real
+negative-path coverage (23 of the 29 tests concern access control or deployment safety). The frontend —
+where the product's differentiating logic lives — still has **zero** automated verification.
 
 > **Historical note.** Before 2026-08-28 the backend suite could not even be collected:
 > `routers/users.py` imported `require_role` from `security.py`, which did not define it, raising
-> `ImportError` at import time. All 6 tests were unrunnable on a clean checkout. See D7 / DEC-004.
+> `ImportError` at import time. All 6 tests were unrunnable on a clean checkout (D7 / DEC-004).
+> The suite then grew from 6 to 29 with the per-project roles work (D7 / DEC-009, DEC-010).
 
 ---
 
@@ -101,10 +112,29 @@ Legend: **A** = automated · **M** = manual · **✗** = unverified
 | Req | Acceptance criteria | Method |
 |:--|:--|:--|
 | FR-AUTH-01 | Register returns `201` + token; duplicate email returns `400`; login returns `200` + token. | **A** `test_register_and_login_flow` |
-| FR-AUTH-02 | A Google ID token yields a session and stores `avatar_url`. | **A** `test_google_oauth_and_user_management_flow` |
-| FR-AUTH-03 | `GET /api/auth/me` without a token returns `401`. | **A** `test_unauthenticated_request_rejected` |
-| FR-AUTH-04 | A `PM` can `PATCH /users/{id}` role and skills. | **A** (same test) |
-| FR-AUTH-04 | ⚠️ A `MEMBER` calling `PATCH /users/{id}` receives `403`. | ✗ **Negative case untested — see §6 GAP-02** |
+| FR-AUTH-02 | A registration response contains no `role`, and a posted `role` is ignored; a fresh account sees an empty project list. | **A** `test_registration_accepts_no_role_and_grants_none`, `test_registration_ignores_a_submitted_role` |
+| FR-AUTH-03 | A valid Google token yields a session; a token with an unverifiable signature returns `401` when the override flag is off. | **A** `test_google_oauth_and_user_management_flow`, `test_unverified_google_token_rejected_when_flag_disabled` |
+| FR-AUTH-04 | `GET /api/auth/me` without a token returns `401`. | **A** `test_unauthenticated_request_rejected` |
+| FR-AUTH-05 | Creating a project returns `my_role == "PM"` and `member_count == 1`. | **A** `test_creator_becomes_pm_of_their_own_project` |
+| FR-AUTH-06 | A PM can add a member and change their role in that project. | **A** `test_pm_can_assign_and_change_roles` |
+| FR-AUTH-07 | A MEMBER receives `403` on role change, member add/remove, and sprint creation. | **A** `test_member_cannot_change_roles`, `test_member_cannot_add_or_remove_members`, `test_member_cannot_create_sprints` |
+| FR-AUTH-08 | Demoting or removing the last PM returns `400`. | **A** `test_cannot_demote_the_last_pm` |
+| FR-AUTH-09 | A non-member receives `404` — never `403` — from project, task, AI and stats routes, and the data is genuinely unmodified. | **A** `test_non_member_cannot_read_project`, `..._list_or_create_tasks`, `..._mutate_a_task_by_id`, `..._reach_ai_or_stats` |
+| FR-AUTH-10 | A user can edit their own profile; editing another's returns `403`. | **A** `test_user_can_edit_own_profile`, `test_user_cannot_edit_another_profile` |
+
+### 3.4b Projects & dashboard (FR-PROJ)
+
+| Req | Acceptance criteria | Method |
+|:--|:--|:--|
+| FR-PROJ-01 | Any authenticated user can `POST /projects` and becomes its PM. | **A** |
+| FR-PROJ-02 | `GET /projects` returns only the caller's projects, each with `my_role`. | **A** `test_dashboard_lists_only_my_projects` |
+| FR-PROJ-03 | Switching project in the dashboard reloads the board for that project. | M |
+| FR-PROJ-04 | A PM adds a member by email with a chosen role. | **A** |
+| FR-PROJ-05 | The roster shows per-member role, active task count, and WIP points. | **A** (shape) / M (display) |
+| FR-PROJ-06 | Role controls are hidden for a MEMBER **and** refused by the server. | **A** (server) / M (UI) |
+| FR-PROJ-07 | A PM can delete a project. | ✗ |
+| FR-PROJ-08 | An account with no projects opens on the dashboard. | M |
+| — | The same account is PM of one project and MEMBER of another simultaneously. | **A** `test_roles_are_independent_across_projects` |
 
 ### 3.5 AI (FR-AI)
 
@@ -128,7 +158,8 @@ Legend: **A** = automated · **M** = manual · **✗** = unverified
 | NFR-03 | Idle heap < 15 MB. | ✗ **Claim currently unsupported** |
 | NFR-04 | Contrast ≥ 4.5:1, including `DONE` rows (`line-through text-slate-500`). | ✗ |
 | NFR-05 | Hard reload in dark mode produces no light flash. | M |
-| NFR-07 | `pytest` is green on a clean checkout. | **A** ✅ 6/6 |
+| NFR-07 | `pytest` is green on a clean checkout. | **A** ✅ 29/29 |
+| NFR-09 | Startup aborts with dev defaults when `ENVIRONMENT` is not development; development is exempt. | **A** `test_startup_safety.py` |
 
 ---
 
@@ -157,11 +188,13 @@ loosening the assertion without reading D7 / DEC-003.
 | ID | Gap | Severity | Recommended action |
 |:--|:--|:--|:--|
 | GAP-01 | `dagSorter.ts` has zero tests | **Critical** | Add Vitest; cover FR-GRAPH-01…04 including the cycle fixture. Pure functions — cheapest coverage in the repo. |
-| GAP-02 | No negative authorisation tests | **High** | Assert `MEMBER` → `403` on `PATCH /users/{id}`; assert cross-project task access (RISK-03, D6 §4). |
+| ~~GAP-02~~ | ~~No negative authorisation tests~~ | — | ✅ **Closed 2026-08-28.** `test_projects_and_roles.py` covers MEMBER→403 on every PM action and non-member→404 across project, task, AI and stats routes. |
 | GAP-03 | `gitParser.ts` untested | **High** | Add `gitParser.test.ts` — secret detection and close-keyword regexes are security-adjacent. |
 | GAP-04 | No test distinguishes real LLM output from Tier-3 fallback | **Medium** | Assert cascade behaviour by mocking tiers, not just response shape. |
 | GAP-05 | `taskStore` mutations and filters untested | **Medium** | Vitest with a fake `idb-keyval`. |
 | GAP-06 | No E2E keyboard coverage | **Medium** | Playwright over FR-INT-01…11. |
+| ~~GAP-08~~ | ~~`_check_production_safety` untested~~ | — | ✅ **Closed 2026-08-28.** `test_startup_safety.py` parametrises all four insecure defaults plus the safe and development cases. |
+| GAP-09 | No frontend test asserts that PM-only controls are hidden from a MEMBER | **Low** | Component test once a runner exists; the server-side refusal is already covered. |
 | GAP-07 | Performance/accessibility claims unmeasured | **Low** | Either measure them or soften NFR-01/03/04 in D1. |
 
 **Recommended first move:** add Vitest and close GAP-01. It is pure-function testing with no

@@ -19,7 +19,7 @@ Guidance for AI agents working in this repository. **Read `documentation/` befor
 
 ```bash
 # Backend — must stay green
-cd source/backend && pytest -q          # expect: 6 passed
+cd source/backend && pytest -q          # expect: 29 passed
 
 # Frontend — the only automated gate that exists
 pnpm run build                          # vue-tsc -b && vite build
@@ -61,7 +61,13 @@ identical. Changing the order is 🔴 RED.
 updating `ShortcutsHelpModal.vue`, `README.md`, and D1 §3.1.
 
 **`types/task.ts` is a contract.** Any breaking change to `Task` requires bumping the IndexedDB key
-`koshi_tasks_v1` — there is no migration code and stale values are read back unvalidated.
+version (`koshi_tasks_v2_p{projectId}`) — there is no migration code and stale values are read back
+unvalidated.
+
+**Roles are per-project, never global.** `User` has no `role` column; authority lives on
+`ProjectMember`. Every project-scoped route must call `require_member` or `require_project_pm` —
+removing one silently reopens a closed critical vulnerability. The UI hiding a control is an
+affordance, not a permission; the server is the only boundary.
 
 ## Repository layout
 

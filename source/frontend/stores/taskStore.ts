@@ -3,9 +3,18 @@ import { nextTick } from 'vue';
 import { get, set } from 'idb-keyval';
 import type { Task, TaskStatus, TaskPriority, TaskFilter, FilterStatus, FilterPriority, Complexity } from '../types/task';
 import { topologicalSort, computeCriticalPath } from '../lib/dagSorter';
-import { api, type UserProfile } from '../services/api';
+import { api, type UserProfile, type Project, type ProjectRole } from '../services/api';
 
-const DB_KEY = 'koshi_tasks_v1';
+/**
+ * IndexedDB keys are partitioned per project.
+ *
+ * A single shared key was safe while Koshi was single-project, but with the
+ * per-project model it would let the cache of one project be read back as
+ * another's — and an offline edit could then be synced to the wrong project.
+ * The `v2` generation marks the layout change; `v1` values are simply ignored.
+ */
+const GUEST_DB_KEY = 'koshi_tasks_v2_guest';
+const tasksKey = (projectId: number) => `koshi_tasks_v2_p${projectId}`;
 
 const INITIAL_TASKS: Task[] = [
   {
@@ -104,6 +113,11 @@ export const useTaskStore = defineStore('taskStore', {
     viewMode: (typeof window !== 'undefined' && window.innerWidth >= 768 ? 'KANBAN' : 'TABLE') as 'TABLE' | 'KANBAN',
     currentUser: null as UserProfile | null,
     isBackendConnected: false,
+    // Personal dashboard state. Roles are per-project, so `myRole` is a property
+    // of the *selected* project, never of the user.
+    projects: [] as Project[],
+    currentProjectId: null as number | null,
+    isDashboardOpen: false,
     filter: {
       searchQuery: '',
       status: 'ALL',
@@ -113,6 +127,20 @@ export const useTaskStore = defineStore('taskStore', {
   }),
 
   getters: {
+    currentProject(state): Project | null {
+      return state.projects.find((p) => p.id === state.currentProjectId) || null;
+    },
+
+    /** The caller's role in the *selected* project, not a global role. */
+    myRole(): ProjectRole | null {
+      return (this as any).currentProject?.my_role ?? null;
+    },
+
+    /** Whether the UI should offer PM-only affordances for the selected project. */
+    isProjectManager(): boolean {
+      return (this as any).myRole === 'PM';
+    },
+
     filteredTasks(state): Task[] {
       let result = state.tasks;
 
@@ -205,13 +233,61 @@ export const useTaskStore = defineStore('taskStore', {
   },
 
   actions: {
+    async loadProjects() {
+      try {
+        const projects = await api.listProjects();
+        this.projects = projects;
+        this.isBackendConnected = true;
+
+        // Keep the current selection if it is still valid, else fall back to
+        // the first project, else leave unselected (a brand-new account).
+        if (this.currentProjectId === null || !projects.some((p) => p.id === this.currentProjectId)) {
+          this.currentProjectId = projects.length > 0 ? projects[0].id : null;
+        }
+        return projects;
+      } catch (e) {
+        console.warn('Could not load projects:', e);
+        this.isBackendConnected = false;
+        return [];
+      }
+    },
+
+    async selectProject(projectId: number) {
+      this.currentProjectId = projectId;
+      this.selectedIndex = 0;
+      this.kanbanColIndex = 0;
+      this.kanbanRowIndex = 0;
+
+      // Local-first: show this project's cached board immediately, then refresh
+      // from the backend (INV-03 — never block the render on the network).
+      const cached = await get<Task[]>(tasksKey(projectId));
+      this.tasks = cached && Array.isArray(cached) ? cached : [];
+
+      await this.syncWithBackend(projectId);
+    },
+
+    async createProject(name: string, description = '') {
+      const project = await api.createProject(name, description);
+      this.projects = [project, ...this.projects];
+      await this.selectProject(project.id);
+      return project;
+    },
+
     async init() {
       try {
         if (api.getToken()) {
           try {
             const user = await api.getMe();
             this.currentUser = user;
-            await this.syncWithBackend();
+            await this.loadProjects();
+            if (this.currentProjectId !== null) {
+              await this.syncWithBackend(this.currentProjectId);
+            } else {
+              // Authenticated but with no projects yet: show the dashboard so
+              // the user can create their first one.
+              this.tasks = [];
+              this.isDashboardOpen = true;
+            }
             this.isBackendConnected = true;
             this.isLoaded = true;
             return;
@@ -220,12 +296,13 @@ export const useTaskStore = defineStore('taskStore', {
           }
         }
 
-        const stored = await get<Task[]>(DB_KEY);
+        // Unauthenticated / offline: fall back to the guest sample board.
+        const stored = await get<Task[]>(GUEST_DB_KEY);
         if (stored && Array.isArray(stored) && stored.length > 0) {
           this.tasks = stored;
         } else {
           this.tasks = INITIAL_TASKS;
-          await set(DB_KEY, INITIAL_TASKS);
+          await set(GUEST_DB_KEY, INITIAL_TASKS);
         }
       } catch (err) {
         console.error('Failed to initialize taskStore:', err);
@@ -235,9 +312,13 @@ export const useTaskStore = defineStore('taskStore', {
       }
     },
 
-    async syncWithBackend(projectId: number = 1) {
+    async syncWithBackend(projectId?: number) {
+      const pid = projectId ?? this.currentProjectId;
+      if (pid === null || pid === undefined) {
+        return;
+      }
       try {
-        const backendTasks = await api.getTasks(projectId);
+        const backendTasks = await api.getTasks(pid);
         if (backendTasks && Array.isArray(backendTasks)) {
           const mapped: Task[] = backendTasks.map((t) => ({
             id: `TSK-${t.id}`,
@@ -265,8 +346,9 @@ export const useTaskStore = defineStore('taskStore', {
 
     async persist() {
       const t0 = performance.now();
+      const key = this.currentProjectId === null ? GUEST_DB_KEY : tasksKey(this.currentProjectId);
       try {
-        await set(DB_KEY, JSON.parse(JSON.stringify(this.tasks)));
+        await set(key, JSON.parse(JSON.stringify(this.tasks)));
         this.lastLatencyMs = Math.round((performance.now() - t0) * 10) / 10;
       } catch (err) {
         console.error('Persistence failure:', err);
@@ -383,7 +465,7 @@ export const useTaskStore = defineStore('taskStore', {
 
       if (this.isBackendConnected) {
         api.createTask({
-          project_id: 1,
+          project_id: this.currentProjectId,
           title: newTask.title,
           status: newTask.status,
           priority: newTask.priority,

@@ -7,7 +7,7 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
-from app.models.entities import User, RoleEnum
+from app.models.entities import User, Project, ProjectMember, ProjectRoleEnum
 from app.schemas.auth import TokenPayload
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_PREFIX}/auth/login")
@@ -58,19 +58,45 @@ async def get_current_user(
         raise credentials_exception
     return user
 
-async def get_current_pm_user(
-    current_user: User = Depends(get_current_user)
-) -> User:
-    if current_user.role != RoleEnum.PM:
+# ---------------------------------------------------------------------------
+# Project-scoped authorisation
+#
+# Roles are per-project (ProjectMember), never global. These helpers are called
+# explicitly inside endpoints rather than used as bare Depends(), because the
+# project id arrives variously as a path param, a query param, or a body field.
+# ---------------------------------------------------------------------------
+
+def get_membership(db: Session, project_id: int, user: User) -> Optional[ProjectMember]:
+    """Return the caller's membership row for a project, or None."""
+    return (
+        db.query(ProjectMember)
+        .filter(ProjectMember.project_id == project_id, ProjectMember.user_id == user.id)
+        .first()
+    )
+
+
+def require_member(db: Session, project_id: int, user: User) -> ProjectMember:
+    """
+    Assert the caller belongs to the project.
+
+    Returns 404 rather than 403 for non-members: revealing that a project exists
+    to someone with no access to it is itself a leak.
+    """
+    if not db.query(Project).filter(Project.id == project_id).first():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    membership = get_membership(db, project_id, user)
+    if membership is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    return membership
+
+
+def require_project_pm(db: Session, project_id: int, user: User) -> ProjectMember:
+    """Assert the caller is a PM *of this project*."""
+    membership = require_member(db, project_id, user)
+    if membership.role != ProjectRoleEnum.PM:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access forbidden: Project Manager role required"
+            detail="Access forbidden: Project Manager role required for this project",
         )
-    return current_user
-
-def require_role(role: RoleEnum):
-    async def _guard(current_user: User = Depends(get_current_user)) -> User:
-        if current_user.role != role:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
-        return current_user
-    return _guard
+    return membership

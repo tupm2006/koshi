@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { api } from '../services/api';
+import { useTaskStore } from '../stores/taskStore';
 import { Users, X, Sparkles, UserCheck, AlertTriangle, ShieldCheck, RefreshCw } from 'lucide-vue-next';
 
 defineProps<{
   onClose: () => void;
 }>();
+
+const taskStore = useTaskStore();
 
 const taskTitle = ref<string>('Implement Redis Distributed Caching Layer');
 const taskDesc = ref<string>('Configure Redis cluster with cache invalidation rules and hit-rate telemetry.');
@@ -15,9 +18,14 @@ const isLoadingRec = ref<boolean>(false);
 const isLoadingWorkload = ref<boolean>(true);
 
 async function loadWorkloads() {
+  const projectId = taskStore.currentProjectId;
+  if (projectId === null) {
+    isLoadingWorkload.value = false;
+    return;
+  }
   isLoadingWorkload.value = true;
   try {
-    workloads.value = await api.getWorkloads();
+    workloads.value = await api.getWorkloads(projectId);
   } catch (e) {
     console.error(e);
   } finally {
@@ -26,10 +34,11 @@ async function loadWorkloads() {
 }
 
 async function handleRecommend() {
-  if (!taskTitle.value.trim()) return;
+  const projectId = taskStore.currentProjectId;
+  if (!taskTitle.value.trim() || projectId === null) return;
   isLoadingRec.value = true;
   try {
-    const res = await api.recommendAssignment(taskTitle.value, taskDesc.value, 1);
+    const res = await api.recommendAssignment(taskTitle.value, taskDesc.value, projectId);
     recommendation.value = res.recommendation;
   } catch (e) {
     console.error(e);

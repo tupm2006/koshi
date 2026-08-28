@@ -1,7 +1,7 @@
 # D2 — Module Map
 
 **Purpose:** answer "where does X live?" in one lookup, so an agent never greps blindly.
-**Last verified against code:** 2026-08-28
+**Last verified against code:** 2026-08-28 (rev 2 — per-project roles)
 
 ---
 
@@ -15,7 +15,7 @@ koshi/
 │   │   ├── main.ts              ← Vue + Pinia bootstrap
 │   │   ├── App.vue              ← Root shell, layout, capture-phase Escape handler
 │   │   ├── app.css              ← Tailwind v4 entry + global surface rules
-│   │   ├── components/          ← 14 presentational / modal components
+│   │   ├── components/          ← 15 presentational / modal components
 │   │   ├── lib/                 ← Pure, framework-free algorithms
 │   │   ├── stores/              ← Pinia state
 │   │   ├── services/            ← Backend HTTP client
@@ -30,7 +30,7 @@ koshi/
 │       │   ├── schemas/         ← Pydantic request/response contracts
 │       │   ├── routers/         ← HTTP endpoints, one module per resource
 │       │   └── services/        ← AI cascade
-│       ├── db/schema.sql        ← Reference DDL (⚠ not the source of truth — see D4 §2.1)
+│       ├── db/schema.sql        ← Reference DDL (⚠ not the source of truth — see D4 §2.3)
 │       ├── tests/               ← pytest suite
 │       ├── init_db.py           ← Standalone DB bootstrap
 │       └── requirements.txt
@@ -60,13 +60,15 @@ koshi/
 
 | File | Responsibility | Notes |
 |:--|:--|:--|
-| `taskStore.ts` | **The system's centre of gravity (~515 lines).** Holds `tasks`, selection indices (`selectedIndex`, `kanbanColIndex`, `kanbanRowIndex`), edit/detail target IDs, filter object, `currentUser`, `isBackendConnected`. Owns every mutation, IndexedDB read/write (`koshi_tasks_v1`), and the `INITIAL_TASKS` seed. | Changes here have the widest blast radius in the repo — see D8. |
+| `taskStore.ts` | **The system's centre of gravity (~570 lines).** Holds `tasks`, `projects`, `currentProjectId`, selection indices (`selectedIndex`, `kanbanColIndex`, `kanbanRowIndex`), edit/detail target IDs, filter object, `currentUser`, `isBackendConnected`. Owns every mutation, IndexedDB read/write (`koshi_tasks_v1`), and the `INITIAL_TASKS` seed. | Changes here have the widest blast radius in the repo — see D8. |
 | `themeStore.ts` | Dark/light state; injects a temporary `* { transition: none !important }` element during class swap to guarantee 0 ms snapping. | NFR-02, NFR-05 |
 
 ### 2.3 Transport — `source/frontend/services/api.ts`
 
 Single `ApiClient` class. Holds the JWT, sets `Authorization: Bearer`, unwraps `detail` from error
-bodies, treats 204 as `null`. Method groups: auth, tasks, AI workflows, stats.
+bodies, treats 204 as `null`. Method groups: auth, **projects & membership**, tasks, AI workflows,
+stats. Exports the `Project`, `ProjectMember` and `ProjectRole` types. `UserProfile` has **no**
+`role` field — roles live on `Project.my_role`.
 
 > ⚠️ `ApiClient.analyzeGitDiff()` does **not** call the backend and does **not** use
 > `lib/gitParser.ts`. It fabricates a result inline. See D7 / DEC-006.
@@ -91,7 +93,8 @@ The frontend's contract surface: `TaskStatus`, `TaskPriority`, `Complexity`, `Ta
 | `WeeklySummaryModal.vue` | AI menu | FR-AI-01. |
 | `MeetingMinutesModal.vue` | AI menu | FR-AI-02. |
 | `WorkloadAssignModal.vue` | AI menu | FR-AI-03 / FR-AI-07. |
-| `AuthModal.vue` | unauthenticated | Login / register / Google. |
+| `AuthModal.vue` | unauthenticated | Login / register / Google. Registration collects **no role**. |
+| `ProjectDashboard.vue` | project pill in header | Personal dashboard: project list with the caller's role in each, project creation, member roster, add-member, per-project role assignment. PM-only controls hidden for members. |
 | `ShortcutsHelpModal.vue` | `?` | Key reference. |
 | `MobileBottomNav.vue` | narrow viewport | FR-INT-14. |
 
@@ -102,11 +105,11 @@ The frontend's contract surface: `TaskStatus`, `TaskPriority`, `Complexity`, `Ta
 | File | Prefix | Endpoints |
 |:--|:--|:--|
 | `auth.py` | `/auth` | `POST /register`, `POST /login`, `POST /google`, `GET /me` |
-| `users.py` | `/users` | `GET ""` (with WIP points), `PATCH /{user_id}` (**PM only**) |
-| `projects.py` | `/projects` | `GET ""`, `POST ""`, `GET /{project_id}` |
+| `users.py` | `/users` | `GET ""` (with WIP points), `PATCH /{user_id}` (**self only**) |
+| `projects.py` | `/projects` | `GET ""` (my projects), `POST ""`, `GET /{id}`, `DELETE /{id}`, `GET /{id}/members`, `POST /{id}/members`, `PATCH /{id}/members/{user_id}`, `DELETE /{id}/members/{user_id}` |
 | `sprints.py` | `/sprints` | `GET ""`, `POST ""`, `GET /{sprint_id}/stats` |
 | `tasks.py` | `/tasks` | `GET ""`, `POST ""`, `GET /{id}`, `PATCH /{id}`, `DELETE /{id}`, `POST /{id}/cycle-status`, `POST /{id}/comments` |
-| `stats.py` | `/stats` | `GET /workload`, `GET /delayed-tasks` |
+| `stats.py` | `/stats` | `GET /workload?project_id=`, `GET /delayed-tasks?project_id=` |
 | `ai.py` | `/ai` | `POST /weekly-summary`, `POST /meeting-minutes`, `POST /recommend-assignment`, `POST /decompose` |
 | *(`main.py`)* | — | `GET /api/health` |
 
@@ -114,10 +117,10 @@ The frontend's contract surface: `TaskStatus`, `TaskPriority`, `Complexity`, `Ta
 
 | File | Responsibility | Key detail |
 |:--|:--|:--|
-| `main.py` | Lifespan hook runs `create_all` + `seed_initial_data()`; mounts routers; permissive CORS. | Seeds 2 users, 1 project, 1 sprint, 5 tasks **only when the users table is empty**. |
-| `config.py` | `Settings` from env / `.env`. | Ships an insecure default `JWT_SECRET` — D6 §4 RISK-02. |
-| `security.py` | `verify_password`, `get_password_hash` (bcrypt, 72-byte truncation), `create_access_token`, `get_current_user`, `get_current_pm_user`, `require_role(role)`. | `require_role` is a dependency **factory**; call it — `Depends(require_role(RoleEnum.PM))`. |
-| `models/entities.py` | `User`, `Project`, `Sprint`, `Task`, `Comment` + `RoleEnum`, `TaskStatusEnum`, `TaskPriorityEnum`. | `Task.dependencies` / `.acceptance_criteria` are **Python properties** over `*_json` TEXT columns — not real relations, so they are not queryable in SQL. |
+| `main.py` | Lifespan hook runs `_check_production_safety()`, `create_all`, then `seed_initial_data()` when `SEED_DEMO_DATA`; mounts routers; CORS from config. | Seeds 2 users, 1 project **with two memberships (PM + MEMBER)**, 1 sprint, 5 tasks — only when the users table is empty. Refuses to boot with dev defaults outside development. |
+| `config.py` | `Settings` from env / `.env`. | Adds `ENVIRONMENT`, `ALLOW_UNVERIFIED_GOOGLE_TOKENS`, `CORS_ORIGINS`, `SEED_DEMO_DATA`. The `JWT_SECRET` dev default is rejected outside development. |
+| `security.py` | `verify_password`, `get_password_hash` (bcrypt, 72-byte truncation), `create_access_token`, `get_current_user`, plus the project-scoped guards `get_membership`, `require_member`, `require_project_pm`. | The guards take `(db, project_id, user)` and are **called inside endpoints**, not used as bare `Depends()` — the project id arrives as a path param, a query param, or a body field depending on the route. |
+| `models/entities.py` | `User`, `Project`, **`ProjectMember`**, `Sprint`, `Task`, `Comment` + `ProjectRoleEnum`, `TaskStatusEnum`, `TaskPriorityEnum`. `User` has **no** `role` column. | `Task.dependencies` / `.acceptance_criteria` are **Python properties** over `*_json` TEXT columns — not real relations, so they are not queryable in SQL. |
 | `services/ai_service.py` | `AIService` — the three-tier cascade and every prompt. | All prompts are Vietnamese. Tier-3 branches on substring matches in the prompt text. |
 
 ### 3.3 Where the AI tiers actually live
@@ -141,6 +144,8 @@ routers/ai.py  ──calls──▶  AIService.<feature>()  ──calls──▶
 | an API request/response shape | `app/schemas/*.py` **and** `source/frontend/services/api.ts` |
 | a DB column | `app/models/entities.py` (truth) **and** `db/schema.sql` (reference copy) |
 | an AI prompt | `app/services/ai_service.py` only |
+| a role or permission rule | `app/security.py` guards + the calling router; mirrored in the UI by `taskStore.isProjectManager` |
+| project / membership behaviour | `app/routers/projects.py` (server), `components/ProjectDashboard.vue` (client) |
 | offline behaviour | `taskStore.ts` IndexedDB block |
 | build paths | `vite.config.ts`, `tsconfig.json`, `Dockerfile`, `docker-compose.yml` |
 
@@ -149,7 +154,7 @@ routers/ai.py  ──calls──▶  AIService.<feature>()  ──calls──▶
 | File | Reality |
 |:--|:--|
 | `svelte.config.js` | Dead. Koshi is Vue 3; this is residue from a Svelte prototype. Nothing imports it. |
-| `source/backend/db/schema.sql` | Reference documentation only. Tables are created from the ORM, and the two disagree (D4 §2.1). |
+| `source/backend/db/schema.sql` | Reference documentation only. Tables are created from the ORM, and the two disagree (D4 §2.3). It predates `project_members` entirely. |
 | `source/backend/app/data/koshi.db` | A committed SQLite binary. Not used by tests (they write `data/test_koshi.db`). |
 | `submission/` | A frozen duplicate of the whole project for coursework. Editing it has no effect on the app. |
 | `tsconfig.tsbuildinfo` | Build cache, committed by accident. |

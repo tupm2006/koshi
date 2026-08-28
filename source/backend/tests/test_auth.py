@@ -7,7 +7,6 @@ def test_register_and_login_flow(client: TestClient):
         "email": "auditor@tupm.qzz.io",
         "password": "securepassword123",
         "full_name": "Audit Inspector",
-        "role": "PM",
         "skills": "security,audit,python"
     }
     res = client.post("/api/auth/register", json=reg_data)
@@ -15,7 +14,8 @@ def test_register_and_login_flow(client: TestClient):
     data = res.json()
     assert "access_token" in data
     assert data["user"]["email"] == "auditor@tupm.qzz.io"
-    assert data["user"]["role"] == "PM"
+    # Registration grants no role; roles are per-project (see test_projects_and_roles.py).
+    assert "role" not in data["user"]
 
     # 2. Prevent duplicate email registration
     res_dup = client.post("/api/auth/register", json=reg_data)
@@ -71,17 +71,32 @@ def test_google_oauth_and_user_management_flow(client: TestClient):
     user_list = users_res.json()
     assert any(u["email"] == "google.dev@tupm.qzz.io" for u in user_list)
 
-    # 3. Test PM User role update
-    # Login as default seed PM
-    pm_login = client.post("/api/auth/login", json={"email": "pm@tupm.qzz.io", "password": "koshi123"})
-    assert pm_login.status_code == 200
-    pm_token = pm_login.json()["access_token"]
-
+    # 3. The Google-authenticated user can edit their own profile.
     patch_res = client.patch(
         f"/api/users/{user_id}",
-        json={"role": "PM", "skills": "golang,kubernetes,vue"},
-        headers={"Authorization": f"Bearer {pm_token}"}
+        json={"skills": "golang,kubernetes,vue"},
+        headers={"Authorization": f"Bearer {token}"}
     )
     assert patch_res.status_code == 200
-    assert patch_res.json()["role"] == "PM"
     assert patch_res.json()["skills"] == "golang,kubernetes,vue"
+
+
+def test_unverified_google_token_rejected_when_flag_disabled(client: TestClient, monkeypatch):
+    """
+    With ALLOW_UNVERIFIED_GOOGLE_TOKENS off, a token whose signature cannot be
+    verified must be refused rather than trusted (D6 RISK-01).
+    """
+    from app.config import settings
+    monkeypatch.setattr(settings, "ALLOW_UNVERIFIED_GOOGLE_TOKENS", False)
+
+    header = base64.urlsafe_b64encode(json.dumps({"alg": "RS256", "typ": "JWT"}).encode()).decode().rstrip("=")
+    payload = base64.urlsafe_b64encode(json.dumps({
+        "sub": "attacker-1",
+        "email": "victim@tupm.qzz.io",
+        "name": "Victim",
+    }).encode()).decode().rstrip("=")
+    forged = f"{header}.{payload}.not-a-real-signature"
+
+    res = client.post("/api/auth/google", json={"credential": forged})
+    assert res.status_code == 401
+    assert "could not be verified" in res.json()["detail"]

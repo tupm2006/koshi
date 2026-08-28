@@ -10,6 +10,7 @@ import WeeklySummaryModal from './components/WeeklySummaryModal.vue';
 import MeetingMinutesModal from './components/MeetingMinutesModal.vue';
 import WorkloadAssignModal from './components/WorkloadAssignModal.vue';
 import AuthModal from './components/AuthModal.vue';
+import ProjectDashboard from './components/ProjectDashboard.vue';
 import GitDiffModal from './components/GitDiffModal.vue';
 import DAGVisualizerModal from './components/DAGVisualizerModal.vue';
 import ShortcutsHelpModal from './components/ShortcutsHelpModal.vue';
@@ -31,7 +32,8 @@ import {
   X,
   Sun,
   Moon,
-  ChevronDown
+  ChevronDown,
+  FolderKanban,
 } from 'lucide-vue-next';
 import type { FilterStatus } from './types/task';
 
@@ -44,6 +46,7 @@ const isWeeklySummaryOpen = ref(false);
 const isMeetingMinutesOpen = ref(false);
 const isWorkloadAssignOpen = ref(false);
 const isAuthModalOpen = ref(false);
+const isDashboardOpen = ref(false);
 const isGitDiffOpen = ref(false);
 const isDAGOpen = ref(false);
 const isShortcutsHelpOpen = ref(false);
@@ -77,6 +80,7 @@ function closeAllModals() {
     isMeetingMinutesOpen.value ||
     isWorkloadAssignOpen.value ||
     isAuthModalOpen.value ||
+    isDashboardOpen.value ||
     isGitDiffOpen.value ||
     isDAGOpen.value ||
     isShortcutsHelpOpen.value ||
@@ -90,6 +94,7 @@ function closeAllModals() {
   isMeetingMinutesOpen.value = false;
   isWorkloadAssignOpen.value = false;
   isAuthModalOpen.value = false;
+  isDashboardOpen.value = false;
   isGitDiffOpen.value = false;
   isDAGOpen.value = false;
   isShortcutsHelpOpen.value = false;
@@ -190,6 +195,18 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             <span>{{ taskStore.viewMode === 'TABLE' ? 'Kanban' : 'Table' }}</span>
           </button>
 
+          <!-- Project switcher / dashboard -->
+          <button
+            v-if="taskStore.currentUser"
+            type="button"
+            class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md border text-xs font-mono cursor-pointer shadow-2xs bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 max-w-[220px]"
+            title="My dashboard: projects and per-project roles"
+            @click="isDashboardOpen = true"
+          >
+            <FolderKanban class="w-3.5 h-3.5 shrink-0" />
+            <span class="truncate">{{ taskStore.currentProject?.name ?? 'No project' }}</span>
+          </button>
+
           <!-- Auth Status Pill -->
           <button
             type="button"
@@ -198,7 +215,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             @click="isAuthModalOpen = true"
           >
             <Shield class="w-3.5 h-3.5" />
-            <span>{{ taskStore.currentUser ? `${taskStore.currentUser.role}: ${taskStore.currentUser.full_name}` : 'Guest / Sign In' }}</span>
+            <span>{{ taskStore.currentUser ? `${taskStore.myRole ?? 'NO PROJECT'}: ${taskStore.currentUser.full_name}` : 'Guest / Sign In' }}</span>
           </button>
         </div>
 
@@ -440,6 +457,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
     <MeetingMinutesModal v-if="isMeetingMinutesOpen" :on-close="() => (isMeetingMinutesOpen = false)" />
     <WorkloadAssignModal v-if="isWorkloadAssignOpen" :on-close="() => (isWorkloadAssignOpen = false)" />
     <AuthModal v-if="isAuthModalOpen" @close="isAuthModalOpen = false" />
+    <ProjectDashboard v-if="isDashboardOpen" @close="isDashboardOpen = false" />
     <AIDecomposerModal v-if="isAIDecomposerOpen" @close="isAIDecomposerOpen = false" />
     <GitDiffModal v-if="isGitDiffOpen" @close="isGitDiffOpen = false" />
     <DAGVisualizerModal v-if="isDAGOpen" @close="isDAGOpen = false" />

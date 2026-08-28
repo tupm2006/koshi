@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
-from app.models.entities import User, Task, RoleEnum, TaskStatusEnum
+from app.models.entities import User, Task, TaskStatusEnum
 from app.schemas.auth import UserOut, UserWithWIPOut, UserUpdate
-from app.security import get_current_user, require_role
+from app.security import get_current_user
 
 router = APIRouter(prefix="/users", tags=["Users Management"])
 
@@ -30,7 +30,6 @@ def get_all_users(
             full_name=u.full_name,
             google_id=u.google_id,
             avatar_url=u.avatar_url,
-            role=u.role,
             skills=u.skills or "general",
             created_at=u.created_at,
             active_tasks_count=len(active_tasks),
@@ -45,8 +44,20 @@ def update_user_profile(
     user_id: int,
     payload: UserUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role(RoleEnum.PM))
+    current_user: User = Depends(get_current_user)
 ):
+    """
+    Self-service profile edit.
+
+    Roles are no longer editable here: they live on ProjectMember and are changed
+    via PATCH /projects/{project_id}/members/{user_id} by a PM of that project.
+    """
+    if user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You may only edit your own profile"
+        )
+
     target_user = db.query(User).filter(User.id == user_id).first()
     if not target_user:
         raise HTTPException(
@@ -54,8 +65,6 @@ def update_user_profile(
             detail=f"User with ID {user_id} not found"
         )
 
-    if payload.role is not None:
-        target_user.role = payload.role
     if payload.skills is not None:
         target_user.skills = payload.skills
     if payload.full_name is not None:

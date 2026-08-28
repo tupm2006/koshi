@@ -9,6 +9,7 @@ def test_task_lifecycle_and_comments(client: TestClient, pm_auth_headers: dict):
         "description": "Integration testing verification project"
     }, headers=pm_auth_headers)
     assert proj_res.status_code == 201
+    assert proj_res.json()["my_role"] == "PM"   # creator is PM of this project
     project_id = proj_res.json()["id"]
 
     # 2. Create a Sprint

@@ -30,7 +30,8 @@ Proceed, but state what you did and why in your summary, and update the affected
 | `source/frontend/stores/taskStore.ts` | Widest blast radius in the repo. Preserve INV-02, INV-03. |
 | `source/frontend/lib/dagSorter.ts` | ⚠️ **Zero test coverage** (D5 GAP-01). Write the test first, then change. |
 | `source/frontend/lib/keyboard.ts` | Any binding change must also update `ShortcutsHelpModal.vue`, `README.md`, and D1 §3.1. |
-| `source/backend/app/routers/**` — logic within an existing shape | Response shape unchanged ⇒ yellow. Shape changed ⇒ 🔴. |
+| `source/backend/app/routers/**` — logic within an existing shape | Response shape unchanged ⇒ yellow. Shape changed ⇒ 🔴. **Never remove a `require_member` / `require_project_pm` call** — that is 🔴 regardless of shape. |
+| `source/frontend/components/ProjectDashboard.vue` | UI only. Hiding or showing a control changes no permission; the server is the boundary (D3 §5b). |
 | `source/backend/app/services/ai_service.py` — prompts | Prompts are Vietnamese; keep the language. Tier-3 branches on **substring matches in the prompt text** — editing prompt wording can silently break fallback routing. |
 | Adding a dependency | Justify it; prefer zero-dependency solutions. |
 | `vite.config.ts`, `tsconfig.json`, `Dockerfile`, `docker-compose.yml`, `nginx.conf` | Path-coupled after the restructure (D3 §6). Verify `pnpm run build` afterwards. |
@@ -44,7 +45,9 @@ Do **not** proceed on your own initiative, even if the change looks obviously co
 | **Unifying task identity** (int vs `TSK-n`) | D4 VIOLATION-01. Touches four contracts at once; product decision, not a refactor. Tracked as OQ-01. |
 | **Changing the status cycle order** | D4 §3.1. Breaks kanban layout, lateral movement, and a passing test. Note the prose docs already disagree with the code — that is a documentation bug, *not* licence to change the code. |
 | **Any change to a D4 contract** | Request/response shapes, DB columns, `types/task.ts`, JWT claims, the `koshi_tasks_v1` key. |
-| **Auth, JWT, hashing, or role logic** | Security-critical and thinly tested (D5 GAP-02). |
+| **Auth, JWT, hashing, or role logic** | Security-critical. Now well covered by `test_projects_and_roles.py`, but still 🔴. |
+| **Weakening or removing a project-scope guard** | `require_member` / `require_project_pm` are the entire authorisation boundary (D3 §5b). Removing one silently reopens RISK-03. |
+| **Reintroducing a global role** on `User` | The per-project model is deliberate (D7 / DEC-009). A global role would create two competing sources of authority. |
 | **Making `/ai/decompose` call a real model** | D7 / DEC-003 — a deliberate open question (OQ-04), and a test asserts current behaviour. |
 | **Deleting or rewriting `submission/**`** | Frozen coursework artefact — see §3. |
 | **Rotating or hardcoding secrets; touching CORS** | RISK-02, RISK-05. |
@@ -78,19 +81,21 @@ documentation.
 
 | ID | Risk | Likelihood | Impact | Mitigation / status |
 |:--|:--|:--:|:--:|:--|
-| **RISK-01** | **Unverified Google ID tokens.** `routers/auth.py` catches signature-verification failure and falls back to base64-decoding the JWT payload *without verifying the signature*. Anyone can forge a token for any email and receive a valid session. | High | **Critical** | ⚠️ **Open.** Intended as a sandbox convenience; it is live in production code with no environment guard. Gate on an explicit `ALLOW_UNVERIFIED_OAUTH` flag defaulting to off. OQ-03. |
-| **RISK-02** | **Hardcoded JWT secret.** The same default lives in `config.py` *and* `docker-compose.yml`. It is in the public repo, so any token can be forged. | High | **Critical** | ⚠️ **Open.** Must come from a secret store; remove the default. |
-| **RISK-03** | **No project-scoped authorisation.** Any authenticated user can read, mutate, or delete any task in any project. Only `PATCH /users/{id}` checks a role. | High | High | ⚠️ **Open.** Add ownership/membership checks. D5 GAP-02. |
+| **RISK-01** | **Unverified Google ID tokens.** `routers/auth.py` fell back to base64-decoding the JWT payload without verifying the signature, letting anyone forge a session for any email. | Low | Critical | ✅ **Closed 2026-08-28.** Gated behind `ALLOW_UNVERIFIED_GOOGLE_TOKENS`, default **off**, blocked entirely outside development, returning `401` otherwise. Covered by `test_unverified_google_token_rejected_when_flag_disabled`. The test suite opts in explicitly. |
+| **RISK-02** | **Hardcoded JWT secret.** The same default lived in `config.py` *and* `docker-compose.yml`, in a public repo, so any token could be forged. | Low | Critical | ⚠️ **Mitigated 2026-08-28, not eliminated.** The default is now an obvious placeholder, `docker-compose.yml` requires `JWT_SECRET` from the environment, and startup **fails** outside development if the default is still in force. A real secret store is still the right end state, and any DB seeded under the old secret should be treated as compromised. |
+| **RISK-03** | **No project-scoped authorisation.** Any authenticated user could read, mutate, or delete any task in any project. | Low | High | ✅ **Closed 2026-08-28.** `ProjectMember` is now the authorisation root; every project-scoped route calls `require_member` / `require_project_pm`. Non-members get `404` across project, task, sprint, AI and stats routes, asserted by four dedicated tests. |
 | **RISK-04** | **Duplicated status-cycle logic** client and server (D4 §3.1). Divergence silently desynchronises the UI from persisted state. | Medium | Medium | Both implementations currently agree. Any edit must change both. |
-| **RISK-05** | **`allow_origins=["*"]` with `allow_credentials=True`.** Invalid per the CORS spec and rejected by browsers; masks real origin policy. | Medium | Medium | ⚠️ **Open.** Pin to known origins. |
+| **RISK-05** | **`allow_origins=["*"]` with `allow_credentials=True`.** Invalid per the CORS spec and rejected by browsers; masks real origin policy. | Low | Medium | ✅ **Closed 2026-08-28.** Origins come from `CORS_ORIGINS`; `allow_credentials` is switched off automatically when the origin list is `*`, and `*` is rejected outside development. |
 | **RISK-06** | **`dagSorter.ts` has no tests** yet holds the most intricate logic in the repo. An AI edit could silently corrupt ordering. | High | High | ⚠️ **Open.** D5 GAP-01 — highest-value fix available. |
 | **RISK-07** | **Documentation contradicting code.** The retired SRS/URD/README made at least seven claims the code did not support (status order, key bindings, `/api/v1`, a non-existent test file, the LLM vendor). An agent trusting prose writes wrong code. | Low | High | ✅ **Closed 2026-08-28.** Stale documents deleted; `README.md` and `CLAUDE.md` rewritten against the code; D1–D8 are the single source. Conflicts preserved for the record in D7 / DEC-005. |
 | **RISK-08** | **Dependency graph is server-side unresolvable** (D4 VIOLATION-01) — dependencies are `List[str]` but IDs are `int`. | **Certain** | High | ⚠️ **Open.** OQ-01, RED zone. |
 | **RISK-09** | **Two lockfiles** (`pnpm-lock.yaml`, `package-lock.json`) with `Dockerfile` using `npm install` while docs say `pnpm`. Dev and prod can resolve different trees. | Medium | Medium | ⚠️ **Open.** D7 / DEC-007. |
 | **RISK-10** | **No DB migrations.** Schema comes from `create_all`, which never alters an existing table. A column change silently does nothing to a deployed volume. | Medium | High | ⚠️ **Open.** Adopt Alembic before any production schema change. |
-| **RISK-11** | **Seed data fires on an empty users table** in the lifespan hook, including a fixed password `koshi123` for `pm@tupm.qzz.io`. | Medium | High | ⚠️ **Open.** Disable seeding outside development. |
+| **RISK-11** | **Seed data fires on an empty users table** in the lifespan hook, including a fixed password `koshi123` for `pm@tupm.qzz.io`. | Low | High | ✅ **Closed 2026-08-28.** Gated behind `SEED_DEMO_DATA`, and startup fails if it is enabled outside development. |
 | **RISK-12** | **Tier-3 AI output is indistinguishable from real model output** to the caller. Users may act on canned text believing it is analysis. | High | Medium | Surface the tier in the response (e.g. a `source` field). |
-| **RISK-13** | **No client/server reconciliation.** IndexedDB and SQLite diverge silently. | High | Medium | Accepted for v1 (D1 §4). Revisit before multi-user use. |
+| **RISK-13** | **No client/server reconciliation.** IndexedDB and SQLite diverge silently; last-write-wins. | High | Medium | ⚠️ **Open** (accepted for v1, D1 §4). **Partially reduced 2026-08-28:** the cache is now partitioned per project (`koshi_tasks_v2_p{id}`), so cross-project contamination is no longer possible. Divergence *within* a project remains unreconciled, and matters more now the app is genuinely multi-user. |
+| **RISK-14** | **`_check_production_safety` is untested.** A refactor could disable the boot guard without any test failing. | Low | High | ✅ **Closed 2026-08-28.** `test_startup_safety.py` covers all four insecure defaults, the safe case, and the development exemption. |
+| **RISK-15** | **Membership grants access to the whole project.** There is no per-task or per-field permission, and a `MEMBER` may edit or delete any task in a project they belong to. | Medium | Low | Accepted for v1. Revisit if larger teams need it (D1 OQ-05). |
 
 ## 5. Documentation precedence
 
@@ -136,8 +141,12 @@ them is incomplete work (D5 §4).
 blocks the render (INV-03, D3 §4.1). Introducing an `await` before render is an architecture
 violation, not a style choice.
 
-**P9 — No secrets in source.** Never commit a key, and never widen the existing hardcoded-secret
-problem.
+**P9 — No secrets in source.** Never commit a key. The startup guard in `main.py` exists to catch
+this class of mistake; never relax it to make a deployment "work".
+
+**P11 — The server is the security boundary, never the UI.** Hiding a button is an affordance, not
+a permission. Every rule enforced in a component must also be enforced in a router, and the router
+check is the one that counts.
 
 **P10 — Bulk edits are scoped.** Any find-and-replace runs against `source/` and `documentation/`
 only. Never `submission/`, `node_modules/`, `.venv/`, or `dist/`.

@@ -1,11 +1,12 @@
 import enum
 import json
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, Enum, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, Enum, DateTime, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.database import Base
 
-class RoleEnum(str, enum.Enum):
+class ProjectRoleEnum(str, enum.Enum):
+    """A user's role *within a single project*. There is no global role."""
     PM = "PM"
     MEMBER = "MEMBER"
 
@@ -29,13 +30,13 @@ class User(Base):
     full_name = Column(String(100), nullable=False)
     google_id = Column(String(255), unique=True, index=True, nullable=True)
     avatar_url = Column(String(500), nullable=True)
-    role = Column(Enum(RoleEnum), default=RoleEnum.MEMBER, nullable=False)
     skills = Column(String(255), default="frontend,backend,general")  # Comma-separated
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     assigned_tasks = relationship("Task", back_populates="assignee")
     comments = relationship("Comment", back_populates="author")
     owned_projects = relationship("Project", back_populates="owner")
+    memberships = relationship("ProjectMember", back_populates="user", cascade="all, delete-orphan")
 
 class Project(Base):
     __tablename__ = "projects"
@@ -48,6 +49,28 @@ class Project(Base):
     owner = relationship("User", back_populates="owned_projects")
     sprints = relationship("Sprint", back_populates="project", cascade="all, delete-orphan")
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
+    members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
+
+class ProjectMember(Base):
+    """
+    Join entity carrying a user's role in one project.
+
+    This is the authorisation root: every project-scoped endpoint resolves the
+    caller's ProjectMember row and refuses the request when there is none.
+    A user with no row for a project cannot see or touch it at all.
+    """
+    __tablename__ = "project_members"
+    __table_args__ = (UniqueConstraint("project_id", "user_id", name="uq_project_member"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    role = Column(Enum(ProjectRoleEnum), default=ProjectRoleEnum.MEMBER, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project", back_populates="members")
+    user = relationship("User", back_populates="memberships")
+
 
 class Sprint(Base):
     __tablename__ = "sprints"

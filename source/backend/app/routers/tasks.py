@@ -5,7 +5,7 @@ from datetime import datetime
 from app.database import get_db
 from app.models.entities import Task, Comment, TaskStatusEnum, User
 from app.schemas.task import TaskCreate, TaskUpdate, TaskOut, CommentCreate, CommentOut
-from app.security import get_current_user
+from app.security import get_current_user, require_member, require_project_pm
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
@@ -18,6 +18,7 @@ def list_tasks(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    require_member(db, project_id, current_user)
     query = db.query(Task).filter(Task.project_id == project_id)
     if sprint_id is not None:
         query = query.filter(Task.sprint_id == sprint_id)
@@ -29,6 +30,7 @@ def list_tasks(
 
 @router.post("", response_model=TaskOut, status_code=status.HTTP_201_CREATED)
 def create_task(req: TaskCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    require_member(db, req.project_id, current_user)
     task = Task(
         project_id=req.project_id,
         sprint_id=req.sprint_id,
@@ -51,18 +53,23 @@ def create_task(req: TaskCreate, db: Session = Depends(get_db), current_user: Us
     db.refresh(task)
     return task
 
-@router.get("/{task_id}", response_model=TaskOut)
-def get_task(task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def _get_task_for_member(db: Session, task_id: int, user: User) -> Task:
+    """Load a task and assert the caller is a member of its project."""
     task = db.query(Task).filter(Task.id == task_id).first()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    require_member(db, task.project_id, user)
+    return task
+
+
+@router.get("/{task_id}", response_model=TaskOut)
+def get_task(task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    task = _get_task_for_member(db, task_id, current_user)
     return task
 
 @router.patch("/{task_id}", response_model=TaskOut)
 def update_task(task_id: int, req: TaskUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = _get_task_for_member(db, task_id, current_user)
     
     update_data = req.model_dump(exclude_unset=True)
     
@@ -81,18 +88,14 @@ def update_task(task_id: int, req: TaskUpdate, db: Session = Depends(get_db), cu
 
 @router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = _get_task_for_member(db, task_id, current_user)
     db.delete(task)
     db.commit()
     return None
 
 @router.post("/{task_id}/cycle-status", response_model=TaskOut)
 def cycle_task_status(task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    task = db.query(Task).filter(Task.id == task_id).first()
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+    task = _get_task_for_member(db, task_id, current_user)
         
     cycle = [TaskStatusEnum.TODO, TaskStatusEnum.IN_PROGRESS, TaskStatusEnum.BLOCKED, TaskStatusEnum.DONE]
     current_idx = cycle.index(task.status)

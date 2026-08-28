@@ -42,19 +42,23 @@ pnpm run build          # vue-tsc -b && vite build → dist/
 cd source/backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-mkdir -p data                      # required — DATABASE_URL points at ./data/
 uvicorn app.main:app --reload --port 8000
-pytest -q                          # 6 tests
+pytest -q                          # 29 tests
 ```
 
-On first run with an empty database the app seeds a PM (`pm@tupm.qzz.io` / `koshi123`), a member, a
-project, a sprint, and five sample tasks. **Disable this before any real deployment** — see
-[D6 RISK-11](./documentation/D6-risks-delegation-policies.md).
+On first run with an empty database the app seeds two accounts (`pm@tupm.qzz.io` and
+`dev@tupm.qzz.io`, both `koshi123`), a project with one PM and one MEMBER, a sprint, and five
+sample tasks. Seeding is controlled by `SEED_DEMO_DATA` and the server **refuses to start** with it
+enabled outside development.
 
 **Docker**
 ```bash
-docker compose build && docker compose up -d
+JWT_SECRET="$(openssl rand -hex 32)" docker compose build && docker compose up -d
 ```
+
+`JWT_SECRET` is required — the compose file no longer ships a default, and outside development the
+API refuses to start with development defaults in force (dev JWT secret, `CORS_ORIGINS=*`, demo
+seeding, or unverified Google tokens).
 
 ## Documentation
 
@@ -73,6 +77,26 @@ documents. Read them in order; each answers one question.
 | [D8](./documentation/D8-rtm.md) | RTM | requirement → code → test |
 
 **This README is a summary, not a specification.** Where it differs from D1–D8, D1–D8 are correct.
+
+## Accounts, projects and roles
+
+Sign-up asks for name, email, password and optional skills — **no role**. A new account has no
+authority anywhere until it creates a project or is added to one.
+
+Roles are **per project**, not per user. Create a project and you are its PM; a PM can add members
+by email and set each member's role in that project. The same account can be PM of one project and
+MEMBER of another at the same time.
+
+| | PM | MEMBER |
+|:--|:--:|:--:|
+| Read the project and its tasks | ✓ | ✓ |
+| Create, edit, delete tasks | ✓ | ✓ |
+| Add / remove members, change roles | ✓ | — |
+| Create sprints | ✓ | — |
+| Delete the project | ✓ | — |
+
+A project always keeps at least one PM. Non-members get a `404` — not a `403` — so project
+existence is never disclosed. The server enforces all of this independently of the UI.
 
 ## Core behaviour
 
@@ -105,14 +129,22 @@ Tier 3 output is currently indistinguishable from real model output to the calle
 
 ## Project status
 
-The backend HTTP surface is smoke-tested end to end (6/6 passing). **The frontend has no automated
-tests**, including the DAG engine — the most intricate logic in the repository. Overall: 33% of
-requirements automated, 26% unverified. Full breakdown in [D8 §5](./documentation/D8-rtm.md).
+The backend is covered end to end (29/29 passing), with authorisation the best-tested area —
+every negative path is asserted. **The frontend has no automated tests**, including the DAG engine,
+the most intricate logic in the repository. Overall: 43% of requirements automated, 20% unverified.
+Full breakdown in [D8 §5](./documentation/D8-rtm.md).
 
 Known defects are catalogued in [D7 Part II](./documentation/D7-development-book.md) and risk-rated
-in [D6 §4](./documentation/D6-risks-delegation-policies.md). Four are critical and should be
-addressed before any production use: unverified Google ID tokens, a hardcoded JWT secret, absent
-project-scoped authorisation, and inconsistent task identity across layers.
+in [D6 §4](./documentation/D6-risks-delegation-policies.md). Still open and worth knowing about:
+
+- **Task identity is inconsistent across layers** — the ORM uses integer ids, the frontend uses
+  `TSK-n` strings, and `dependencies` is `List[str]`, so the server-side dependency graph cannot
+  resolve. [D4 VIOLATION-01](./documentation/D4-api-and-data-contracts.md).
+- **No migration tooling.** `create_all` never alters an existing table, so schema changes silently
+  no-op on a deployed volume. Newly blocking, since roles moved to a new table.
+- **Rotate `JWT_SECRET` on any existing deployment.** The old default was published in this repo;
+  tokens signed with it remain forgeable.
+- **`lib/dagSorter.ts` has no tests** — the highest-value gap in the codebase.
 
 ## Contributors
 
