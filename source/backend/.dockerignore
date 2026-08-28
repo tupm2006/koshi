@@ -1,0 +1,42 @@
+# The backend Dockerfile does `COPY . .`, so anything not excluded here ends up
+# inside the published image. Before this file existed the image shipped:
+#
+#   .env       — the rotated JWT secret, readable by anyone who can pull the
+#                image or exec into the container (F-32, D6 §7.1)
+#   data/*.db  — a developer's local SQLite database, including user rows and
+#                bcrypt password hashes
+#   .venv/     — a host virtualenv built for a different platform, which would
+#                shadow the image's own site-packages
+#
+# The database copy also broke `alembic upgrade head`: the volume was seeded
+# from the image directory, so migrations ran against a pre-existing schema.
+#
+# Keep this list ahead of the Dockerfile. If you add a file holding anything
+# you would not publish, exclude it here first.
+
+# Secrets — never in an image. .env.example is intentionally NOT excluded.
+.env
+.env.*
+!.env.example
+
+# Local database. The runtime creates and owns /app/data via a volume.
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Host virtualenv and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Tests are not needed to serve requests
+tests/
+
+# Build metadata
+Dockerfile
+.dockerignore

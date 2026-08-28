@@ -1,5 +1,10 @@
 # Build stage
-FROM node:20-alpine AS builder
+# node:22 matches the toolchain the lockfile was resolved with. On node:20 the
+# build died outright: `corepack enable` with no pinned version fetches the
+# latest pnpm, which now requires a newer Node than the base image ships
+# (F-31). package.json pins `packageManager` so corepack resolves the exact
+# pnpm the lockfile was written by, rather than whatever shipped that morning.
+FROM node:22-alpine AS builder
 
 WORKDIR /app
 

@@ -34,7 +34,7 @@ submission/     frozen coursework snapshot — do not edit
 ```bash
 pnpm install
 pnpm run dev            # http://localhost:5173, proxies /api → :8000
-pnpm test               # vitest run — 188 tests
+pnpm test               # vitest run — 260 tests
 pnpm run build          # vue-tsc -b && vite build → dist/
 ```
 
@@ -54,7 +54,16 @@ On first run with an empty database the app seeds two accounts (`pm@tupm.qzz.io`
 sample tasks. Seeding is controlled by `SEED_DEMO_DATA` and the server **refuses to start** with it
 enabled outside development.
 
-**Docker**
+**Docker — local**
+```bash
+docker compose -f docker-compose.dev.yml up -d --build
+open http://localhost:8080          # backend also on 127.0.0.1:8000
+```
+
+Runs `alembic upgrade head` before serving, then seeds the demo accounts. Development settings, so
+never point it at real data. `docker compose -f docker-compose.dev.yml down -v` removes the volume.
+
+**Docker — deployment**
 ```bash
 JWT_SECRET="$(openssl rand -hex 32)" docker compose build && docker compose up -d
 ```
@@ -145,20 +154,22 @@ Tier 3 output is currently indistinguishable from real model output to the calle
 ## Project status
 
 The backend is covered end to end (38/38), with authorisation the best-tested area. The frontend
-has 188 tests over the DAG engine, both stores, the keyboard dispatcher and seven components —
-every suite mutation-verified. Overall: 81% of requirements automated, 7% unverified. Full breakdown
-in [D8 §5](./documentation/D8-rtm.md).
+has 260 tests over both pure libraries, both stores, the keyboard dispatcher and thirteen
+components — every suite mutation-verified. Overall: 83% of requirements automated, 7% unverified.
+Full breakdown in [D8 §5](./documentation/D8-rtm.md).
 
 Known defects are catalogued in [D7 Part II](./documentation/D7-development-book.md) and risk-rated
 in [D6 §4](./documentation/D6-risks-delegation-policies.md). Still open and worth knowing about:
 
-- **Task identity is inconsistent across layers** — the ORM uses integer ids, the frontend uses
-  `TSK-n` strings, and `dependencies` is `List[str]`, so the server-side dependency graph cannot
-  resolve. [D4 VIOLATION-01](./documentation/D4-api-and-data-contracts.md).
-- **Rotate `JWT_SECRET` on any deployment that predates 2026-08-28.** The old default was published
-  in this repo; tokens signed with it remain forgeable. Runbook:
+- **Rotate `JWT_SECRET` on any deployment that predates 2026-08-28** — and again if you have ever
+  built or pulled the backend image, which was shipping `.env` inside it until the `.dockerignore`
+  was added (D6 RISK-19). The old default was also published in this repo. Runbook:
   [D6 §7.1](./documentation/D6-risks-delegation-policies.md).
-- **`lib/gitParser.ts` is untested** (D5 GAP-03) despite scanning diffs for hardcoded secrets.
+- **No test distinguishes real AI output from the deterministic fallback** (D5 GAP-04), so a
+  degraded deployment would not fail the suite. Currently the weakest claim in the matrix.
+- **The Git diff analyser resolves BLOCKED tasks on a title word match**, with no closing keyword
+  required, and offers to write DONE for them. Narrowed but not removed — see
+  [D7 OQ-08](./documentation/D7-development-book.md).
 - **Landing-page pricing figures are placeholders** and must be replaced before publishing
   (D6 RISK-18).
 

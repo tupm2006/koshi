@@ -66,7 +66,13 @@ export function parseGitDiff(diffText: string, existingTasks: Task[]): GitDiffAn
   for (const task of existingTasks) {
     if (task.status === 'BLOCKED') {
       const words = task.title.toLowerCase().split(/\s+/).filter((w) => w.length > 3);
-      const isMentioned = words.some((w) => diffText.toLowerCase().includes(w));
+      // Whole words only. A bare `includes()` matched fragments, so a task
+      // blocked on "store" was auto-resolved by any diff that happened to touch
+      // `taskStore.ts` — and the modal then offered to write DONE (F-30).
+      // Still a heuristic: see OQ-08.
+      const haystack = diffText.toLowerCase();
+      const isMentioned = words.some((w) =>
+        new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(haystack));
       if (isMentioned && !resolvedIds.has(task.id)) {
         resolvedIds.add(task.id);
       }

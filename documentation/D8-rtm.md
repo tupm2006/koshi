@@ -96,7 +96,7 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 | FR-GRAPH-02 | Deterministic tie-break | `dagSorter.ts` queue sort (priority → dueDate → createdAt) | ✅ `dagSorter.test.ts` | ✅ |
 | FR-GRAPH-03 | Cycle tolerance | `dagSorter.ts` tail block (`result.length < tasks.length`) | ✅ `dagSorter.test.ts` | ✅ — D7 DEC-002 |
 | FR-GRAPH-04 | Critical path | `dagSorter.ts::computeCriticalPath` (memoised longest weighted path) | ✅ `dagSorter.test.ts` | ⚠️✅ order-dependent on cyclic graphs — F-24 |
-| FR-GRAPH-05 | DAG visualiser | `DAGVisualizerModal.vue`, `lib/keyboard.ts` (`v`) | manual | 🟡 |
+| FR-GRAPH-05 | DAG visualiser | `DAGVisualizerModal.vue`, `lib/keyboard.ts` (`v`) | ✅ `AIModals.test.ts` (4) | ✅ |
 
 ### 2.4 Persistence & sync
 
@@ -145,11 +145,11 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 
 | Req | Work item | Implementation | Verification | St |
 |:--|:--|:--|:--|:--:|
-| FR-AI-01 | Weekly summary | `routers/ai.py::generate_weekly_summary`, `ai_service.py::generate_weekly_summary`, `WeeklySummaryModal.vue` | ✅ `test_mandated_ai_features` | ✅ shape only |
-| FR-AI-02 | Meeting minutes | `routers/ai.py::extract_meeting_minutes`, `ai_service.py::extract_meeting_minutes`, `MeetingMinutesModal.vue` | ✅ same | ✅ shape only |
-| FR-AI-03 | Assignment recommendation | `routers/ai.py::recommend_assignment`, `ai_service.py::recommend_task_assignment`, `WorkloadAssignModal.vue` | ✅ same | ✅ shape only |
-| FR-AI-04 | Goal decomposition | `routers/ai.py::decompose_goal` (hardcoded), `lib/aiDecomposer.ts`, `AIDecomposerModal.vue` | ✅ asserts `len == 3` | ⚠️✅ **test pins the stub** — D5 §5, DEC-003 |
-| FR-AI-05 | Git diff analysis | `lib/gitParser.ts::parseGitDiff` called directly by `GitDiffModal.vue` | — | ❌ GAP-03 |
+| FR-AI-01 | Weekly summary | `routers/ai.py::generate_weekly_summary`, `ai_service.py::generate_weekly_summary`, `WeeklySummaryModal.vue` | ✅ `test_mandated_ai_features` + `AIModals.test.ts` (6) | ✅ shape only — provenance untested, GAP-04 |
+| FR-AI-02 | Meeting minutes | `routers/ai.py::extract_meeting_minutes`, `ai_service.py::extract_meeting_minutes`, `MeetingMinutesModal.vue` | ✅ same + `AIModals.test.ts` (5) | ✅ shape only — provenance untested, GAP-04 |
+| FR-AI-03 | Assignment recommendation | `routers/ai.py::recommend_assignment`, `ai_service.py::recommend_task_assignment`, `WorkloadAssignModal.vue` | ✅ same + `AIModals.test.ts` (6) | ✅ shape only — provenance untested, GAP-04 |
+| FR-AI-04 | Goal decomposition | `routers/ai.py::decompose_goal` (hardcoded), `lib/aiDecomposer.ts`, `AIDecomposerModal.vue` | ✅ asserts `len == 3`; `AIModals.test.ts` (7) covers insertion and dependency wiring | ⚠️✅ **test pins the stub** — D5 §5, DEC-003 |
+| FR-AI-05 | Git diff analysis | `lib/gitParser.ts::parseGitDiff` called directly by `GitDiffModal.vue` | ✅ `gitParser.test.ts` (39) + `AIModals.test.ts` (5) | ✅ — but the BLOCKED-task heuristic is loose by design; OQ-08 |
 | FR-AI-06 | 3-tier cascade | `ai_service.py::_call_llm`, `_deterministic_fallback` | ✅ implicitly — CI runs with no key and no Ollama | ✅ |
 | FR-AI-07 | Workload stats | `routers/stats.py::get_member_workloads` | ✅ `test_workload_and_delayed_tasks_stats` | ✅ |
 | FR-AI-08 | Delayed tasks | `routers/stats.py::get_delayed_tasks` | ✅ same | 🟡 no overdue fixture |
@@ -225,8 +225,10 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 |:--|:--|:--|:--:|
 | `vite.config.ts` | build paths, dev `/api` proxy | `pnpm run build` | 🟡 |
 | `tsconfig.json` | type gate | `vue-tsc -b` | 🟡 |
-| `Dockerfile` | frontend image | manual | 🟡 ⚠️ ignores lockfiles — F/DEC-007 |
+| `Dockerfile` | frontend image | manual | 🟡 pnpm pinned via `packageManager`; builds on `node:22` (F-31) |
 | `docker-compose.yml` | topology · contract C7 | manual | 🟡 |
+| `docker-compose.dev.yml` | local stack — migrations then serve | manual — verified 2026-08-28, both revisions clean from empty | 🟡 |
+| `source/backend/.dockerignore` | keeps `.env`/`data/`/`.venv` out of the image | manual | 🟡 ⚠️ see RISK-19 |
 | `nginx.conf` | SPA fallback + `/api` proxy | manual | 🟡 |
 
 ---
@@ -259,26 +261,30 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | Marketing (FR-MKT) | 5 | 5 | 0 | 0 |
 | Interaction (FR-INT) | 14 | 11 | 3 | 0 |
 | Domain (FR-DOM) | 10 | 9 | 0 | 1 |
-| Graph (FR-GRAPH) | 5 | 4 | 1 | 0 |
+| Graph (FR-GRAPH) | 5 | 5 | 0 | 0 |
 | Persistence (FR-PERS) | 6 | 2 | 3 | 1 |
 | Auth (FR-AUTH) | 10 | 10 | 0 | 0 |
-| AI (FR-AI) | 8 | 6 | 1 | 1 |
+| AI (FR-AI) | 8 | 7 | 0 | 1 |
 | Projects (FR-PROJ) | 12 | 9 | 2 | 1 |
 | Non-functional (NFR) | 10 | 3 | 3 | 4 |
-| **Total** | **90** | **73** | **11** | **6** |
+| **Total** | **90** | **75** | **9** | **6** |
 
-**Reading.** 81% automated, 12% manual-only, 7% unverified — up from 33% automated at rev 1. Every
-pure module, both stores, the keyboard dispatcher and seven components are covered.
+**Reading.** 83% automated, 10% manual-only, 7% unverified — up from 33% automated at rev 1.
+**Every non-trivial frontend module now has tests**: both stores, both pure libraries, the keyboard
+dispatcher, and thirteen components including all six AI modals. The imbalance noted at rev 1 —
+"automation is still almost entirely backend, and the frontend carries the product's distinguishing
+logic with no automated verification at all" — no longer holds.
 
-What remains is small and known: `lib/gitParser.ts`, the six AI modals, and a handful of visual
-requirements (contrast, frame budget) that need tooling rather than unit tests. Authorisation is now the
-**best-covered area in the repository** — all ten FR-AUTH rows are automated, including every
-negative path, which is the reverse of its position in rev 1.
+What remains unverified is genuinely hard to unit-test rather than merely unwritten:
 
-The imbalance is unchanged in shape though: automation is still almost entirely backend. The
-frontend carries the product's distinguishing logic (graph engine, keyboard model, local-first
-store, and now the dashboard) with **no automated verification at all**.
+- **FR-AI cascade behaviour** (GAP-04). Every AI row is covered for *shape*, none for *provenance*:
+  no test distinguishes a real LLM answer from the Tier-3 deterministic fallback. An outage that
+  silently degraded every AI feature to canned text would leave the suite green. This is now the
+  weakest claim in the matrix.
+- **NFR-01/03/04** — frame budget, load time, contrast. These need measurement tooling, not tests.
+  Either measure them or soften the claims in D1.
+- **FR-PERS offline round-trip** — IndexedDB is mocked in every frontend test. The *policy* is
+  covered (INV-15, in the store and now in both writing modals); the *persistence* is not.
 
-**Highest-leverage next work item:** D5 GAP-03 — `lib/gitParser.ts`. A pure function, no DOM
-needed, security-adjacent (it scans diffs for hardcoded secrets), and the retired SRS claimed a test
-file for it that never existed.
+**Highest-leverage next work item:** D5 GAP-04 — assert the AI cascade by mocking each tier, so a
+degraded deployment fails the suite instead of passing it quietly.

@@ -46,6 +46,18 @@ async function handleDecompose(customGoal?: string) {
 
 function handleAcceptAll() {
   if (!result.value || !result.value.subtasks) return;
+
+  // The store refuses every write on a read-only project (INV-15), so without
+  // this guard the loop below silently created nothing and we still flashed
+  // "Inserted!" and closed — telling the user their subtasks were saved when
+  // none were (F-33). Check before writing, and report instead of pretending.
+  if (!taskStore.canMutate) {
+    errorMsg.value = taskStore.readOnlyReason === 'OFFLINE_SHARED'
+      ? 'This project is read-only while you are offline — it has other members. Reconnect to insert these subtasks.'
+      : 'No project selected — open or create one before inserting subtasks.';
+    return;
+  }
+
   const createdIds: Record<string, string> = {};
 
   for (const st of result.value.subtasks) {

@@ -39,6 +39,16 @@ async function handleAnalyze() {
 
 function handleApplyStatuses() {
   if (!result.value) return;
+
+  // Same false success as the decomposer (F-33): every setStatus/updateTask
+  // below is a no-op on a read-only project, but the button still reported
+  // "Applied to Tasks!" and closed.
+  if (!taskStore.canMutate) {
+    errorMsg.value = taskStore.readOnlyReason === 'OFFLINE_SHARED'
+      ? 'This project is read-only while you are offline — it has other members. Reconnect to apply these transitions.'
+      : 'No project selected — open or create one before applying transitions.';
+    return;
+  }
   if (result.value.resolvedTaskIds) {
     for (const id of result.value.resolvedTaskIds) {
       taskStore.setStatus(id, 'DONE');

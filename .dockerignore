@@ -2,3 +2,19 @@ node_modules
 dist
 .git
 .DS_Store
+
+# Secrets. The frontend's final image is nginx + dist, so these never reach it,
+# but they would sit in the builder layer and in the build context sent to the
+# daemon. Cheaper to never send them (F-32).
+.env
+.env.*
+!.env.example
+source/backend/.env
+source/backend/data/
+source/backend/.venv/
+**/__pycache__
+
+# Not needed to build the bundle
+submission
+documentation
+nhom4.docx

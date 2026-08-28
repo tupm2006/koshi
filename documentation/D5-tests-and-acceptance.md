@@ -1,7 +1,7 @@
 # D5 — Tests & Acceptance Criteria
 
 **Purpose:** define what "correct" means, and record honestly what is currently verified.
-**Last verified by execution:** 2026-08-28 — backend `38 passed`, frontend `188 passed`.
+**Last verified by execution:** 2026-08-28 — backend `38 passed`, frontend `260 passed`.
 
 ---
 
@@ -36,7 +36,7 @@ creates nothing and **refuses to start** unless the database is at head (D3 §5c
 
 ```bash
 pnpm install
-pnpm test                     # vitest run — 188 tests
+pnpm test                     # vitest run — 260 tests
 pnpm run test:watch           # vitest, watch mode
 pnpm run build                # vue-tsc -b && vite build
 pnpm run dev                  # manual verification at :5173
@@ -84,8 +84,8 @@ Still **manually verified only**: `lib/gitParser.ts` and the six AI modals.
 | `lib/keyboard.ts` — all 14 bindings, input guards, modal deference, lifecycle | ✅ `keyboard.test.ts` (38) | Good — closes GAP-12. Mutation-tested: 6 seeded defects, all caught. |
 | `TaskTable` / `KanbanBoard` — rendering, filters, selection, column placement | ✅ `BoardViews.test.ts` (15) | Good |
 | `TaskDetailModal` — its own keyboard mode, editing, read-only gate | ✅ `TaskDetailModal.test.ts` (13) | Good |
-| `lib/gitParser.ts`, AI modals | ❌ **none** | Manual only |
-| Any Vue component | ❌ **none** | Manual only |
+| `lib/gitParser.ts` — close-keyword matching, BLOCKED auto-resolution, secret detection | ✅ `gitParser.test.ts` (39) | Good — closes GAP-03. Characterisation tests; several record blind spots rather than assert correctness. Mutation-tested: 6 seeded defects, all caught. |
+| The six AI / analysis modals — which call is made, failure surfacing, board writes | ✅ `AIModals.test.ts` (33) | Good — closes GAP-13. Surfaced F-33 and F-34. Mutation-tested: 8 seeded defects, 7 caught (see §5). |
 | Offline / IndexedDB behaviour | ❌ **none** | Manual only |
 | Performance (NFR-01, NFR-03) | ❌ **none** | Claims are unmeasured |
 | Accessibility (NFR-04) | ❌ **none** | Claims are unmeasured |
@@ -241,18 +241,24 @@ loosening the assertion without reading D7 / DEC-003.
 |:--|:--|:--|:--|
 | ~~GAP-01~~ | ~~`dagSorter.ts` has zero tests~~ | — | ✅ **Closed 2026-08-28.** Vitest added; 28 tests over FR-GRAPH-01…04, tie-breaking, cycles and both weight scales. Surfaced F-24 in the process. |
 | ~~GAP-02~~ | ~~No negative authorisation tests~~ | — | ✅ **Closed 2026-08-28.** `test_projects_and_roles.py` covers MEMBER→403 on every PM action and non-member→404 across project, task, AI and stats routes. |
-| GAP-03 | `gitParser.ts` untested | **High** | Add `gitParser.test.ts` — secret detection and close-keyword regexes are security-adjacent. |
+| ~~GAP-03~~ | ~~`gitParser.ts` untested~~ | — | ✅ **Closed 2026-08-28.** 39 characterisation tests. Surfaced F-29 (dead `blockedTaskIds`), F-30 (substring auto-resolution, fixed) and the limits of the secret scanner, now recorded as OQ-08. |
 | GAP-04 | No test distinguishes real LLM output from Tier-3 fallback | **Medium** | Assert cascade behaviour by mocking tiers, not just response shape. |
 | ~~GAP-05~~ | ~~`taskStore` untested~~ | — | ✅ **Closed 2026-08-28.** 24 tests over the screen state machine, offline write policy, project selection and cache partitioning, id translation, status cycle and filters. |
 | ~~GAP-10~~ | ~~No `.vue` component has a test~~ | — | ✅ **Closed 2026-08-28.** `@vue/test-utils` + jsdom added; 61 tests over the four highest-risk components, mutation-verified. |
 | ~~GAP-12~~ | ~~`lib/keyboard.ts` and the board components are untested~~ | — | ✅ **Closed 2026-08-28.** 66 tests across the dispatcher, both board views and the inspector, mutation-verified. |
-| GAP-13 | The six AI modals have no tests. Each is a thin shell over an endpoint already covered server-side. | **Low** | Component tests following the `AuthDialog` pattern. |
+| ~~GAP-13~~ | ~~The six AI modals have no tests~~ | — | ✅ **Closed 2026-08-28.** 33 tests. Not the low-value work it looked: the two modals that write to the board both reported success while writing nothing on a read-only project (F-33). |
 | GAP-06 | No E2E keyboard coverage | **Medium** | Playwright over FR-INT-01…11. |
 | ~~GAP-08~~ | ~~`_check_production_safety` untested~~ | — | ✅ **Closed 2026-08-28.** `test_startup_safety.py` parametrises all four insecure defaults plus the safe and development cases. |
 | GAP-09 | No frontend test asserts that PM-only controls are hidden from a MEMBER | **Low** | Component test once a runner exists; the server-side refusal is already covered. |
 | GAP-07 | Performance/accessibility claims unmeasured | **Low** | Either measure them or soften NFR-01/03/04 in D1. |
 
-**Recommended next move:** GAP-03 — `lib/gitParser.ts`. It is a pure function, it is
-security-adjacent (it scans diffs for hardcoded secrets), and the retired SRS claimed a test file
-for it that never existed. GAP-13 (AI modals) is lower value: each is a thin shell over an endpoint
-already covered server-side.
+**Recommended next move:** GAP-04 — no test distinguishes real LLM output from the Tier-3
+deterministic fallback, so an outage that silently degrades every AI feature to canned text would
+not fail the suite. After that, GAP-06 (Playwright over the keyboard model end to end), which is
+the only remaining way to catch a binding that works in jsdom but not in a browser.
+
+**One surviving mutation, recorded rather than papered over.** Removing the blank-diff guard from
+`GitDiffModal.handleAnalyze` does not fail the suite. The guard is unreachable through the UI — the
+button is `:disabled` for a blank diff — so the test asserts the disabled attribute, which is the
+true statement, instead of pretending the handler branch is covered. Same shape as DEC-016's
+`isDirty` finding: a redundant guard behind an affordance cannot be reached by a component test.

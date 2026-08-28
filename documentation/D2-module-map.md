@@ -56,7 +56,7 @@ koshi/
 |:--|:--|:--|:--|
 | `dagSorter.ts` | `topologicalSort(tasks)`, `computeCriticalPath(tasks)` | Kahn's algorithm with deterministic tie-breaking; memoised longest-weighted-path search over non-`DONE` tasks. **Tested** — `dagSorter.test.ts` (28). | FR-GRAPH-01…05 |
 | `keyboard.ts` | keydown dispatcher, `isInputActive` | Single global `switch` mapping keys → store actions. **The one authoritative list of key bindings.** **Tested** — `keyboard.test.ts` (38). | FR-INT-01…14 |
-| `gitParser.ts` | `parseGitDiff(diff, tasks)` | Regex extraction of `close/fix/resolve #ID`; scans added lines for TODO/FIXME, empty catch blocks, hardcoded secrets, `: any`. | FR-AI-05 |
+| `gitParser.ts` | `parseGitDiff(diff, tasks)` | Regex extraction of `close/fix/resolve #ID`; scans added lines for TODO/FIXME, empty catch blocks, hardcoded secrets, `: any`. Also resolves BLOCKED tasks on a whole-word title match — a loose heuristic, see OQ-08. `blockedTaskIds` is always empty (F-29). Covered by `gitParser.test.ts`. | FR-AI-05 |
 | `aiDecomposer.ts` | client-side goal heuristics | Tier-1 (<5 ms) local decomposition before any network call. | FR-AI-04 |
 | `translations.ts` | `MESSAGES`, `LOCALES`, `LOCALE_LABELS` | English + Vietnamese dictionary. `Translations` is derived from the English object, so a key missing elsewhere is a **compile error**, not a runtime fallback. | FR-I18N-01…05 |
 
@@ -92,8 +92,8 @@ The frontend's contract surface: `TaskStatus`, `TaskPriority`, `Complexity`, `Ta
 | `TaskDetailModal.vue` | `Enter` | Full inspector: description, criteria, dependencies, comments. Largest component (~478 lines). **Owns its own keyboard mode** — the global dispatcher stands down while it is open, so `i` and `Escape` are handled here. Auto-saves on every field change. |
 | `CreateTaskModal.vue` | `n` | Task creation form. |
 | `TaskContextMenu.vue` | right-click | Per-task action menu. |
-| `AIDecomposerModal.vue` | `a` | FR-AI-04 goal decomposition. |
-| `GitDiffModal.vue` | `g` | FR-AI-05 diff analysis. |
+| `AIDecomposerModal.vue` | `a` | FR-AI-04 goal decomposition. Writes a batch of tasks to the store, so it checks `canMutate` first (F-33). |
+| `GitDiffModal.vue` | `g` | FR-AI-05 diff analysis. Writes statuses to the store, so it checks `canMutate` first (F-33). |
 | `DAGVisualizerModal.vue` | `v` | FR-GRAPH-05 dependency graph. |
 | `WeeklySummaryModal.vue` | AI menu | FR-AI-01. |
 | `MeetingMinutesModal.vue` | AI menu | FR-AI-02. |

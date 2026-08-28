@@ -1,0 +1,62 @@
+# Local development stack.
+#
+# `docker-compose.yml` is the deployment file: it expects an external
+# `proxy-net`, a real JWT_SECRET, and a reverse proxy in front. That is the
+# right shape for the server and the wrong shape for a laptop, so this file
+# stands alone rather than overriding it.
+#
+#   docker compose -f docker-compose.dev.yml up -d --build
+#   open http://localhost:8080
+#
+# Differences from production, each deliberate:
+#   - ENVIRONMENT=development, so the startup safety checks relax and the
+#     seeded demo accounts are created. Never point this file at real data.
+#   - Ports are published to the host instead of joining a proxy network.
+#   - The backend still runs `alembic upgrade head` before serving. Development
+#     mode would happily `create_all()` the schema, but then the migrations
+#     would never actually be exercised until a production deploy — which is
+#     exactly the moment you do not want to discover they are broken.
+services:
+  koshi-backend:
+    build:
+      context: ./source/backend
+      dockerfile: Dockerfile
+    container_name: koshi-backend-dev
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    environment:
+      - DATABASE_URL=sqlite:///./data/koshi.db
+      - ENVIRONMENT=development
+      - JWT_SECRET=${JWT_SECRET:-dev_only_not_a_real_secret}
+      - CORS_ORIGINS=http://localhost:8080
+      - SEED_DEMO_DATA=true
+      - ALLOW_UNVERIFIED_GOOGLE_TOKENS=false
+      - AI_API_KEY=${AI_API_KEY:-}
+      - OLLAMA_URL=http://host.docker.internal:11434/v1/chat/completions
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      # Exposed so you can curl the API directly; the frontend does not use it.
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - koshi-dev-data:/app/data
+    networks:
+      - koshi-dev
+
+  koshi-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: koshi-frontend-dev
+    depends_on:
+      - koshi-backend
+    ports:
+      - "127.0.0.1:8080:80"
+    networks:
+      - koshi-dev
+
+volumes:
+  koshi-dev-data:
+
+networks:
+  koshi-dev:
+    driver: bridge

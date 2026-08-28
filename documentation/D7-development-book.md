@@ -814,7 +814,73 @@ Observations that are not yet decisions. Each should become a decision or a work
 | F-26 | Dockerfile ran `npm install` copying neither lockfile, so the image resolved an untested dependency tree. | `Dockerfile` | Medium | ✅ Closed — DEC-014 |
 | F-27 | `isInputActive` is declared `: boolean` but returned `undefined` when `isContentEditable` was not implemented. Harmless in real browsers; a signature violation regardless. | `lib/keyboard.ts` | Low | ✅ Closed — DEC-017 |
 | F-28 | `TaskTable` renders two edit inputs (desktop + mobile layouts) for a single edited row. Not a defect; recorded so a future test does not assume one. | `TaskTable.vue` | Low | Documented — DEC-017 |
+| F-29 | `parseGitDiff` never populates `blockedTaskIds`; the field is always `[]` and `GitDiffModal`'s loop over it is dead code. The type promises `{id, reason}[]`. | `lib/gitParser.ts` | Low | Open — documented, see OQ-08 |
+| F-30 | A BLOCKED task was auto-resolved when any word from its title appeared *as a substring* anywhere in the diff, so a task blocked on "store" was resolved by any diff touching `taskStore.ts` — and the modal then offered to write DONE. | `lib/gitParser.ts` | High | ✅ Closed — DEC-018 (whole-word match). Residual heuristic risk: OQ-08 |
+| F-31 | The frontend Dockerfile ran `corepack enable` with no pinned pnpm, so the build fetched whatever pnpm was newest — which now requires a newer Node than the `node:20` base image. The image could not be built at all. | `Dockerfile`, `package.json` | High | ✅ Closed — DEC-018 (`packageManager` pin + `node:22`) |
+| F-32 | The backend had no `.dockerignore` behind `COPY . .`, so the image shipped `.env` (the rotated JWT secret), `data/koshi.db` (a developer database with bcrypt hashes) and the host `.venv`. The database copy also seeded the runtime volume, so `alembic upgrade head` ran against a pre-existing schema and the container refused to start. | `source/backend/Dockerfile` | **Critical** | ✅ Closed — DEC-018 |
+| F-33 | `AIDecomposerModal` and `GitDiffModal` reported "Inserted!" / "Applied to Tasks!" and closed after writing nothing, because every store write is a no-op on a read-only project (INV-15). The user was told their work was saved when it was not. | `AIDecomposerModal.vue`, `GitDiffModal.vue` | High | ✅ Closed — DEC-018 |
+| F-34 | `WeeklySummaryModal` returned early with no project selected without clearing `isLoading`, so it span forever and hid its own error message behind the spinner. | `WeeklySummaryModal.vue` | Medium | ✅ Closed — DEC-018 |
 | F-23 | Deleting the SQLite file under a running uvicorn leaves it writing to a deleted inode ("attempt to write a readonly database"). Restart the process, do not just replace the file. | operational | Low | Open — documented here |
+
+### DEC-018 — gitParser and the AI modals tested; a secret-leaking image found
+
+**Date:** 2026-08-28 · **Closes:** D5 GAP-03, GAP-13 · **Tests:** frontend 188 → 260
+
+**What was asked.** Finish the last two documented coverage gaps, and bring the stack up under
+Docker on this machine.
+
+**What the tests found.** GAP-13 was filed as low value — "each modal is a thin shell over an
+endpoint already covered server-side". That was wrong in one specific way. The two modals that
+*write* to the board are not thin shells: they translate an AI result into a batch of store
+mutations, and neither checked whether the store would accept them. On a shared project offline
+every write is a no-op (INV-15), so both modals ran their loop, wrote nothing, flashed a success
+message and closed (F-33). This is the failure mode the offline policy exists to prevent — a user
+believing their work is saved — reintroduced one layer above the gate. The lesson generalises:
+*a component that batches store writes needs the same gate the store has, because the store's
+refusal is silent.*
+
+`gitParser.ts` (GAP-03) held a worse one. Its BLOCKED-task heuristic resolved a task when any word
+longer than three characters from its title appeared **as a substring** of the diff. A task blocked
+on "Migrate the store" was therefore resolved by any diff mentioning `taskStore` — and
+`GitDiffModal` then offered to mark it DONE. Narrowed to a whole-word match (F-30). The heuristic
+itself remains: see OQ-08.
+
+**What Docker found.** Neither image was usable.
+
+The frontend image could not be built: `corepack enable` with no pinned pnpm version fetches the
+newest release, which now requires a newer Node than `node:20` provides (F-31). Fixed by adding
+`packageManager: pnpm@10.18.3` to `package.json` — so corepack resolves the pnpm the lockfile was
+actually written by — and moving the builder to `node:22`.
+
+The backend image was worse. `COPY . .` with no `.dockerignore` had been shipping `.env` — the
+rotated JWT secret, the one thing D6 §7.1 says must never enter source control or an image —
+together with a developer's `data/koshi.db` (real user rows and bcrypt hashes) and the host
+`.venv`. Anyone able to pull the image or `exec` into a container could read the signing key and
+forge sessions for any account (F-32). It also broke startup: Docker seeds a fresh named volume
+from the image's directory contents, so `/app/data/koshi.db` arrived pre-populated at the old
+pre-`ProjectMember` schema and `alembic upgrade head` failed on `table users already exists`.
+
+This had been true of the **production** compose file all along, not only the new dev one. The
+secret must be treated as exposed to anyone who has held that image, and rotated again before the
+next deploy. Recorded as RISK-19.
+
+**Local stack.** `docker-compose.dev.yml`, separate from the deployment file rather than an
+override of it: the deployment file expects an external `proxy-net`, a real secret and a reverse
+proxy, which is the right shape for the server and the wrong one for a laptop. The dev backend runs
+`alembic upgrade head` before serving even though development mode would happily `create_all()` —
+otherwise the migrations are never exercised until a production deploy, which is exactly when you
+do not want to find out they are broken. Both migrations now run clean from an empty database, and
+login through nginx returns a token.
+
+**Rejected: "fixing" F-29 by populating `blockedTaskIds`.** Nothing in the parser detects a
+*newly* blocked task, so filling the field would mean inventing a heuristic for it. Writing BLOCKED
+is destructive and the existing heuristics are already too loose. Left dead and documented; the
+field should probably be removed from the contract instead (OQ-08).
+
+**Verification.** frontend 260 passed, backend 38 passed, `tsc --noEmit` clean, build clean.
+14 seeded mutations across the parser and the modals: 13 caught, 1 surviving and recorded in
+D5 §5 rather than hidden — the blank-diff guard in `handleAnalyze` is unreachable behind a
+`:disabled` button, so no component test can reach it.
 
 ## Part III — Timeline
 
@@ -838,3 +904,44 @@ Observations that are not yet decisions. Each should become a decision or a work
 | **2026-08-28** | Guest mode removed; offline writes narrowed to personal projects; marketing landing page; en/vi localisation; store tests (DEC-015). Frontend suite → 61. |
 | **2026-08-28** | Component tests for the four highest-risk `.vue` files; GAP-10/RISK-17 closed; two false-pass tests corrected (DEC-016). Frontend suite → 122. |
 | **2026-08-28** | Keyboard dispatcher and board views tested; GAP-12 closed; F-20 remnant and F-27 found (DEC-017). Frontend suite → 188. |
+| **2026-08-28** | `gitParser` and the AI modals tested; GAP-03/GAP-13 closed. Docker images found to be unbuildable (F-31) and to ship the JWT secret (F-32); local stack added (DEC-018). Frontend suite → 260. |
+
+## Part IV — Open questions
+
+Questions the code cannot answer for itself. Each needs a human decision, and each is referenced
+from the finding or decision that raised it.
+
+- **OQ-04** — should `/ai/decompose` keep returning hardcoded subtasks? (product)
+- **OQ-07** — should `blocking_reason` be mandatory on BLOCKED, given `cycle-status` enters BLOCKED
+  with no reason? (product; see F-09)
+
+### OQ-08 — Should the Git diff analyser guess at all?
+
+`parseGitDiff` has two ways to resolve a task. One is explicit and correct: `closes #TSK-12` in the
+commit message. The other resolves any **BLOCKED** task whose title shares a word with the diff,
+with no closing keyword required — and `GitDiffModal` offers to write DONE for both without
+distinguishing them.
+
+F-30 narrowed this from substring to whole-word matching, which removes the worst false positives
+but not the category. A task blocked on "Migrate the store" is still resolved by an unrelated diff
+that happens to say "store". The failure is silent and destructive: work marked DONE that is not.
+
+Three options, in order of preference:
+
+1. **Drop the heuristic.** Resolve only on an explicit closing keyword. Loses a feature nobody has
+   asked for; makes the output trustworthy.
+2. **Keep it but separate it in the UI.** Two lists — "closes, per the commit message" and
+   "possibly related" — with only the first selected by default.
+3. **Leave as is.** Only defensible if the modal stops being one click from a bulk status write.
+
+Related: F-29 — `blockedTaskIds` is in the contract, always empty, and read by dead code. Whichever
+option is chosen, that field should go.
+
+**Also unresolved:** the secret scanner's coverage. It matches `keyword = "literal"` only, so it
+misses the JSON/YAML colon form (`"api_key": "..."`), `Authorization: Bearer ...`, and any name
+where the keyword is not immediately adjacent to the `=` — including `JWT_SECRET_VALUE = "..."`.
+`gitParser.test.ts` pins each of these as a known miss. A clean report from this scanner is not
+evidence that a diff is free of credentials, and D6 §7.1 should not be read as if it were.
+
+**Owner:** product. **Blocking:** nothing; the modal is usable and now honest about read-only
+projects.

@@ -22,13 +22,17 @@ Guidance for AI agents working in this repository. **Read `documentation/` befor
 cd source/backend && pytest -q          # expect: 38 passed
 
 # Frontend
-pnpm test                               # expect: 188 passed (vitest)
+pnpm test                               # expect: 260 passed (vitest)
 pnpm run build                          # vue-tsc -b && vite build
 ```
 
-Vitest covers both stores, every pure module including the keyboard dispatcher, and seven
+Vitest covers both stores, every pure module including the keyboard dispatcher, and thirteen
 components. Component and keyboard tests opt into jsdom with a `// @vitest-environment jsdom`
-docblock. **Untested:** `lib/gitParser.ts` and the six AI modals.
+docblock. Every non-trivial frontend module now has tests; what is left unverified is the AI
+*cascade* (no test tells a real LLM answer from the deterministic fallback — D5 GAP-04) and the
+IndexedDB round-trip, which is mocked everywhere.
+
+Local stack: `docker compose -f docker-compose.dev.yml up -d --build`, then `localhost:8080`.
 
 ## Standing rules
 
@@ -36,8 +40,7 @@ docblock. **Untested:** `lib/gitParser.ts` and the six AI modals.
   set exists because the previous docs confidently described behaviour the code did not have.
 - **Scope discipline.** Fix what was asked. A drive-by fix of a known critical risk while doing
   something else is still a red-zone violation.
-- **Test before touching untested logic.** For any 🟡 file with no coverage — `lib/gitParser.ts`
-  and the AI modals — write the characterisation test first, confirm it passes against current
+- **Test before touching untested logic.** Write the characterisation test first, confirm it passes against current
   behaviour, then change the code. A suite that has never failed proves nothing: seed a defect,
   confirm it is caught, revert. If a mutation seems to survive, check it actually ran — one that
   breaks template compilation reports "no tests", which reads as a false pass.
@@ -50,7 +53,12 @@ docblock. **Untested:** `lib/gitParser.ts` and the six AI modals.
   incomplete work.
 - **Scope bulk edits** to `source/` and `documentation/`. Never `submission/`, `node_modules/`,
   `.venv/`, or `dist/`.
-- **No secrets in source.** The repo already has a hardcoded JWT secret problem; don't widen it.
+- **No secrets in source, and none in images.** The repo has a hardcoded-JWT-secret history; don't
+  widen it. `source/backend/.dockerignore` is what keeps `.env` out of the published image — it
+  exists because the image was shipping the signing key (F-32). Adding a file that holds anything
+  you would not publish means updating that ignore list first.
+- **A modal that batches store writes must check `taskStore.canMutate` itself.** The store refuses
+  silently, so the modal otherwise reports success having written nothing (F-33).
 
 Full policy set: [D6 §6](./documentation/D6-risks-delegation-policies.md).
 

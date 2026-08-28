@@ -76,6 +76,10 @@ async function loadSummary() {
   const projectId = taskStore.currentProjectId;
   if (projectId === null) {
     errorMsg.value = 'Select a project first.';
+    // isLoading starts true, so returning without clearing it left the modal
+    // showing "Aggregating live task data..." forever and the error invisible
+    // behind the spinner (F-34).
+    isLoading.value = false;
     return;
   }
   isLoading.value = true;
