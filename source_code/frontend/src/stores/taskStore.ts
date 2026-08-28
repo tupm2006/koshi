@@ -239,7 +239,7 @@ export const useTaskStore = defineStore('taskStore', {
       try {
         const backendTasks = await api.getTasks(projectId);
         if (backendTasks && Array.isArray(backendTasks)) {
-          const mapped: Task[] = backendTasks.map((t) => ({
+          const serverMapped: Task[] = backendTasks.map((t) => ({
             id: `TSK-${t.id}`,
             title: t.title,
             description: t.description || '',
@@ -253,7 +253,22 @@ export const useTaskStore = defineStore('taskStore', {
             createdAt: new Date(t.created_at).getTime(),
             updatedAt: new Date(t.updated_at).getTime(),
           }));
-          this.tasks = mapped;
+
+          // Preserve any in-flight local optimistic tasks (e.g. TSK-temp-*)
+          const pendingOptimistic = this.tasks.filter((t) => t.id.startsWith('TSK-temp-'));
+          
+          const merged: Task[] = [...pendingOptimistic];
+          for (const sTask of serverMapped) {
+            const local = this.tasks.find((t) => t.id === sTask.id);
+            if (local && local.updatedAt > sTask.updatedAt) {
+              // Local is more recent (optimistic edit in flight)
+              merged.push(local);
+            } else {
+              merged.push(sTask);
+            }
+          }
+
+          this.tasks = merged;
           this.isBackendConnected = true;
           await this.persist();
         }
@@ -363,11 +378,11 @@ export const useTaskStore = defineStore('taskStore', {
       const nextNum = this.tasks.length > 0
         ? Math.max(...this.tasks.map((t) => parseInt(t.id.replace(/\D/g, ''), 10) || 100)) + 1
         : 101;
-      const id = `TSK-${nextNum}`;
+      const tempId = `TSK-temp-${Date.now()}-${nextNum}`;
       const now = Date.now();
 
       const newTask: Task = {
-        id,
+        id: tempId,
         title: title.trim(),
         status,
         priority,
@@ -388,7 +403,34 @@ export const useTaskStore = defineStore('taskStore', {
           status: newTask.status,
           priority: newTask.priority,
           complexity_points: 2,
-        }).catch((e) => console.warn('Background API create failed:', e));
+        })
+        .then((serverTask) => {
+          if (serverTask && serverTask.id) {
+            const realId = `TSK-${serverTask.id}`;
+            // Reconcile temporary ID to permanent server ID across tasks and dependency arrays
+            this.tasks = this.tasks.map((t) => {
+              let updated = t;
+              if (t.id === tempId) {
+                updated = { ...updated, id: realId };
+              }
+              if (t.dependencies && t.dependencies.includes(tempId)) {
+                updated = {
+                  ...updated,
+                  dependencies: (t.dependencies || []).map((d) => (d === tempId ? realId : d)),
+                };
+              }
+              return updated;
+            });
+            if (this.activeDetailTaskId === tempId) {
+              this.activeDetailTaskId = realId;
+            }
+            if (this.editingTaskId === tempId) {
+              this.editingTaskId = realId;
+            }
+            this.persist();
+          }
+        })
+        .catch((e) => console.warn('Background API create failed:', e));
       }
 
       return newTask;

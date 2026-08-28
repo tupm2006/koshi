@@ -1,21 +1,20 @@
 import pytest
+import json
+import base64
 from fastapi.testclient import TestClient
 
 def test_register_and_login_flow(client: TestClient):
-    # 1. Register new user
+    # 1. Register new user with only full_name, email, password
     reg_data = {
         "email": "auditor@tupm.qzz.io",
         "password": "securepassword123",
-        "full_name": "Audit Inspector",
-        "role": "PM",
-        "skills": "security,audit,python"
+        "full_name": "Audit Inspector"
     }
     res = client.post("/api/auth/register", json=reg_data)
     assert res.status_code == 201
     data = res.json()
     assert "access_token" in data
     assert data["user"]["email"] == "auditor@tupm.qzz.io"
-    assert data["user"]["role"] == "PM"
 
     # 2. Prevent duplicate email registration
     res_dup = client.post("/api/auth/register", json=reg_data)
@@ -42,9 +41,6 @@ def test_unauthenticated_request_rejected(client: TestClient):
     res = client.get("/api/auth/me")
     assert res.status_code == 401
 
-import json
-import base64
-
 def test_google_oauth_and_user_management_flow(client: TestClient):
     # 1. Simulate Google ID token
     header = base64.urlsafe_b64encode(json.dumps({"alg": "RS256", "typ": "JWT"}).encode()).decode().rstrip("=")
@@ -65,23 +61,40 @@ def test_google_oauth_and_user_management_flow(client: TestClient):
     user_id = auth_data["user"]["id"]
     token = auth_data["access_token"]
 
-    # 2. Query all users (Authenticated)
-    users_res = client.get("/api/users", headers={"Authorization": f"Bearer {token}"})
-    assert users_res.status_code == 200
-    user_list = users_res.json()
-    assert any(u["email"] == "google.dev@tupm.qzz.io" for u in user_list)
+    # 2. Query user search API (/api/users/search and /api/v1/users/search)
+    search_res = client.get("/api/v1/users/search?q=google", headers={"Authorization": f"Bearer {token}"})
+    assert search_res.status_code == 200
+    search_list = search_res.json()
+    assert len(search_list) >= 1
+    assert search_list[0]["email"] == "google.dev@tupm.qzz.io"
 
-    # 3. Test PM User role update
-    # Login as default seed PM
-    pm_login = client.post("/api/auth/login", json={"email": "pm@tupm.qzz.io", "password": "koshi123"})
-    assert pm_login.status_code == 200
-    pm_token = pm_login.json()["access_token"]
-
-    patch_res = client.patch(
-        f"/api/users/{user_id}",
-        json={"role": "PM", "skills": "golang,kubernetes,vue"},
-        headers={"Authorization": f"Bearer {pm_token}"}
+    # 3. Test Project creation & auto-owner assignment
+    proj_res = client.post(
+        "/api/v1/projects",
+        json={"name": "OAuth Test Workspace", "description": "Testing project membership"},
+        headers={"Authorization": f"Bearer {token}"}
     )
-    assert patch_res.status_code == 200
-    assert patch_res.json()["role"] == "PM"
-    assert patch_res.json()["skills"] == "golang,kubernetes,vue"
+    assert proj_res.status_code == 201
+    proj_id = proj_res.json()["id"]
+
+    # 4. Verify project members list
+    members_res = client.get(f"/api/v1/projects/{proj_id}/members", headers={"Authorization": f"Bearer {token}"})
+    assert members_res.status_code == 200
+    members = members_res.json()
+    assert len(members) == 1
+    assert members[0]["user_id"] == user_id
+    assert members[0]["role"] == "OWNER"
+
+    # 5. Add second member to project
+    # Login as seed PM
+    pm_login = client.post("/api/auth/login", json={"email": "pm@tupm.qzz.io", "password": "koshi123"})
+    pm_token = pm_login.json()["access_token"]
+    pm_id = pm_login.json()["user"]["id"]
+
+    add_mem_res = client.post(
+        f"/api/v1/projects/{proj_id}/members",
+        json={"user_id": pm_id, "role": "PM"},
+        headers={"Authorization": f"Bearer {token}"}
+    )
+    assert add_mem_res.status_code == 201
+    assert add_mem_res.json()["role"] == "PM"

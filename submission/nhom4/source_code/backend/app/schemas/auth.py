@@ -8,7 +8,7 @@ class UserRegister(BaseModel):
     password: str
     full_name: str
     role: Optional[RoleEnum] = RoleEnum.MEMBER
-    skills: Optional[str] = "python,svelte,sql"
+    skills: Optional[str] = ""
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -34,6 +34,9 @@ class UserOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+# Alias for search responses
+UserResponse = UserOut
 
 class UserWithWIPOut(UserOut):
     active_tasks_count: int = 0

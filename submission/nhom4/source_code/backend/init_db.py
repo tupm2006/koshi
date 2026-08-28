@@ -27,23 +27,28 @@ def init_database():
     cursor.execute("SELECT COUNT(*) FROM users")
     if cursor.fetchone()[0] == 0:
         cursor.execute("""
-            INSERT INTO users (email, hashed_password, full_name, role, skills)
-            VALUES (?, ?, ?, ?, ?)
-        """, ("pm@tupm.qzz.io", hash_pw("admin123"), "Phạm Minh Tú (PM)", "PM", "architecture,fastapi,vue,devops"))
+            INSERT INTO users (email, hashed_password, full_name, skills)
+            VALUES (?, ?, ?, ?)
+        """, ("pm@tupm.qzz.io", hash_pw("admin123"), "Phạm Minh Tú (PM)", "architecture,fastapi,vue,devops"))
         
         cursor.execute("""
-            INSERT INTO users (email, hashed_password, full_name, role, skills)
-            VALUES (?, ?, ?, ?, ?)
-        """, ("huynh@tupm.qzz.io", hash_pw("user123"), "Phạm Văn Huynh", "MEMBER", "backend,python,testing,sql"))
+            INSERT INTO users (email, hashed_password, full_name, skills)
+            VALUES (?, ?, ?, ?)
+        """, ("huynh@tupm.qzz.io", hash_pw("user123"), "Phạm Văn Huynh", "backend,python,testing,sql"))
         
         cursor.execute("""
-            INSERT INTO users (email, hashed_password, full_name, role, skills)
-            VALUES (?, ?, ?, ?, ?)
-        """, ("don@tupm.qzz.io", hash_pw("user123"), "Đàm Đức Đôn", "MEMBER", "frontend,vue,ui,css"))
+            INSERT INTO users (email, hashed_password, full_name, skills)
+            VALUES (?, ?, ?, ?)
+        """, ("don@tupm.qzz.io", hash_pw("user123"), "Đàm Đức Đôn", "frontend,vue,ui,css"))
         
         cursor.execute("""
             INSERT INTO projects (name, description, owner_id)
             VALUES ('Koshi Core Engine', 'High-velocity project management tracker', 1)
+        """)
+        
+        cursor.execute("""
+            INSERT INTO project_members (project_id, user_id, role)
+            VALUES (1, 1, 'OWNER'), (1, 2, 'MEMBER'), (1, 3, 'MEMBER')
         """)
         
         cursor.execute("""

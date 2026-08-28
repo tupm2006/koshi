@@ -1,13 +1,13 @@
 import bcrypt
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, List
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
-from app.models.entities import User, RoleEnum
+from app.models.entities import User, RoleEnum, Project, ProjectMember, ProjectMemberRoleEnum
 from app.schemas.auth import TokenPayload
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_PREFIX}/auth/login")
@@ -78,3 +78,41 @@ def require_role(required_role: RoleEnum):
         return current_user
     return role_checker
 
+def get_project_member_role(project_id: int, user_id: int, db: Session) -> Optional[ProjectMemberRoleEnum]:
+    """Returns user's role in the project, or None if not a member."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        return None
+    if project.owner_id == user_id:
+        return ProjectMemberRoleEnum.OWNER
+    membership = db.query(ProjectMember).filter(
+        ProjectMember.project_id == project_id,
+        ProjectMember.user_id == user_id
+    ).first()
+    if membership:
+        return membership.role
+    return None
+
+def verify_project_membership(
+    project_id: int,
+    user_id: int,
+    db: Session,
+    allowed_roles: Optional[List[ProjectMemberRoleEnum]] = None
+) -> ProjectMemberRoleEnum:
+    """Verifies user is a member of the project; raises 403 Forbidden if not."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
+        
+    role = get_project_member_role(project_id, user_id, db)
+    if role is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access forbidden: You are not a member of project {project_id}"
+        )
+    if allowed_roles and role not in allowed_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Access forbidden: Requires one of roles: {[r.value for r in allowed_roles]}"
+        )
+    return role

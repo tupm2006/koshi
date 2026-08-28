@@ -10,26 +10,18 @@ from app.schemas.project import (
     ProjectMemberUpdate,
     ProjectMemberOut,
 )
-from app.security import get_current_user
+from app.security import get_current_user, verify_project_membership, get_project_member_role
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
-def check_project_admin(project_id: int, user_id: int, db: Session) -> bool:
-    project = db.query(Project).filter(Project.id == project_id).first()
-    if not project:
-        return False
-    if project.owner_id == user_id:
-        return True
-    membership = db.query(ProjectMember).filter(
-        ProjectMember.project_id == project_id,
-        ProjectMember.user_id == user_id,
-        ProjectMember.role.in_([ProjectMemberRoleEnum.OWNER, ProjectMemberRoleEnum.PM])
-    ).first()
-    return membership is not None
-
 @router.get("", response_model=List[ProjectOut])
 def list_projects(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(Project).all()
+    # Return projects that the user owns or is a member of
+    user_memberships = db.query(ProjectMember.project_id).filter(ProjectMember.user_id == current_user.id).subquery()
+    projects = db.query(Project).filter(
+        (Project.owner_id == current_user.id) | (Project.id.in_(user_memberships))
+    ).all()
+    return projects
 
 @router.post("", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)
 def create_project(req: ProjectCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -55,6 +47,7 @@ def create_project(req: ProjectCreate, db: Session = Depends(get_db), current_us
 
 @router.get("/{project_id}", response_model=ProjectOut)
 def get_project(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    verify_project_membership(project_id, current_user.id, db)
     proj = db.query(Project).filter(Project.id == project_id).first()
     if not proj:
         raise HTTPException(status_code=404, detail="Project not found")
@@ -66,10 +59,7 @@ def list_project_members(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
-        raise HTTPException(status_code=404, detail="Project not found")
-
+    verify_project_membership(project_id, current_user.id, db)
     members = db.query(ProjectMember).filter(ProjectMember.project_id == project_id).all()
     return members
 
@@ -80,15 +70,8 @@ def add_project_member(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    if not check_project_admin(project_id, current_user.id, db):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only project owners or project managers can add team members"
-        )
+    # Only OWNER or PM can add members
+    verify_project_membership(project_id, current_user.id, db, allowed_roles=[ProjectMemberRoleEnum.OWNER, ProjectMemberRoleEnum.PM])
 
     target_user = db.query(User).filter(User.id == req.user_id).first()
     if not target_user:
@@ -119,15 +102,7 @@ def update_project_member_role(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    if not check_project_admin(project_id, current_user.id, db):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only project owners or project managers can modify roles"
-        )
+    verify_project_membership(project_id, current_user.id, db, allowed_roles=[ProjectMemberRoleEnum.OWNER, ProjectMemberRoleEnum.PM])
 
     membership = db.query(ProjectMember).filter(
         ProjectMember.project_id == project_id,
@@ -148,17 +123,12 @@ def remove_project_member(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    # Allow users to leave project themselves or admins to remove others
+    # Allow users to leave project themselves, or OWNER/PM to remove others
     is_self = current_user.id == user_id
-    if not is_self and not check_project_admin(project_id, current_user.id, db):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only project admins can remove other members"
-        )
+    if not is_self:
+        verify_project_membership(project_id, current_user.id, db, allowed_roles=[ProjectMemberRoleEnum.OWNER, ProjectMemberRoleEnum.PM])
+    else:
+        verify_project_membership(project_id, current_user.id, db)
 
     membership = db.query(ProjectMember).filter(
         ProjectMember.project_id == project_id,

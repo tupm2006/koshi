@@ -19,6 +19,12 @@ def init_database():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
+    # Enforce SQLite WAL concurrency and foreign keys
+    cursor.execute("PRAGMA journal_mode = WAL;")
+    cursor.execute("PRAGMA synchronous = NORMAL;")
+    cursor.execute("PRAGMA foreign_keys = ON;")
+    cursor.execute("PRAGMA busy_timeout = 30000;")
+    
     schema_path = os.path.join(os.path.dirname(__file__), "db", "schema.sql")
     with open(schema_path, "r", encoding="utf-8") as f:
         cursor.executescript(f.read())
@@ -58,23 +64,23 @@ def init_database():
         
         cursor.execute("""
             INSERT INTO tasks (id, project_id, sprint_id, assignee_id, title, description, status, priority, complexity_points)
-            VALUES ('TSK-1', 1, 1, 1, 'Implement FastAPI backend with SQLite', 'Setup entities and routers', 'DONE', 'HIGH', 3)
+            VALUES (1, 1, 1, 1, 'Implement FastAPI backend with SQLite', 'Setup entities and routers', 'DONE', 'HIGH', 3)
         """)
         cursor.execute("""
             INSERT INTO tasks (id, project_id, sprint_id, assignee_id, title, description, status, priority, complexity_points)
-            VALUES ('TSK-2', 1, 1, 2, 'Build 2D Spatial Kanban Navigation', 'Vim hotkeys and focus tracking', 'IN_PROGRESS', 'CRITICAL', 3)
+            VALUES (2, 1, 1, 2, 'Build 2D Spatial Kanban Navigation', 'Vim hotkeys and focus tracking', 'IN_PROGRESS', 'CRITICAL', 3)
         """)
         cursor.execute("""
             INSERT INTO tasks (id, project_id, sprint_id, assignee_id, title, description, status, priority, complexity_points, blocking_reason)
-            VALUES ('TSK-3', 1, 1, 3, 'Integrate AI PM Workflow Endpoints', 'Weekly summary and minutes extraction', 'BLOCKED', 'HIGH', 2, 'Waiting on API token configuration')
+            VALUES (3, 1, 1, 3, 'Integrate AI PM Workflow Endpoints', 'Weekly summary and minutes extraction', 'BLOCKED', 'HIGH', 2, 'Waiting on API token configuration')
         """)
         
-        cursor.execute("INSERT INTO task_dependencies (task_id, depends_on_task_id) VALUES ('TSK-2', 'TSK-1')")
-        cursor.execute("INSERT INTO task_dependencies (task_id, depends_on_task_id) VALUES ('TSK-3', 'TSK-1')")
+        cursor.execute("INSERT INTO task_dependencies (task_id, depends_on_task_id) VALUES (2, 1)")
+        cursor.execute("INSERT INTO task_dependencies (task_id, depends_on_task_id) VALUES (3, 1)")
         
         conn.commit()
     conn.close()
-    print(f"Database initialized and seeded at: {DB_PATH}")
+    print(f"Database initialized with WAL mode and seeded at: {DB_PATH}")
 
 if __name__ == "__main__":
     init_database()
