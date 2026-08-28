@@ -41,17 +41,19 @@ def register(req: UserRegisterRequest, db: Session = Depends(get_db)):
             detail="An account with this email address already exists."
         )
 
+    user_role = req.role if getattr(req, "role", None) else (RoleEnum.PM if ("tupm" in email_clean or "pm" in email_clean) else RoleEnum.MEMBER)
     user = User(
         email=email_clean,
         hashed_password=get_password_hash(req.password),
         full_name=req.full_name.strip(),
-        role=RoleEnum.MEMBER
+        role=user_role,
+        skills=getattr(req, "skills", "") or ""
     )
     db.add(user)
     db.commit()
     db.refresh(user)
 
-    # Auto-assign to default Project #1 as MEMBER
+    # Auto-assign to default Project #1
     default_proj = db.query(Project).filter(Project.id == 1).first()
     if default_proj:
         member_record = db.query(ProjectMember).filter(
@@ -59,13 +61,15 @@ def register(req: UserRegisterRequest, db: Session = Depends(get_db)):
             ProjectMember.user_id == user.id
         ).first()
         if not member_record:
+            is_pm = (user.role == RoleEnum.PM) or (hasattr(user.role, 'value') and user.role.value == "PM")
             membership = ProjectMember(
                 project_id=1,
                 user_id=user.id,
-                role=ProjectMemberRoleEnum.MEMBER
+                role=ProjectMemberRoleEnum.PM if is_pm else ProjectMemberRoleEnum.MEMBER
             )
             db.add(membership)
             db.commit()
+
 
     role_val = user.role.value if hasattr(user.role, 'value') else str(user.role)
     token = create_access_token(data={"sub": str(user.id), "email": user.email, "role": role_val})

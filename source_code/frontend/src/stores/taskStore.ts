@@ -306,14 +306,19 @@ export const useTaskStore = defineStore('taskStore', {
             description: t.description || '',
             status: t.status as TaskStatus,
             priority: t.priority as TaskPriority,
+            requestedPriority: t.requested_priority || null,
+            priorityRequestReason: t.priority_request_reason || null,
             complexity: t.complexity_points === 1 ? 'S' : t.complexity_points === 2 ? 'M' : t.complexity_points === 3 ? 'L' : 'XL',
             dueDate: t.due_date,
+            isOverdue: t.is_overdue || false,
+            slipDays: t.slip_days || 0,
             blockingReason: t.blocking_reason,
             dependencies: t.dependencies || [],
             acceptanceCriteria: t.acceptance_criteria || [],
             createdAt: new Date(t.created_at).getTime(),
             updatedAt: new Date(t.updated_at).getTime(),
           }));
+
 
           // Preserve any in-flight local optimistic tasks (e.g. TSK-temp-*)
           const pendingOptimistic = this.tasks.filter((t) => t.id.startsWith('TSK-temp-'));

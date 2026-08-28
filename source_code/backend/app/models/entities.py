@@ -44,7 +44,7 @@ class User(Base):
 
     memberships = relationship("ProjectMember", back_populates="user", cascade="all, delete-orphan")
     project_memberships = relationship("ProjectMember", back_populates="user", viewonly=True)
-    assigned_tasks = relationship("Task", back_populates="assignee")
+    assigned_tasks = relationship("Task", foreign_keys="Task.assignee_id", back_populates="assignee")
     comments = relationship("Comment", back_populates="author")
     owned_projects = relationship("Project", back_populates="owner")
 
@@ -102,6 +102,12 @@ class Task(Base):
     description = Column(Text, default="")
     status = Column(Enum(TaskStatusEnum), default=TaskStatusEnum.TODO, nullable=False)
     priority = Column(Enum(TaskPriorityEnum), default=TaskPriorityEnum.MEDIUM, nullable=False)
+    
+    # Priority Change Request Governance
+    requested_priority = Column(String(20), nullable=True)
+    priority_request_reason = Column(String(255), nullable=True)
+    priority_requested_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
     complexity_points = Column(Integer, default=2)
     due_date = Column(DateTime, nullable=True)
     blocking_reason = Column(String(255), nullable=True)
@@ -112,7 +118,8 @@ class Task(Base):
 
     project = relationship("Project", back_populates="tasks")
     sprint = relationship("Sprint", back_populates="tasks")
-    assignee = relationship("User", back_populates="assigned_tasks")
+    assignee = relationship("User", foreign_keys=[assignee_id], back_populates="assigned_tasks")
+    priority_requested_by = relationship("User", foreign_keys=[priority_requested_by_id])
     comments = relationship("Comment", back_populates="task", cascade="all, delete-orphan")
 
     @property

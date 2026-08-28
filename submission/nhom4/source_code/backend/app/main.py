@@ -148,6 +148,16 @@ def migrate_database():
                     conn.execute(text("ALTER TABLE users ADD COLUMN google_id VARCHAR(255)"))
                 if "avatar_url" not in columns:
                     conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(500)"))
+            # Ensure priority governance columns exist in tasks
+            result_tasks = conn.execute(text("PRAGMA table_info(tasks)"))
+            t_cols = [row[1] for row in result_tasks.fetchall()]
+            if t_cols:
+                if "requested_priority" not in t_cols:
+                    conn.execute(text("ALTER TABLE tasks ADD COLUMN requested_priority VARCHAR(20) DEFAULT NULL"))
+                if "priority_request_reason" not in t_cols:
+                    conn.execute(text("ALTER TABLE tasks ADD COLUMN priority_request_reason VARCHAR(255) DEFAULT NULL"))
+                if "priority_requested_by_id" not in t_cols:
+                    conn.execute(text("ALTER TABLE tasks ADD COLUMN priority_requested_by_id INTEGER DEFAULT NULL"))
             # Ensure project_members table exists
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS project_members (
@@ -161,6 +171,7 @@ def migrate_database():
             """))
     except Exception as e:
         print("Migration notice:", e)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

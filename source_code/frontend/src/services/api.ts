@@ -226,6 +226,29 @@ export class ApiService {
     });
   }
 
+  async requestPriority(id: string | number, requestedPriority: string, reason: string) {
+    const cleanId = typeof id === 'string' ? id.replace(/\D/g, '') : id;
+    return this.request<any>(`/tasks/${cleanId}/request-priority`, {
+      method: 'POST',
+      body: JSON.stringify({ requested_priority: requestedPriority, reason })
+    });
+  }
+
+  async approvePriority(id: string | number) {
+    const cleanId = typeof id === 'string' ? id.replace(/\D/g, '') : id;
+    return this.request<any>(`/tasks/${cleanId}/approve-priority`, {
+      method: 'POST'
+    });
+  }
+
+  async rejectPriority(id: string | number) {
+    const cleanId = typeof id === 'string' ? id.replace(/\D/g, '') : id;
+    return this.request<any>(`/tasks/${cleanId}/reject-priority`, {
+      method: 'POST'
+    });
+  }
+
+
   async getWeeklySummary(projectId = 1) {
     return this.request<{ status: string; summary: string }>(`/ai/weekly-summary?project_id=${projectId}`, {
       method: 'POST'

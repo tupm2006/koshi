@@ -8,14 +8,19 @@ export interface Task {
   description?: string;
   status: TaskStatus;
   priority: TaskPriority;
+  requestedPriority?: TaskPriority | null;
+  priorityRequestReason?: string | null;
+  priorityRequestedById?: number | null;
+  complexity?: Complexity;
   assignee?: string;
   dueDate?: string; // ISO 8601
+  isOverdue?: boolean;
+  slipDays?: number;
   blockingReason?: string;
   createdAt: number;
   updatedAt: number;
   // Graph / DAG metadata
   dependencies?: string[]; // IDs of tasks this task depends on
-  complexity?: 'S' | 'M' | 'L' | 'XL';
   acceptanceCriteria?: string[];
 }
 
