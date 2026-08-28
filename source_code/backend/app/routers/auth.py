@@ -129,6 +129,7 @@ def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
         role = RoleEnum.PM if total_users == 0 else RoleEnum.MEMBER
         user = User(
             email=email,
+            hashed_password="",
             full_name=full_name or email.split("@")[0],
             google_id=google_id,
             avatar_url=avatar_url,
