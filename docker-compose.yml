@@ -16,13 +16,24 @@ services:
       - OLLAMA_URL=http://host.docker.internal:11434/v1/chat/completions
     volumes:
       - koshi-data:/app/data
+    ports:
+      - "8000:8000"
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1024M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    networks:
+      - proxy-net
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
-      interval: 10s
+      interval: 15s
       timeout: 5s
       retries: 3
-    networks:
-      - koshi-internal
+      start_period: 10s
 
   koshi-frontend:
     build:
@@ -30,18 +41,23 @@ services:
       dockerfile: Dockerfile
     container_name: koshi
     restart: unless-stopped
+    ports:
+      - "3000:80"
     depends_on:
       koshi-backend:
         condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
     networks:
-      - koshi-internal
       - proxy-net
 
 volumes:
   koshi-data:
 
 networks:
-  koshi-internal:
-    driver: bridge
   proxy-net:
-    external: true
+    name: proxy-net
+    driver: bridge
