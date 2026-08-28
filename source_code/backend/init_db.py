@@ -63,20 +63,20 @@ def init_database():
         """)
         
         cursor.execute("""
-            INSERT INTO tasks (id, project_id, sprint_id, assignee_id, title, description, status, priority, complexity_points)
-            VALUES (1, 1, 1, 1, 'Implement FastAPI backend with SQLite', 'Setup entities and routers', 'DONE', 'HIGH', 3)
+            INSERT INTO tasks (id, project_id, sprint_id, assignee_id, title, description, status, priority, complexity_points, dependencies_json)
+            VALUES (1, 1, 1, 1, 'Implement FastAPI backend with SQLite', 'Setup entities and routers', 'DONE', 'HIGH', 3, '[]')
         """)
         cursor.execute("""
-            INSERT INTO tasks (id, project_id, sprint_id, assignee_id, title, description, status, priority, complexity_points)
-            VALUES (2, 1, 1, 2, 'Build 2D Spatial Kanban Navigation', 'Vim hotkeys and focus tracking', 'IN_PROGRESS', 'CRITICAL', 3)
+            INSERT INTO tasks (id, project_id, sprint_id, assignee_id, title, description, status, priority, complexity_points, dependencies_json)
+            VALUES (2, 1, 1, 2, 'Build 2D Spatial Kanban Navigation', 'Vim hotkeys and focus tracking', 'IN_PROGRESS', 'CRITICAL', 3, '[1]')
         """)
         cursor.execute("""
-            INSERT INTO tasks (id, project_id, sprint_id, assignee_id, title, description, status, priority, complexity_points, blocking_reason)
-            VALUES (3, 1, 1, 3, 'Integrate AI PM Workflow Endpoints', 'Weekly summary and minutes extraction', 'BLOCKED', 'HIGH', 2, 'Waiting on API token configuration')
+            INSERT INTO tasks (id, project_id, sprint_id, assignee_id, title, description, status, priority, complexity_points, blocking_reason, dependencies_json)
+            VALUES (3, 1, 1, 3, 'Integrate AI PM Workflow Endpoints', 'Weekly summary and minutes extraction', 'BLOCKED', 'HIGH', 2, 'Waiting on API token configuration', '[1]')
         """)
         
-        cursor.execute("INSERT INTO task_dependencies (task_id, depends_on_task_id) VALUES (2, 1)")
-        cursor.execute("INSERT INTO task_dependencies (task_id, depends_on_task_id) VALUES (3, 1)")
+        cursor.execute("INSERT INTO task_dependencies (task_id, depends_on_id) VALUES (2, 1)")
+        cursor.execute("INSERT INTO task_dependencies (task_id, depends_on_id) VALUES (3, 1)")
         
         conn.commit()
     conn.close()
