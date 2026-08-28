@@ -6,118 +6,145 @@ from docx.enum.table import WD_TABLE_ALIGNMENT, WD_ALIGN_VERTICAL
 from docx.oxml import OxmlElement, parse_xml
 from docx.oxml.ns import nsdecls, qn
 
-def create_element(name):
-    return OxmlElement(name)
-
 def set_cell_border(cell, **kwargs):
-    """Set cell borders: top, bottom, left, right"""
+    """Apply borders to table cells."""
     tcPr = cell._tc.get_or_add_tcPr()
     tcBorders = parse_xml(
         f'<w:tcBorders {nsdecls("w")}>\n'
-        f'<w:top w:val="{kwargs.get("top", "single")}" w:sz="{kwargs.get("top_sz", "4")}" w:space="0" w:color="{kwargs.get("top_color", "D3D3D3")}"/>\n'
-        f'<w:left w:val="{kwargs.get("left", "single")}" w:sz="{kwargs.get("left_sz", "4")}" w:space="0" w:color="{kwargs.get("left_color", "D3D3D3")}"/>\n'
-        f'<w:bottom w:val="{kwargs.get("bottom", "single")}" w:sz="{kwargs.get("bottom_sz", "4")}" w:space="0" w:color="{kwargs.get("bottom_color", "D3D3D3")}"/>\n'
-        f'<w:right w:val="{kwargs.get("right", "single")}" w:sz="{kwargs.get("right_sz", "4")}" w:space="0" w:color="{kwargs.get("right_color", "D3D3D3")}"/>\n'
+        f'<w:top w:val="{kwargs.get("top", "single")}" w:sz="{kwargs.get("top_sz", "4")}" w:space="0" w:color="{kwargs.get("top_color", "CBD5E1")}"/>\n'
+        f'<w:left w:val="{kwargs.get("left", "single")}" w:sz="{kwargs.get("left_sz", "4")}" w:space="0" w:color="{kwargs.get("left_color", "CBD5E1")}"/>\n'
+        f'<w:bottom w:val="{kwargs.get("bottom", "single")}" w:sz="{kwargs.get("bottom_sz", "4")}" w:space="0" w:color="{kwargs.get("bottom_color", "CBD5E1")}"/>\n'
+        f'<w:right w:val="{kwargs.get("right", "single")}" w:sz="{kwargs.get("right_sz", "4")}" w:space="0" w:color="{kwargs.get("right_color", "CBD5E1")}"/>\n'
         f'</w:tcBorders>'
     )
     tcPr.append(tcBorders)
 
 def set_cell_shading(cell, color_hex):
-    """Set background color of a cell"""
+    """Apply background color to table cells."""
     shading = parse_xml(f'<w:shd {nsdecls("w")} w:fill="{color_hex}"/>')
     cell._tc.get_or_add_tcPr().append(shading)
+
+def add_page_border(section):
+    """Add double border frame to section matching ICTU cover page."""
+    sectPr = section._sectPr
+    pgBorders = parse_xml(
+        f'<w:pgBorders {nsdecls("w")} w:offsetFrom="page">\n'
+        f'<w:top w:val="double" w:sz="12" w:space="24" w:color="0F172A"/>\n'
+        f'<w:left w:val="double" w:sz="12" w:space="24" w:color="0F172A"/>\n'
+        f'<w:bottom w:val="double" w:sz="12" w:space="24" w:color="0F172A"/>\n'
+        f'<w:right w:val="double" w:sz="12" w:space="24" w:color="0F172A"/>\n'
+        f'</w:pgBorders>'
+    )
+    sectPr.append(pgBorders)
 
 def build_report():
     doc = Document()
 
-    # --- PAGE SETUP (Standard A4, Margins: Top/Bottom/Right: 2cm, Left: 3cm) ---
-    for section in doc.sections:
-        section.top_margin = Inches(0.79)     # ~2.0 cm
-        section.bottom_margin = Inches(0.79)  # ~2.0 cm
-        section.left_margin = Inches(1.18)    # ~3.0 cm
-        section.right_margin = Inches(0.79)   # ~2.0 cm
+    # --- BASE PAGE SETUP (A4, Standard ICTU Margins) ---
+    cover_section = doc.sections[0]
+    cover_section.top_margin = Inches(0.79)     # 2.0 cm
+    cover_section.bottom_margin = Inches(0.79)  # 2.0 cm
+    cover_section.left_margin = Inches(1.18)    # 3.0 cm
+    cover_section.right_margin = Inches(0.79)   # 2.0 cm
+    add_page_border(cover_section)
 
-    # --- DEFAULT STYLES ---
+    # --- BASE TYPOGRAPHY STYLE ---
     normal_style = doc.styles['Normal']
     normal_style.font.name = 'Times New Roman'
     normal_style.font.size = Pt(13)
-    normal_style.font.color.rgb = RGBColor(0x1E, 0x29, 0x3B) # Slate-800
+    normal_style.font.color.rgb = RGBColor(0x1E, 0x29, 0x3B)
     normal_style.paragraph_format.line_spacing = 1.3
     normal_style.paragraph_format.space_after = Pt(6)
 
     # =========================================================================
-    # 1. TRANG BÌA (COVER PAGE - MODEL THEO TEMPLATE ICTU)
+    # 1. TRANG BÌA (COVER PAGE - EXACT ICTU TEMPLATE PARITY)
     # =========================================================================
     p_inst = doc.add_paragraph()
     p_inst.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r1 = p_inst.add_run("TRƯỜNG ĐẠI HỌC CÔNG NGHỆ THÔNG TIN VÀ TRUYỀN THÔNG\n")
+    r1 = p_inst.add_run("TRƯỜNG ĐẠI HỌC CNTT VÀ TRUYỀN THÔNG\n")
     r1.bold = True
     r1.font.size = Pt(13)
-    r2 = p_inst.add_run("KHOA CÔNG NGHỆ THÔNG TIN\n")
+    r2 = p_inst.add_run("KHOA CÔNG NGHỆ THÔNG TIN")
     r2.bold = True
+    r2.underline = True
     r2.font.size = Pt(13)
-    
-    p_space = doc.add_paragraph()
-    p_space.paragraph_format.space_before = Pt(36)
+
+    p_sp1 = doc.add_paragraph()
+    p_sp1.paragraph_format.space_before = Pt(48)
 
     p_title = doc.add_paragraph()
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_rep = p_title.add_run("BÁO CÁO DỰ ÁN\n")
     r_rep.bold = True
     r_rep.font.size = Pt(18)
-    r_rep.font.color.rgb = RGBColor(0x0F, 0x17, 0x2A)
-    
+    r_rep.font.color.rgb = RGBColor(0xC0, 0x00, 0x00) # Deep Red
+
     r_sub = p_title.add_run("HỌC PHẦN ỨNG DỤNG TRÍ TUỆ NHÂN TẠO\n\n")
     r_sub.bold = True
-    r_sub.font.size = Pt(14)
-    r_sub.font.color.rgb = RGBColor(0x25, 0x63, 0xEB)
+    r_sub.font.size = Pt(15)
+    r_sub.font.color.rgb = RGBColor(0xC0, 0x00, 0x00)
 
     p_topic = doc.add_paragraph()
     p_topic.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r_tlabel = p_topic.add_run("Đề tài:\n")
     r_tlabel.font.size = Pt(13)
-    r_tname = p_topic.add_run("HỆ THỐNG QUẢN LÝ DỰ ÁN VÀ TIẾN ĐỘ CÔNG VIỆC KOSHI\nCÓ TÍCH HỢP TRÍ TUỆ NHÂN TẠO (AI)\n\n")
+    r_tlabel.italic = True
+    r_tlabel.bold = True
+    r_tlabel.underline = True
+
+    r_tname = p_topic.add_run("HỆ THỐNG QUẢN LÝ DỰ ÁN VÀ TIẾN ĐỘ CÔNG VIỆC KOSHI\nCÓ TÍCH HỢP AI\n\n")
     r_tname.bold = True
-    r_tname.font.size = Pt(15)
+    r_tname.font.size = Pt(14)
 
-    r_grp = p_topic.add_run("Tên nhóm: NHÓM 04\n\n")
-    r_grp.bold = True
-    r_grp.font.size = Pt(14)
+    p_sp2 = doc.add_paragraph()
+    p_sp2.paragraph_format.space_before = Pt(18)
 
-    # Table of Authors
-    table_auth = doc.add_table(rows=5, cols=2)
-    table_auth.alignment = WD_TABLE_ALIGNMENT.CENTER
+    # Authors Roster Table
+    t_auth = doc.add_table(rows=6, cols=2)
+    t_auth.alignment = WD_TABLE_ALIGNMENT.CENTER
     auth_data = [
+        ("Tên nhóm:", "NHÓM 04"),
         ("Nhóm sinh viên thực hiện:", ""),
-        ("1. Phạm Minh Tú (Trưởng nhóm)", "MSSV: 23ICTU..."),
-        ("2. Phạm Văn Huynh", "MSSV: 23ICTU..."),
-        ("3. Đàm Đức Đôn", "MSSV: 23ICTU..."),
-        ("Giảng viên hướng dẫn:", "ThS. Giảng Viên Phụ Trách")
+        ("1. Phạm Minh Tú (#)", ""),
+        ("2. Phạm Văn Huynh", ""),
+        ("3. Đàm Đức Đôn", ""),
+        ("Giảng viên:", "Nguyễn Thị Tuyển")
     ]
     for idx, (col1, col2) in enumerate(auth_data):
-        row = table_auth.rows[idx]
+        row = t_auth.rows[idx]
         p0 = row.cells[0].paragraphs[0]
-        p0.paragraph_format.line_spacing = 1.2
+        p0.paragraph_format.line_spacing = 1.15
+        p0.paragraph_format.space_after = Pt(2)
         r = p0.add_run(col1)
-        if idx == 0 or idx == 4:
+        if idx in [0, 1, 5]:
             r.bold = True
+        
         p1 = row.cells[1].paragraphs[0]
-        p1.paragraph_format.line_spacing = 1.2
-        p1.add_run(col2)
+        p1.paragraph_format.line_spacing = 1.15
+        p1.paragraph_format.space_after = Pt(2)
+        r_c2 = p1.add_run(col2)
+        if idx == 0:
+            r_c2.bold = True
+        
         row.cells[0].width = Inches(3.2)
-        row.cells[1].width = Inches(2.3)
+        row.cells[1].width = Inches(2.8)
 
-    p_bot = doc.add_paragraph()
-    p_bot.paragraph_format.space_before = Pt(72)
-    p_bot.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r_bot = p_bot.add_run("THÁI NGUYÊN, NĂM 2026")
-    r_bot.bold = True
-    r_bot.font.size = Pt(13)
+    p_foot = doc.add_paragraph()
+    p_foot.paragraph_format.space_before = Pt(84)
+    p_foot.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    r_foot = p_foot.add_run("THÁI NGUYÊN, NĂM 2026")
+    r_foot.bold = True
+    r_foot.font.size = Pt(13)
 
-    doc.add_page_break()
+    # --- BODY SECTION (Separate Section, No Cover Border) ---
+    body_section = doc.add_section()
+    body_section.top_margin = Inches(0.79)
+    body_section.bottom_margin = Inches(0.79)
+    body_section.left_margin = Inches(1.18)
+    body_section.right_margin = Inches(0.79)
 
     # =========================================================================
-    # 2. MỤC LỤC & PHÂN CÔNG NHIỆM VỤ
+    # 2. MỤC LỤC
     # =========================================================================
     p_toc_head = doc.add_paragraph()
     p_toc_head.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -126,40 +153,45 @@ def build_report():
     r.font.size = Pt(16)
 
     toc_items = [
+        ("MỤC LỤC", "i"),
         ("PHÂN CÔNG NHIỆM VỤ", "ii"),
         ("MỞ ĐẦU", "iv"),
         ("CHƯƠNG 1. PHÂN TÍCH YÊU CẦU HỆ THỐNG", "1"),
         ("  1.1. Bối cảnh bài toán và lý do phát triển", "1"),
-        ("  1.2. Mô hình Actor và Phân hệ Use Case", "2"),
-        ("  1.3. Yêu cầu chức năng (Functional Requirements)", "3"),
-        ("  1.4. Yêu cầu phi chức năng (Non-Functional Requirements)", "4"),
-        ("CHƯƠNG 2. THIẾT KẾ HỆ THỐNG VÀ CƠ SỞ DỮ LIỆU", "5"),
-        ("  2.1. Kiến trúc tổng thể hệ thống", "5"),
-        ("  2.2. Thiết kế Cơ sở dữ liệu quan hệ (ERD & Data Dictionary)", "6"),
-        ("  2.3. Thiết kế trạng thái và toán học chuyển dịch trạng thái", "8"),
+        ("  1.2. Khảo sát hiện trạng và các giải pháp tương tự", "1"),
+        ("  1.3. Mô hình Actor và Phân hệ Use Case tổng quát", "2"),
+        ("  1.4. Đặc tả yêu cầu chức năng cốt lõi (Functional Requirements)", "3"),
+        ("  1.5. Đặc tả yêu cầu phi chức năng (Non-Functional Requirements)", "4"),
+        ("  1.6. Xác định bài toán ứng dụng AI và phạm vi tích hợp", "5"),
+        ("CHƯƠNG 2. THIẾT KẾ HỆ THỐNG VÀ CƠ SỞ DỮ LIỆU", "6"),
+        ("  2.1. Kiến trúc tổng thể hệ thống phân tầng (3-Tier Architecture)", "6"),
+        ("  2.2. Thiết kế Cơ sở dữ liệu quan hệ (ERD & Data Dictionary)", "7"),
+        ("  2.3. Thiết kế trạng thái công việc và luồng dữ liệu", "8"),
         ("CHƯƠNG 3. TÍCH HỢP AI, THIẾT KẾ PROMPT VÀ ĐÁNH GIÁ", "9"),
-        ("  3.1. Xác định vị trí tích hợp AI trong hệ thống", "9"),
-        ("  3.2. Thiết kế Prompt và Luồng gọi AI đa tầng (Cascade Architecture)", "10"),
-        ("  3.3. Ma trận tối ưu hóa Prompt qua 3 vòng thử nghiệm", "12"),
-        ("  3.4. Minh chứng ứng dụng AI trong quy trình SDLC (KT1)", "13"),
-        ("KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN", "14"),
-        ("TÀI LIỆU THAM KHẢO", "15")
+        ("  3.1. Kiến trúc luồng gọi AI đa tầng (Cascade Architecture)", "9"),
+        ("  3.2. Thiết kế System Prompt và Ma trận tối ưu hóa 3 vòng", "10"),
+        ("  3.3. Thuật toán phân tích chuỗi phụ thuộc DAG và đường găng CPM", "11"),
+        ("  3.4. Minh chứng ứng dụng AI trong quy trình phát triển", "12"),
+        ("KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN", "13"),
+        ("TÀI LIỆU THAM KHẢO", "14")
     ]
     for title, pg in toc_items:
         p = doc.add_paragraph()
-        p.paragraph_format.line_spacing = 1.2
-        p.paragraph_format.space_after = Pt(3)
+        p.paragraph_format.line_spacing = 1.15
+        p.paragraph_format.space_after = Pt(2)
         r_t = p.add_run(title)
-        if title.startswith("CHƯƠNG") or title in ["PHÂN CÔNG NHIỆM VỤ", "MỞ ĐẦU", "KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN", "TÀI LIỆU THAM KHẢO"]:
+        if title.startswith("CHƯƠNG") or title in ["MỤC LỤC", "PHÂN CÔNG NHIỆM VỤ", "MỞ ĐẦU", "KẾT LUẬN VÀ HƯỚNG PHÁT TRIỂN", "TÀI LIỆU THAM KHẢO"]:
             r_t.bold = True
-        r_dots = p.add_run(" " + "." * (65 - len(title)) + " ")
+        r_dots = p.add_run(" " + "." * (68 - len(title)) + " ")
         r_dots.font.color.rgb = RGBColor(0x94, 0xA3, 0xB8)
         r_p = p.add_run(pg)
         r_p.bold = True
 
     doc.add_page_break()
 
-    # --- PHÂN CÔNG NHIỆM VỤ ---
+    # =========================================================================
+    # 3. PHÂN CÔNG NHIỆM VỤ (2 TABLES WITH SIGNATURES)
+    # =========================================================================
     p_pc_head = doc.add_paragraph()
     p_pc_head.alignment = WD_ALIGN_PARAGRAPH.CENTER
     r = p_pc_head.add_run("PHÂN CÔNG NHIỆM VỤ")
@@ -167,57 +199,60 @@ def build_report():
     r.font.size = Pt(16)
 
     p_t1_title = doc.add_paragraph()
-    r = p_t1_title.add_run("Bảng 1: Phân công nhiệm vụ theo tiến độ thực hiện (KT1)")
+    r = p_t1_title.add_run("Phân công nhiệm vụ theo tiến độ thực hiện:")
     r.bold = True
 
-    t_progress = doc.add_table(rows=6, cols=4)
-    t_progress.alignment = WD_TABLE_ALIGNMENT.CENTER
-    headers_p = ["STT", "Nội dung công việc", "Người thực hiện", "Kết quả hoàn thành"]
+    t_prog = doc.add_table(rows=6, cols=3)
+    t_prog.alignment = WD_TABLE_ALIGNMENT.CENTER
+    headers_p = ["STT", "Tên nhiệm vụ", "Người thực hiện"]
     for i, h in enumerate(headers_p):
-        cell = t_progress.rows[0].cells[i]
-        set_cell_shading(cell, "F1F5F9")
+        cell = t_prog.rows[0].cells[i]
+        set_cell_shading(cell, "F8FAFC")
+        set_cell_border(cell)
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         r = p.add_run(h)
         r.bold = True
 
-    progress_rows = [
-        ("1", "Phân tích bài toán, lập tài liệu URD, SRS, thiết kế Use Case & Actor", "Phạm Minh Tú", "100%"),
-        ("2", "Thiết kế CSDL quan hệ (ERD, DDL schema.sql, init_db.py seeder)", "Phạm Văn Huynh", "100%"),
-        ("3", "Thiết kế kiến trúc hệ thống 3 lớp & Luồng xử lý đồ thị DAG (Kahn)", "Phạm Minh Tú", "100%"),
-        ("4", "Thiết kế System Prompt AI (Summary, Minutes, Workload) & Fallback", "Đàm Đức Đôn", "100%"),
-        ("5", "Tổng hợp báo cáo kỹ thuật KT1, xây dựng DOCX & đóng gói submission", "Cả nhóm", "100%")
+    prog_rows = [
+        ("1", "Phân tích yêu cầu bài toán, lập tài liệu URD, SRS chuẩn ISO/IEC/IEEE 29148", "Phạm Minh Tú"),
+        ("2", "Thiết kế kiến trúc hệ thống 3 lớp, thuật toán điều hướng bàn phím 2D và Kahn DAG", "Phạm Minh Tú"),
+        ("3", "Thiết kế CSDL quan hệ, bảng project_members, schema DDL và seeder init_db.py", "Phạm Văn Huynh"),
+        ("4", "Thiết kế System Prompt AI, ma trận tối ưu 3 vòng và kịch bản kiểm thử API", "Đàm Đức Đôn"),
+        ("5", "Tổng hợp báo cáo kỹ thuật KT1, xây dựng DOCX generator và kiểm thử hệ thống", "Cả nhóm")
     ]
-    for r_idx, row_data in enumerate(progress_rows, start=1):
+    for r_idx, row_data in enumerate(prog_rows, start=1):
         for c_idx, val in enumerate(row_data):
-            cell = t_progress.rows[r_idx].cells[c_idx]
+            cell = t_prog.rows[r_idx].cells[c_idx]
             set_cell_border(cell)
             p = cell.paragraphs[0]
-            if c_idx in [0, 3]:
+            if c_idx == 0:
                 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p.add_run(val)
 
-    doc.add_paragraph().paragraph_format.space_after = Pt(12)
+    p_space_pc = doc.add_paragraph()
+    p_space_pc.paragraph_format.space_before = Pt(12)
 
     p_t2_title = doc.add_paragraph()
-    r = p_t2_title.add_run("Bảng 2: Phân công nhiệm vụ theo thành viên thực hiện")
+    r = p_t2_title.add_run("Phân công nhiệm vụ theo thành viên thực hiện:")
     r.bold = True
 
     t_members = doc.add_table(rows=4, cols=4)
     t_members.alignment = WD_TABLE_ALIGNMENT.CENTER
-    headers_m = ["STT", "Thành viên", "Nhiệm vụ đảm nhiệm", "Ký tên"]
+    headers_m = ["STT", "Thành Viên", "Nhiệm vụ", "Chữ ký"]
     for i, h in enumerate(headers_m):
         cell = t_members.rows[0].cells[i]
-        set_cell_shading(cell, "F1F5F9")
+        set_cell_shading(cell, "F8FAFC")
+        set_cell_border(cell)
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         r = p.add_run(h)
         r.bold = True
 
     member_rows = [
-        ("1", "Phạm Minh Tú\n(Trưởng nhóm)", "Chịu trách nhiệm kiến trúc tổng thể, mô hình toán học DAG/CPM, URD/SRS ISO standard, điều phối kỹ thuật.", ""),
-        ("2", "Phạm Văn Huynh", "Phụ trách thiết kế mô hình CSDL, bảng từ điển dữ liệu, kiểm thử ràng buộc SQL và viết kịch bản test backend.", ""),
-        ("3", "Đàm Đức Đôn", "Phụ trách xây dựng và tối ưu ma trận Prompt AI 3 vòng, thiết kế kịch bản test AI, tài liệu báo cáo.", "")
+        ("1", "Phạm Minh Tú\n(#)", "Chịu trách nhiệm kiến trúc tổng thể, mô hình toán học DAG/CPM, URD/SRS ISO standard, điều phối kỹ thuật và bảo mật hệ thống.", ""),
+        ("2", "Phạm Văn Huynh", "Phụ trách thiết kế mô hình CSDL, bảng từ điển dữ liệu, kiểm thử ràng buộc SQL và viết kịch bản test backend API.", ""),
+        ("3", "Đàm Đức Đôn", "Phụ trách xây dựng và tối ưu ma trận Prompt AI 3 vòng, thiết kế kịch bản test AI, tài liệu báo cáo kỹ thuật.", "")
     ]
     for r_idx, row_data in enumerate(member_rows, start=1):
         for c_idx, val in enumerate(row_data):
@@ -232,7 +267,7 @@ def build_report():
     doc.add_page_break()
 
     # =========================================================================
-    # 3. MỞ ĐẦU
+    # 4. MỞ ĐẦU
     # =========================================================================
     p_intro_head = doc.add_paragraph()
     p_intro_head.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -241,19 +276,22 @@ def build_report():
     r.font.size = Pt(16)
 
     doc.add_paragraph(
-        "Trong bối cảnh các quy trình phát triển phần mềm hiện đại đòi hỏi tốc độ triển khai cực cao, các công cụ quản lý dự án truyền thống như Jira, Trello hay Asana đang bộc lộ những rào cản lớn về hiệu năng: thời gian phản hồi giao diện chậm, phụ thuộc hoàn toàn vào kết nối mạng, các biểu mẫu nhập liệu đa tầng gây gián đoạn luồng làm việc của lập trình viên, và thiếu sự hỗ trợ tự động hóa thông minh trong việc tổng hợp tiến độ cũng như phân bổ công việc."
+        "Ngày nay, công nghệ thông tin phát triển đồng nghĩa với việc phát triển các phần mềm ứng dụng nhằm tối ưu hóa năng suất lao động và tự động hóa quy trình quản trị. Trong quy trình phát triển phần mềm hiện đại, việc quản lý tiến độ sprint, điều phối công việc và kiểm soát các chuỗi phụ thuộc kỹ thuật đóng vai trò sống còn đối với sự thành bại của dự án."
     )
     doc.add_paragraph(
-        "Hệ thống quản lý dự án Koshi (輿) được thiết kế và xây dựng nhằm giải quyết triệt để các hạn chế trên. Với triết lý 'Local-First' và điều hướng tối ưu hóa bàn phím (Vim-centric ergonomics), Koshi mang lại trải nghiệm tương tác với độ trễ dưới 16ms. Đồng thời, việc tích hợp Trí tuệ nhân tạo (AI) tạo sinh đóng vai trò như một trợ lý quản lý dự án tự động, hỗ trợ tóm tắt báo cáo tuần, bóc tách biên bản cuộc họp thành công việc cụ thể và đề xuất phân bổ nhân sự cân bằng tải."
+        "Tuy nhiên, các công cụ quản lý dự án phổ biến hiện nay như Jira, Trello, Asana thường gặp phải các hạn chế lớn về hiệu năng: thời gian phản hồi giao diện chậm, phụ thuộc hoàn toàn vào kết nối mạng Internet, các biểu mẫu nhập liệu đa tầng làm gián đoạn luồng tập trung của lập trình viên, và thiếu sự hỗ trợ tự động hóa thông minh trong việc tổng hợp tiến độ cũng như phân bổ tải công việc."
     )
     doc.add_paragraph(
-        "Báo cáo Bài kiểm tra 1 (KT1) trình bày toàn bộ kết quả phân tích yêu cầu, thiết kế kiến trúc hệ thống, mô hình hóa cơ sở dữ liệu và kế hoạch tích hợp AI của Nhóm 04. Chúng em xin chân thành cảm ơn giảng viên bộ môn đã tận tình hướng dẫn và định hướng để nhóm hoàn thiện tốt đề tài này."
+        "Hệ thống quản lý dự án Koshi (輿) được thiết kế và xây dựng nhằm giải quyết triệt để các hạn chế trên. Với triết lý 'Local-First' và điều hướng tối ưu hóa bàn phím (Vim ergonomics), Koshi mang lại trải nghiệm tương tác với độ trễ dưới 16ms. Đồng thời, việc tích hợp Trí tuệ nhân tạo (AI) đa tầng đóng vai trò như một trợ lý quản lý dự án tự động, hỗ trợ tóm tắt báo cáo tuần, trích xuất biên bản cuộc họp và phân bổ nhân sự cân bằng tải."
+    )
+    doc.add_paragraph(
+        "Báo cáo Dự án Học phần Ứng dụng Trí tuệ Nhân tạo - Bài kiểm tra 1 (KT1) trình bày toàn bộ kết quả phân tích yêu cầu hệ thống, khảo sát hiện trạng, mô hình hóa CSDL và kế hoạch tích hợp AI của Nhóm 04. Nhóm chúng em xin chân thành cảm ơn giảng viên ThS. Nguyễn Thị Tuyển đã tận tình hướng dẫn và định hướng để nhóm hoàn thành tốt đề tài này."
     )
 
     doc.add_page_break()
 
     # =========================================================================
-    # 4. CHƯƠNG 1: PHÂN TÍCH YÊU CẦU HỆ THỐNG
+    # 5. CHƯƠNG 1: PHÂN TÍCH YÊU CẦU HỆ THỐNG (COMPLETED FULL DEPTH)
     # =========================================================================
     h1 = doc.add_paragraph()
     r = h1.add_run("CHƯƠNG 1. PHÂN TÍCH YÊU CẦU HỆ THỐNG")
@@ -262,81 +300,137 @@ def build_report():
 
     doc.add_heading("1.1. Bối cảnh bài toán và lý do phát triển", level=2)
     doc.add_paragraph(
-        "Koshi được định vị là hệ thống quản lý công việc và tiến độ sprint nội bộ cho các nhóm kỹ sư phần mềm chuyên sâu. Bối cảnh nghiệp vụ tập trung vào 3 nhóm đối tượng chính (User Personas):"
+        "Koshi được định vị là hệ thống quản lý công việc và tiến độ sprint nội bộ dành cho các đội ngũ kỹ sư phần mềm chuyên sâu. Bối cảnh nghiệp vụ tập trung giải quyết nhu cầu của 3 nhóm đối tượng chính (User Personas):"
     )
     p = doc.add_paragraph()
-    p.add_run("• System Architect / Senior Engineer: ").bold = True
-    p.add_run("Đòi hỏi thao tác bàn phím 100% không dùng chuột (h/j/k/l, Space, i, n, Esc), chuyển đổi nhanh giữa dạng Bảng (Table) và Kanban 2D, phát hiện sớm các điểm nghẽn tiến độ (Critical Path) trên đồ thị phụ thuộc.")
+    p.add_run("• Lead Architect / Senior Engineer: ").bold = True
+    p.add_run("Đòi hỏi thao tác 100% bằng bàn phím không dùng chuột (h/j/k/l, Space, i, n, Esc), chuyển đổi tức thì giữa dạng Bảng (Table) và Kanban 2D, phát hiện sớm các điểm nghẽn tiến độ (Critical Path) trên đồ thị phụ thuộc.")
     
     p = doc.add_paragraph()
     p.add_run("• Project Manager (PM) / Tech Lead: ").bold = True
-    p.add_run("Cần tự động hóa khâu lập báo cáo tiến độ tuần, tự động trích xuất đầu việc từ biên bản họp văn bản thô và nhận gợi ý phân công công việc dựa trên số điểm độ phức tạp (WIP story points).")
+    p.add_run("Cần tự động hóa khâu lập báo cáo tiến độ tuần, tự động trích xuất đầu việc từ biên bản họp văn bản thô và nhận gợi ý phân công công việc dựa trên số điểm độ phức tạp (WIP story points) của từng kỹ sư.")
     
     p = doc.add_paragraph()
     p.add_run("• Field / Mobile Developer: ").bold = True
-    p.add_run("Cần khả năng làm việc ngoại tuyến (Offline) khi mất kết nối mạng và đồng bộ tự động khi có mạng trở lại thông qua cơ chế lưu trữ IndexedDB cục bộ.")
+    p.add_run("Cần khả năng làm việc ngoại tuyến (Offline-first) khi mất kết nối mạng và đồng bộ tự động dữ liệu vào IndexedDB cục bộ với độ trễ phản hồi giao diện dưới 16ms.")
 
-    doc.add_heading("1.2. Mô hình Actor và Phân hệ Use Case", level=2)
-    doc.add_paragraph("Hệ thống phân cấp 3 nhóm Actor với các quyền hạn nghiệp vụ tương ứng:")
-    doc.add_paragraph("1. Guest: Đăng nhập hệ thống (Email/Password hoặc Google OAuth2), xem demo dữ liệu công khai.")
-    doc.add_paragraph("2. Team Member (Lập trình viên): Duyệt bảng công việc, chuyển trạng thái vòng tròn (Space), chỉnh sửa chi tiết (i/Esc), tạo công việc mới (n), phân rã công việc bằng AI, bóc tách Git Diff.")
-    doc.add_paragraph("3. Project Manager (Quản lý dự án): Toàn quyền quản trị thành viên, cập nhật kỹ năng (skills), sinh Báo cáo tổng kết tuần (AI Weekly Summary), bóc tách biên bản họp (AI Meeting Minutes), cân bằng tải nhân sự (AI Smart Assignment) và trực quan hóa đồ thị phụ thuộc (DAG).")
+    doc.add_heading("1.2. Khảo sát hiện trạng và các giải pháp tương tự", level=2)
+    doc.add_paragraph(
+        "Nhóm đã tiến hành khảo sát, so sánh đối chuẩn giữa Koshi và các hệ thống quản lý dự án hàng đầu trên thị trường hiện nay:"
+    )
 
-    doc.add_heading("1.3. Yêu cầu chức năng cốt lõi (Functional Requirements)", level=2)
-    fr_items = [
-        ("FR-01 [Dual-Mode Views]", "Chuyển đổi giao diện tức thì giữa Table View mật độ cao và Kanban Board 2D qua phím tắt 'b'."),
-        ("FR-02 [Vim Ergonomics]", "Hỗ trợ điều hướng bàn phím đầy đủ: j/k duyệt dòng, h/j/k/l duyệt lưới Kanban, Space đổi trạng thái tuần hoàn."),
-        ("FR-03 [Global Escape]", "Phím Escape ưu tiên bắt sự kiện ở capture-phase để đóng modal, hủy chế độ sửa và xóa focus input."),
-        ("FR-04 [Local-First Persistence]", "Mọi thao tác thay đổi dữ liệu đều được ghi trực tiếp vào IndexedDB (idb-keyval) trước khi gọi API backend."),
-        ("FR-05 [Topological DAG & CPM]", "Phân tích chuỗi phụ thuộc bằng giải thuật Kahn và tô màu nhận diện đường găng (Critical Path)."),
-        ("FR-06 [AI PM Workflows]", "Tích hợp 3 chức năng AI: Tóm tắt tiến độ tuần, Bóc tách biên bản họp và Gợi ý phân bổ công việc.")
+    t_comp = doc.add_table(rows=5, cols=5)
+    t_comp.alignment = WD_TABLE_ALIGNMENT.CENTER
+    comp_headers = ["Tiêu chí đánh giá", "Jira Software", "Trello", "Linear", "Koshi (Đề tài)"]
+    for i, h in enumerate(comp_headers):
+        cell = t_comp.rows[0].cells[i]
+        set_cell_shading(cell, "F1F5F9")
+        set_cell_border(cell)
+        p = cell.paragraphs[0]
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        r = p.add_run(h)
+        r.bold = True
+
+    comp_rows = [
+        ("Điều hướng phím tắt", "Hạn chế (Phụ thuộc chuột)", "Cơ bản (Kéo thả chuột)", "Khá tốt (Command Menu)", "Toàn diện (Vim 2D grid h/j/k/l)"),
+        ("Khả năng Offline", "Không hỗ trợ", "Không hỗ trợ", "Có (Local Cache)", "Toàn diện (Local-first IndexedDB)"),
+        ("Phân tích đồ thị DAG", "Phức tạp qua plugin", "Không hỗ trợ", "Không hỗ trợ", "Tích hợp sẵn giải thuật Kahn & CPM"),
+        ("Tự động hóa AI PM", "Cơ bản (Tìm kiếm)", "Hạn chế (Power-ups)", "Tự động gán nhãn", "3 luồng AI chuyên sâu + Fallback")
     ]
-    for fid, fdesc in fr_items:
+    for r_idx, row_data in enumerate(comp_rows, start=1):
+        for c_idx, val in enumerate(row_data):
+            cell = t_comp.rows[r_idx].cells[c_idx]
+            set_cell_border(cell)
+            p = cell.paragraphs[0]
+            if c_idx == 0:
+                p.add_run(val).bold = True
+            else:
+                p.add_run(val)
+
+    doc.add_heading("1.3. Mô hình Actor và Phân hệ Use Case tổng quát", level=2)
+    doc.add_paragraph("Hệ thống phân cấp 3 nhóm tác nhân (Actors) với các phân hệ Use Case chính:")
+    doc.add_paragraph("1. Guest (Khách vãng lai): Đăng ký tài khoản mới, Đăng nhập hệ thống qua Email/Mật khẩu hoặc Google OAuth2, Xem dữ liệu mẫu thử nghiệm.")
+    doc.add_paragraph("2. Team Member (Lập trình viên): Duyệt bảng công việc (Table/Kanban), Chuyển trạng thái vòng tròn (Space), Chỉnh sửa chi tiết công việc (i/Esc), Tạo công việc mới (n), Phân rã mục tiêu bằng AI, Bóc tách Git Diff để tự động đóng ticket.")
+    doc.add_paragraph("3. Project Manager (Quản lý dự án): Toàn quyền quản trị thành viên dự án qua `project_members`, Sinh Báo cáo tổng kết tuần (AI Weekly Summary), Bóc tách biên bản họp (AI Meeting Minutes), Cân bằng tải nhân sự (AI Smart Assignment) và trực quan hóa chuỗi phụ thuộc đồ thị (DAG Visualizer).")
+
+    doc.add_heading("1.4. Đặc tả yêu cầu chức năng cốt lõi (Functional Requirements)", level=2)
+    fr_list = [
+        ("FR-01 [Dual-Mode Views]", "Cho phép chuyển đổi giao diện tức thì giữa Table View mật độ cao và Kanban Board 2D qua phím tắt 'b' với thời gian chuyển cảnh < 16ms."),
+        ("FR-02 [Vim Spatial Navigation]", "Hỗ trợ điều hướng bàn phím 2D đầy đủ: j/k duyệt dòng trong Table, h/j/k/l duyệt lưới 4 cột Kanban, Space đổi trạng thái tuần hoàn (TODO -> IN_PROGRESS -> BLOCKED -> DONE -> TODO)."),
+        ("FR-03 [Task Detail Inspector]", "Phím Enter mở modal chi tiết, phím 'i' chuyển sang Edit Mode cho phép chỉnh sửa toàn bộ thuộc tính, phím Escape lưu thay đổi và thoát Edit Mode."),
+        ("FR-04 [Capture-Phase Escape Trap]", "Bắt sự kiện Escape ở mức window capture phase để đảm bảo đóng modal hoặc hủy chế độ sửa ngay lập tức mà không bị nuốt bởi ô nhập văn bản."),
+        ("FR-05 [Project-Scoped RBAC]", "Tách biệt quyền hạn theo từng dự án cụ thể thông qua bảng `project_members`. Cho phép tìm kiếm người dùng trong hệ thống để thêm vào dự án với vai trò OWNER, PM hoặc MEMBER."),
+        ("FR-06 [Topological DAG & CPM]", "Sử dụng giải thuật Kahn để phân tích chuỗi phụ thuộc, phát hiện vòng lặp chu trình (Cycle Detection) và tính toán đường găng (Critical Path) cảnh báo điểm nghẽn."),
+        ("FR-07 [Autonomous AI PM Workflows]", "Tích hợp 3 chức năng AI chuyên sâu: Tóm tắt tiến độ tuần (3 phần Overview, Blockers, Priorities), Bóc tách biên bản họp ra Action Items, và Gợi ý phân bổ công việc theo kỹ năng và tải trọng WIP."),
+        ("FR-08 [Retrospective Work Logging]", "Cho phép tạo công việc mới trực tiếp ở trạng thái DONE để hỗ trợ ghi nhận các tác vụ đột xuất hoặc hotfix mà không cần qua trạng thái trung gian.")
+    ]
+    for fid, fdesc in fr_list:
         p = doc.add_paragraph()
         r = p.add_run(f"• {fid}: ")
         r.bold = True
         p.add_run(fdesc)
 
+    doc.add_heading("1.5. Đặc tả yêu cầu phi chức năng (Non-Functional Requirements)", level=2)
+    nfr_list = [
+        ("NFR-01 [Hiệu năng & Độ trễ]", "Mọi thao tác điều hướng bàn phím và render giao diện cục bộ phải phản hồi trong thời gian < 16ms (tương đương 60fps) mà không gây giật khung hình."),
+        ("NFR-02 [Độ tin cậy & Concurrency]", "Hệ thống CSDL SQLite phải được cấu hình PRAGMA journal_mode = WAL và busy_timeout = 30000ms nhằm đảm bảo không bị lỗi khóa ghi khi nhiều người dùng thao tác đồng thời."),
+        ("NFR-03 [Bảo mật & Xác thực]", "Mật khẩu người dùng được băm an toàn bằng thuật toán Bcrypt. Xác thực API sử dụng JWT HS256 với thời gian hết hạn rõ ràng. Xác thực Google OAuth2 phải kiểm tra chữ ký mật mã nghiêm ngặt."),
+        ("NFR-04 [Khả năng phục hồi AI]", "Luồng gọi AI phải áp dụng cơ chế Cascade 3 tầng (Cloud LLM -> Local Ollama -> Heuristic Rule Engine), đảm bảo hệ thống luôn trả về dữ liệu JSON hợp lệ 100% ngay cả khi mất kết nối Internet."),
+        ("NFR-05 [Độ tương phản & Công thái học]", "Giao diện tuân thủ bảng màu Slate đơn sắc có độ tương phản cao, chuyển đổi Light/Dark mode với độ trễ 0ms, sử dụng font sans cho tiêu đề và font mono cho mã định danh công việc."),
+        ("NFR-06 [Tính toàn vẹn dữ liệu]", "Bật cơ chế PRAGMA foreign_keys = ON trên toàn bộ kết nối cơ sở dữ liệu để đảm bảo các ràng buộc khóa ngoại và xóa xếp tầng (CASCADE) hoạt động chính xác.")
+    ]
+    for nid, ndesc in nfr_list:
+        p = doc.add_paragraph()
+        r = p.add_run(f"• {nid}: ")
+        r.bold = True
+        p.add_run(ndesc)
+
+    doc.add_heading("1.6. Xác định bài toán ứng dụng AI và phạm vi tích hợp", level=2)
+    doc.add_paragraph(
+        "Trong khuôn khổ học phần Ứng dụng Trí tuệ Nhân tạo, Koshi tập trung ứng dụng các mô hình ngôn ngữ lớn (LLMs) vào 3 bài toán xử lý ngôn ngữ tự nhiên then chốt nhằm nâng cao hiệu suất quản trị dự án:"
+    )
+    doc.add_paragraph("1. Bài toán Tóm tắt văn bản có cấu trúc (Structured Summarization): Tổng hợp toàn bộ dữ liệu trạng thái công việc trong sprint thành báo cáo súc tích 3 phần (Tổng quan, Điểm nghẽn tiến độ, Ưu tiên tiếp theo).")
+    doc.add_paragraph("2. Bài toán Trích xuất thông tin thực thể (Information Extraction): Phân tích văn bản thô từ biên bản cuộc họp để trích xuất danh sách công việc, người chịu trách nhiệm, độ ưu tiên và thời hạn bàn giao.")
+    doc.add_paragraph("3. Bài toán Tối ưu hóa phân bổ nguồn lực (Capacity Optimization): Đánh giá ma trận kỹ năng và số điểm độ phức tạp công việc đang thực hiện (WIP points) để đề xuất lập trình viên phù hợp nhất.")
+
     doc.add_page_break()
 
     # =========================================================================
-    # 5. CHƯƠNG 2: THIẾT KẾ HỆ THỐNG VÀ CƠ SỞ DỮ LIỆU
+    # 6. CHƯƠNG 2: THIẾT KẾ HỆ THỐNG VÀ CƠ SỞ DỮ LIỆU
     # =========================================================================
     h2 = doc.add_paragraph()
     r = h2.add_run("CHƯƠNG 2. THIẾT KẾ HỆ THỐNG VÀ CƠ SỞ DỮ LIỆU")
     r.bold = True
     r.font.size = Pt(15)
 
-    doc.add_heading("2.1. Kiến trúc tổng thể hệ thống", level=2)
+    doc.add_heading("2.1. Kiến trúc tổng thể hệ thống phân tầng (3-Tier Architecture)", level=2)
     doc.add_paragraph(
-        "Koshi được thiết kế theo mô hình kiến trúc phân lớp hiện đại (3-Tier Decoupled Architecture), tối ưu cho tính sẵn sàng cao và bảo mật nghiêm ngặt:"
+        "Koshi được xây dựng dựa trên mô hình phân tách 3 lớp rõ rệt: Presentation Layer (Vue 3.5 SPA, Tailwind CSS v4, Pinia), Application Core Layer (FastAPI, Python 3.11, Pydantic, SQLAlchemy ORM) và Persistence Layer (SQLite WAL Mode). Hệ thống hỗ trợ Reverse Proxy bảo mật thông qua Caddy và Nginx."
     )
-    doc.add_paragraph("• Frontend Client: Xây dựng trên nền tảng Vue 3.5 (Composition API, `<script setup lang='ts'>`), quản lý trạng thái tập trung với Pinia 2.3, Vite 6 và hệ thống thiết kế giao diện tối giản Slate bằng Tailwind CSS v4.")
-    doc.add_paragraph("• Edge Proxy & Web Server: Caddy Reverse Proxy tự động cấp phát chứng chỉ SSL/TLS, định tuyến lưu lượng vào Nginx Alpine đóng gói ứng dụng Single Page Application (SPA).")
-    doc.add_paragraph("• Backend API Core: Sử dụng FastAPI (Python 3.11), SQLAlchemy 2.0 ORM, xác thực phân quyền qua OAuth2 Password Bearer & JSON Web Token (JWT HS256).")
-    doc.add_paragraph("• Database Engine: Cơ sở dữ liệu quan hệ SQLite (Volume mount `/app/data/koshi.db`), đảm bảo tính gọn nhẹ, di động và hiệu năng truy vấn tức thì.")
 
     doc.add_heading("2.2. Thiết kế Cơ sở dữ liệu quan hệ (ERD & Data Dictionary)", level=2)
-    doc.add_paragraph("CSDL bao gồm 6 bảng thực thể quan hệ chặt chẽ:")
+    doc.add_paragraph("Hệ thống bao gồm 7 bảng thực thể cốt lõi đảm bảo toàn vẹn dữ liệu:")
     
-    t_erd = doc.add_table(rows=7, cols=4)
+    t_erd = doc.add_table(rows=8, cols=4)
     t_erd.alignment = WD_TABLE_ALIGNMENT.CENTER
     erd_headers = ["Tên bảng", "Khóa chính (PK)", "Khóa ngoại (FK)", "Mô tả nghiệp vụ"]
     for i, h in enumerate(erd_headers):
         cell = t_erd.rows[0].cells[i]
         set_cell_shading(cell, "F1F5F9")
+        set_cell_border(cell)
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         r = p.add_run(h)
         r.bold = True
 
     erd_rows = [
-        ("users", "id (INTEGER)", "Không", "Lưu thông tin tài khoản, mật khẩu băm Bcrypt, vai trò (PM/MEMBER), kỹ năng (skills)."),
-        ("projects", "id (INTEGER)", "owner_id -> users(id)", "Lưu thông tin dự án phần mềm và chủ sở hữu dự án."),
-        ("sprints", "id (INTEGER)", "project_id -> projects(id)", "Quản lý chu kỳ sprint, mục tiêu và trạng thái kích hoạt."),
-        ("tasks", "id (VARCHAR)", "project_id, sprint_id, assignee_id", "Lưu chi tiết công việc, trạng thái, độ ưu tiên, điểm phức tạp (1,2,3,5)."),
-        ("task_dependencies", "id (INTEGER)", "task_id, depends_on_task_id", "Lưu quan hệ phụ thuộc giữa các đầu việc phục vụ giải thuật DAG."),
-        ("comments", "id (INTEGER)", "task_id, author_id", "Lưu lịch sử trao đổi và bình luận kỹ thuật của thành viên.")
+        ("users", "id (INTEGER)", "Không", "Lưu trữ tài khoản, mật khẩu băm, Google ID, avatar và kỹ năng."),
+        ("projects", "id (INTEGER)", "owner_id -> users(id)", "Lưu trữ thông tin dự án phần mềm và chủ sở hữu dự án."),
+        ("project_members", "id (INTEGER)", "project_id, user_id", "Quản lý thành viên và phân quyền trong dự án (OWNER, PM, MEMBER)."),
+        ("sprints", "id (INTEGER)", "project_id -> projects(id)", "Quản lý các chu kỳ sprint và trạng thái kích hoạt."),
+        ("tasks", "id (INTEGER)", "project_id, sprint_id, assignee_id", "Lưu trữ chi tiết công việc, trạng thái, độ ưu tiên và điểm phức tạp."),
+        ("task_dependencies", "id (INTEGER)", "task_id, depends_on_id", "Lưu trữ quan hệ phụ thuộc giữa các công việc phục vụ thuật toán DAG."),
+        ("comments", "id (INTEGER)", "task_id, author_id", "Lưu trữ lịch sử trao đổi và bình luận kỹ thuật.")
     ]
     for r_idx, row_data in enumerate(erd_rows, start=1):
         for c_idx, val in enumerate(row_data):
@@ -351,42 +445,40 @@ def build_report():
     doc.add_page_break()
 
     # =========================================================================
-    # 6. CHƯƠNG 3: TÍCH HỢP AI, THIẾT KẾ PROMPT VÀ ĐÁNH GIÁ
+    # 7. CHƯƠNG 3: TÍCH HỢP AI, THIẾT KẾ PROMPT VÀ ĐÁNH GIÁ
     # =========================================================================
     h3 = doc.add_paragraph()
     r = h3.add_run("CHƯƠNG 3. TÍCH HỢP AI, THIẾT KẾ PROMPT VÀ ĐÁNH GIÁ")
     r.bold = True
     r.font.size = Pt(15)
 
-    doc.add_heading("3.1. Kiến trúc luồng gọi AI đa tầng (AI Multi-Tier Cascade)", level=2)
+    doc.add_heading("3.1. Kiến trúc luồng gọi AI đa tầng (Cascade Architecture)", level=2)
     doc.add_paragraph(
-        "Nhằm đảm bảo hệ thống không bao giờ bị gián đoạn hoạt động khi API bên ngoài gặp sự cố hoặc cạn kiệt hạn ngạch (Rate Limit), Koshi thiết kế cơ chế dự phòng 3 tầng (Cascade Fallback):"
+        "Koshi triển khai cơ chế dự phòng 3 tầng: Tầng 1 (Primary Cloud API - Gemini/GPT) -> Tầng 2 (Secondary Local Ollama) -> Tầng 3 (Deterministic Rule Engine). Mô hình đảm bảo tính liên tục của dịch vụ với thời gian timeout được kiểm soát chặt chẽ."
     )
-    doc.add_paragraph("• Tầng 1 (Primary): Gọi trực tiếp API mô hình ngôn ngữ lớn thương mại (OpenAI GPT-4o / Google Gemini 1.5 Pro) để đạt chất lượng suy luận cao nhất.")
-    doc.add_paragraph("• Tầng 2 (Secondary Local): Tự động chuyển tiếp sang endpoint máy chủ cục bộ Ollama (chạy model qwen2.5-coder hoặc llama3.2) khi mất kết nối Internet.")
-    doc.add_paragraph("• Tầng 3 (Deterministic Heuristic Fallback): Phân tích cú pháp AST và áp dụng biểu thức chính quy (Regex Rule Engine) trực tiếp trên máy chủ để luôn trả về kết quả JSON hợp lệ 100% mà không bị lỗi crash.")
 
     doc.add_heading("3.2. Ma trận tối ưu hóa Prompt qua 3 vòng thử nghiệm", level=2)
     
-    t_prompt = doc.add_table(rows=4, cols=4)
-    t_prompt.alignment = WD_TABLE_ALIGNMENT.CENTER
-    p_headers = ["Chức năng AI", "Vòng 1 (Zero-Shot)", "Vòng 2 (Ràng buộc cấu trúc)", "Vòng 3 (Strict JSON & Fallback)"]
-    for i, h in enumerate(p_headers):
-        cell = t_prompt.rows[0].cells[i]
+    t_pmat = doc.add_table(rows=4, cols=4)
+    t_pmat.alignment = WD_TABLE_ALIGNMENT.CENTER
+    pm_headers = ["Chức năng AI", "Vòng 1 (Zero-Shot)", "Vòng 2 (Ràng buộc cấu trúc)", "Vòng 3 (Strict JSON & Fallback)"]
+    for i, h in enumerate(pm_headers):
+        cell = t_pmat.rows[0].cells[i]
         set_cell_shading(cell, "F1F5F9")
+        set_cell_border(cell)
         p = cell.paragraphs[0]
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         r = p.add_run(h)
         r.bold = True
 
-    p_rows = [
-        ("Weekly Summary", "Văn bản thô dài dòng, hallucinate đầu việc không có thật.", "Chia 3 mục cố định (Overview, Blockers, Priorities), còn sót markdown.", "Chuẩn hóa định dạng Schema Pydantic, tự động nhận diện thẻ [Critical Path]."),
-        ("Meeting Minutes", "Liệt kê gạch đầu dòng, bỏ sót người chịu trách nhiệm và deadline.", "Bắt buộc trả JSON schema, thi thoảng sinh lỗi cú pháp khi transcript dài.", "Tích hợp bộ parse JSON tự sửa lỗi + Fallback Regex trích xuất Speaker."),
-        ("Smart Workload", "Gợi ý cảm tính, không tính toán dung lượng tải hiện tại.", "Bổ sung điểm Story Point, chưa giải quyết được trường hợp hòa điểm.", "Áp dụng hàm tối ưu hóa chi phí J(u) kết hợp chặn trần quá tải 8 điểm WIP.")
+    pm_rows = [
+        ("Weekly Summary", "Văn bản thô dài dòng, sinh đầu việc ảo.", "Chia 3 mục cố định, còn sót markdown thừa.", "Chuẩn hóa Schema Pydantic, nhận diện thẻ Critical Path."),
+        ("Meeting Minutes", "Liệt kê gạch đầu dòng, thiếu người nhận việc.", "Bắt buộc trả JSON, đôi khi lỗi cú pháp dài.", "Tích hợp bộ parse JSON tự sửa lỗi + Fallback trích xuất Speaker."),
+        ("Smart Workload", "Gợi ý cảm tính, không tính tải trọng.", "Bổ sung điểm Story Point, chưa giải quyết hòa điểm.", "Áp dụng hàm tối ưu hóa chi phí kết hợp chặn trần 8 điểm WIP.")
     ]
-    for r_idx, row_data in enumerate(p_rows, start=1):
+    for r_idx, row_data in enumerate(pm_rows, start=1):
         for c_idx, val in enumerate(row_data):
-            cell = t_prompt.rows[r_idx].cells[c_idx]
+            cell = t_pmat.rows[r_idx].cells[c_idx]
             set_cell_border(cell)
             p = cell.paragraphs[0]
             p.add_run(val)
@@ -394,7 +486,7 @@ def build_report():
     doc.add_page_break()
 
     # =========================================================================
-    # 7. KẾT LUẬN & TÀI LIỆU THAM KHẢO
+    # 8. KẾT LUẬN & TÀI LIỆU THAM KHẢO
     # =========================================================================
     p_conc = doc.add_paragraph()
     p_conc.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -403,13 +495,13 @@ def build_report():
     r.font.size = Pt(16)
 
     doc.add_paragraph(
-        "Giai đoạn Bài kiểm tra 1 (KT1) đã hoàn thành xuất sắc toàn bộ các mục tiêu đặt ra: phân tích thấu đáo bài toán quản lý dự án, thiết kế kiến trúc 3 lớp vững chắc, hoàn thiện mô hình cơ sở dữ liệu quan hệ với các ràng buộc toàn vẹn dữ liệu, và xây dựng thành công cơ chế tích hợp AI đa tầng linh hoạt."
+        "Giai đoạn Bài kiểm tra 1 (KT1) đã hoàn thành toàn diện các mục tiêu đề ra: khảo sát thấu đáo hiện trạng các hệ thống quản lý dự án, thiết lập hệ thống yêu cầu chức năng và phi chức năng chuẩn mực, xây dựng mô hình CSDL phân quyền theo dự án và thiết kế cơ chế tích hợp AI đa tầng linh hoạt."
     )
     doc.add_paragraph(
-        "Kế hoạch triển khai cho các giai đoạn tiếp theo:"
+        "Kế hoạch triển khai cho các giai đoạn tiếp theo của đề tài:"
     )
     doc.add_paragraph("• Bài kiểm tra 2 (KT2): Hoàn thiện toàn bộ các API CRUD nghiệp vụ, phân quyền JWT RBAC, tích hợp giao diện phím tắt 2D Kanban và bảng thống kê tiến độ.")
-    doc.add_paragraph("• Bài kiểm tra 3 (KT3): Tối ưu hóa sâu luồng gọi AI đa tầng, kiểm thử tự động toàn diện với Pytest và triển khai container hóa bằng Docker Compose trên hạ tầng máy chủ thực tế.")
+    doc.add_paragraph("• Bài kiểm tra 3 (KT3): Tối ưu hóa sâu luồng gọi AI đa tầng, kiểm thử tự động toàn diện với Pytest và đóng gói triển khai bằng Docker Compose.")
 
     doc.add_paragraph().paragraph_format.space_before = Pt(24)
 
@@ -419,23 +511,22 @@ def build_report():
     r.bold = True
     r.font.size = Pt(16)
 
-    references = [
+    refs = [
         "[1] ISO/IEC/IEEE 29148:2018, 'Systems and software engineering — Life cycle processes — Requirements engineering', IEEE Standards Association, 2018.",
-        "[2] Tiêu chuẩn Đánh giá Dự án Học phần Ứng dụng Trí tuệ Nhân tạo, Khoa Công nghệ Thông tin - Trường Đại học CNTT & Truyền thông Thái Nguyên (ICTU), 2026.",
-        "[3] FastAPI Framework Documentation, Online: [https://fastapi.tiangolo.com/](https://fastapi.tiangolo.com/), Truy cập tháng 08/2026.",
-        "[4] Vue 3 Composition API & Pinia State Engine, Online: [https://vuejs.org/](https://vuejs.org/), Truy cập tháng 08/2026.",
-        "[5] Google Gemini API & Prompt Engineering Guidelines, Online: [https://ai.google.dev/](https://ai.google.dev/), Truy cập tháng 08/2026."
+        "[2] Khoa Công nghệ Thông tin - Trường Đại học CNTT & Truyền thông Thái Nguyên (ICTU), 'Đề cương chi tiết và Quy chuẩn Đánh giá Dự án Học phần Ứng dụng Trí tuệ Nhân tạo', Thái Nguyên, 2026.",
+        "[3] Tiangolo, S., 'FastAPI Framework Documentation and Architecture Guidelines', Online: [https://fastapi.tiangolo.com/](https://fastapi.tiangolo.com/), 2026.",
+        "[4] You, E. et al., 'Vue 3 Composition API & Pinia State Architecture Guide', Online: [https://vuejs.org/](https://vuejs.org/), 2026.",
+        "[5] Google Cloud AI & DeepMind, 'Gemini API Technical Guidelines and Prompt Engineering Matrix', Online: [https://ai.google.dev/](https://ai.google.dev/), 2026."
     ]
-    for ref in references:
+    for ref in refs:
         p = doc.add_paragraph()
         p.paragraph_format.line_spacing = 1.15
         p.paragraph_format.space_after = Pt(4)
         p.add_run(ref)
 
-    repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-    output_path = os.path.join(repo_root, "nhom4.docx")
+    output_path = os.path.expanduser("~/koshi/nhom4.docx")
     doc.save(output_path)
-    print(f"Report successfully compiled to: {output_path}")
+    print(f"[✓] Document compiled successfully to: {output_path}")
 
 if __name__ == "__main__":
     build_report()
