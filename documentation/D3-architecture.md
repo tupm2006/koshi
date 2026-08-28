@@ -91,8 +91,9 @@ Dependencies point **downward only**. A violation is a defect.
 ```
 
 **Invariants:**
-- `lib/` must stay free of Vue and network imports. It is pure and synchronous — that is what makes
-  it the only cheaply testable part of the frontend.
+- `lib/` must stay free of Vue and network imports. It is pure and synchronous — which is what let
+  `dagSorter.test.ts` be written with no mocking at all. Keep new algorithms here for the same
+  reason.
 - Components must not call `services/api.ts` directly; they go through `taskStore`. (Auth modal is
   the one accepted exception.)
 - On the server: `routers/` → `services/` + `models/` + `schemas/`. `services/` must never import

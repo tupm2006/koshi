@@ -57,14 +57,14 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 | FR-DOM-08 | Project/sprint/assignee | `entities.py` relationships, `routers/projects.py`, `routers/sprints.py` | ✅ `test_tasks.py` | ✅ |
 | FR-DOM-09 | Comments | `entities.py::Comment`, `routers/tasks.py::add_comment` | ✅ `test_tasks.py` | ✅ |
 
-### 2.3 Graph engine — **the least-verified, highest-complexity area**
+### 2.3 Graph engine — **fully covered as of DEC-013**
 
 | Req | Work item | Implementation | Verification | St |
 |:--|:--|:--|:--|:--:|
-| FR-GRAPH-01 | Topological sort | `lib/dagSorter.ts::topologicalSort` | — | ❌ **GAP-01** |
-| FR-GRAPH-02 | Deterministic tie-break | `dagSorter.ts` queue sort (priority → dueDate → createdAt) | — | ❌ **GAP-01** |
-| FR-GRAPH-03 | Cycle tolerance | `dagSorter.ts` tail block (`result.length < tasks.length`) | — | ❌ — D7 DEC-002 |
-| FR-GRAPH-04 | Critical path | `dagSorter.ts::computeCriticalPath` (memoised longest weighted path) | — | ❌ **GAP-01** |
+| FR-GRAPH-01 | Topological sort | `lib/dagSorter.ts::topologicalSort` | ✅ `dagSorter.test.ts` | ✅ |
+| FR-GRAPH-02 | Deterministic tie-break | `dagSorter.ts` queue sort (priority → dueDate → createdAt) | ✅ `dagSorter.test.ts` | ✅ |
+| FR-GRAPH-03 | Cycle tolerance | `dagSorter.ts` tail block (`result.length < tasks.length`) | ✅ `dagSorter.test.ts` | ✅ — D7 DEC-002 |
+| FR-GRAPH-04 | Critical path | `dagSorter.ts::computeCriticalPath` (memoised longest weighted path) | ✅ `dagSorter.test.ts` | ⚠️✅ order-dependent on cyclic graphs — F-24 |
 | FR-GRAPH-05 | DAG visualiser | `DAGVisualizerModal.vue`, `lib/keyboard.ts` (`v`) | manual | 🟡 |
 
 ### 2.4 Persistence & sync
@@ -144,10 +144,10 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | File | Serves | Verified by | Zone |
 |:--|:--|:--|:--:|
 | `lib/keyboard.ts` | FR-INT-01…13 | none | 🟡 |
-| `lib/dagSorter.ts` | FR-GRAPH-01…04 | **none** | 🟡 ⚠️ test first (P4) |
+| `lib/dagSorter.ts` | FR-GRAPH-01…04 | ✅ `dagSorter.test.ts` (28, mutation-verified) | 🟡 |
 | `lib/gitParser.ts` | FR-AI-05 | **none** | 🟡 |
 | `lib/aiDecomposer.ts` | FR-AI-04 (tier 1) | none | 🟡 |
-| `stores/taskStore.ts` | FR-INT-02…09, FR-DOM-02, FR-PERS-01…03, FR-PERS-05, FR-PROJ-01…03, FR-PROJ-08 | none | 🟡 **widest blast radius** |
+| `stores/taskStore.ts` | FR-INT-02…09, FR-DOM-02, FR-PERS-01…03, FR-PERS-05, FR-PROJ-01…03, FR-PROJ-08 | **none** | 🟡 **widest blast radius — now the top gap (GAP-05)** |
 | `stores/themeStore.ts` | FR-INT-12, NFR-02, NFR-05 | none | 🟢 |
 | `services/api.ts` | FR-AUTH-01…03, FR-PROJ-01…07, FR-PERS-04, FR-AI-01…05 · **contract C1↔C3** | backend side only | 🔴 for shapes |
 | `types/task.ts` | **contract C3** — every component | `pnpm run build` | 🔴 |
@@ -203,7 +203,7 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | `types/task.ts` | every component, `services/api.ts`, D4 §5, **bump `koshi_tasks_v1`** | `pnpm run build` 🔴 |
 | A Pydantic schema | matching `services/api.ts` method, D4 §4 | `pytest` + `pnpm run build` 🔴 |
 | An ORM column | `entities.py`, affected schemas, **a new Alembic revision** (never edit an applied one) | `pytest` incl. `test_migrations.py` 🔴 |
-| Critical-path weights | `dagSorter.ts`, D4 §3.2 | **write GAP-01 tests first** |
+| Critical-path weights | `dagSorter.ts`, D4 §3.2 | `pnpm test` — the CPM scale is pinned by a test that fails if it is swapped for the storage scale |
 | An AI prompt | `ai_service.py` only — **check `_deterministic_fallback` substring routing** (F-10) | `pytest` |
 | A role or permission rule | `security.py` guards, every calling router, `taskStore.isProjectManager`, `ProjectDashboard.vue`, D1 §3.5, D4 §4.3b | `pytest` 🔴 **RED zone** |
 | `ProjectMember` shape | `entities.py`, `schemas/project.py`, `services/api.ts`, `ProjectDashboard.vue`, D4 §4.3b, **migration plan** | `pytest` + `pnpm run build` 🔴 |
@@ -217,15 +217,16 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 |:--|:--:|:--:|:--:|:--:|
 | Interaction (FR-INT) | 14 | 0 | 13 | 1 |
 | Domain (FR-DOM) | 9 | 7 | 0 | 2 |
-| Graph (FR-GRAPH) | 5 | 0 | 1 | 4 |
+| Graph (FR-GRAPH) | 5 | 4 | 1 | 0 |
 | Persistence (FR-PERS) | 5 | 0 | 4 | 1 |
 | Auth (FR-AUTH) | 10 | 10 | 0 | 0 |
 | AI (FR-AI) | 8 | 6 | 1 | 1 |
 | Projects (FR-PROJ) | 10 | 5 | 4 | 1 |
 | Non-functional (NFR) | 10 | 3 | 3 | 4 |
-| **Total** | **71** | **32** | **26** | **13** |
+| **Total** | **71** | **36** | **26** | **9** |
 
-**Reading.** 45% automated (was 33% at rev 1), 37% manual-only, 18% unverified. Authorisation is now the
+**Reading.** 51% automated (was 33% at rev 1), 37% manual-only, 13% unverified. The graph engine
+moved from the least-verified area to fully covered. Authorisation is now the
 **best-covered area in the repository** — all ten FR-AUTH rows are automated, including every
 negative path, which is the reverse of its position in rev 1.
 
@@ -233,7 +234,7 @@ The imbalance is unchanged in shape though: automation is still almost entirely 
 frontend carries the product's distinguishing logic (graph engine, keyboard model, local-first
 store, and now the dashboard) with **no automated verification at all**.
 
-**Highest-leverage next work item:** unchanged — D5 GAP-01, add Vitest and test `lib/dagSorter.ts`.
-It converts 4 ❌ rows to ✅, needs no framework mocking (the module is pure), and protects the code
-most likely to be silently broken by an AI edit. GAP-01 is now the single largest remaining
-cluster of unverified requirements in the repository.
+**Highest-leverage next work item:** D5 GAP-05 — `stores/taskStore.ts`. With the graph engine
+covered, the store is the largest untested surface, has the widest blast radius in the repo, and is
+where all three DEC-012 auth defects lived. The Vitest runner now exists, so the remaining cost is
+faking `idb-keyval` and the API client.

@@ -16,7 +16,7 @@ koshi/
 │   │   ├── App.vue              ← Root shell, layout, capture-phase Escape handler
 │   │   ├── app.css              ← Tailwind v4 entry + global surface rules
 │   │   ├── components/          ← 15 presentational / modal components
-│   │   ├── lib/                 ← Pure, framework-free algorithms
+│   │   ├── lib/                 ← Pure, framework-free algorithms (+ *.test.ts)
 │   │   ├── stores/              ← Pinia state
 │   │   ├── services/            ← Backend HTTP client
 │   │   └── types/               ← Shared TypeScript contracts
@@ -40,7 +40,7 @@ koshi/
 ├── documentation/               ← ALL documentation lives here (this folder)
 ├── scripts/                     ← Packaging / report generation helpers
 ├── submission/                  ← Frozen coursework snapshot — DO NOT EDIT (D6 §3)
-├── vite.config.ts               ← root='source/frontend', outDir='../../dist'
+├── vite.config.ts               ← root='source/frontend', outDir='../../dist', vitest config
 ├── tsconfig.json                ← includes source/frontend/**
 ├── package.json                 ← Frontend scripts & deps
 ├── Dockerfile                   ← Frontend build → nginx
@@ -54,7 +54,7 @@ koshi/
 
 | File | Exports | Responsibility | Requirements |
 |:--|:--|:--|:--|
-| `dagSorter.ts` | `topologicalSort(tasks)`, `computeCriticalPath(tasks)` | Kahn's algorithm with deterministic tie-breaking; memoised longest-weighted-path search over non-`DONE` tasks. | FR-GRAPH-01…05 |
+| `dagSorter.ts` | `topologicalSort(tasks)`, `computeCriticalPath(tasks)` | Kahn's algorithm with deterministic tie-breaking; memoised longest-weighted-path search over non-`DONE` tasks. **Tested** — `dagSorter.test.ts` (28). | FR-GRAPH-01…05 |
 | `keyboard.ts` | keydown dispatcher | Single global `switch` mapping keys → store actions. **The one authoritative list of key bindings.** | FR-INT-01…13 |
 | `gitParser.ts` | `parseGitDiff(diff, tasks)` | Regex extraction of `close/fix/resolve #ID`; scans added lines for TODO/FIXME, empty catch blocks, hardcoded secrets, `: any`. | FR-AI-05 |
 | `aiDecomposer.ts` | client-side goal heuristics | Tier-1 (<5 ms) local decomposition before any network call. | FR-AI-04 |

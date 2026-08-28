@@ -34,6 +34,7 @@ submission/     frozen coursework snapshot — do not edit
 ```bash
 pnpm install
 pnpm run dev            # http://localhost:5173, proxies /api → :8000
+pnpm test               # vitest run
 pnpm run build          # vue-tsc -b && vite build → dist/
 ```
 
@@ -131,10 +132,11 @@ Tier 3 output is currently indistinguishable from real model output to the calle
 
 ## Project status
 
-The backend is covered end to end (34/34 passing), with authorisation the best-tested area —
-every negative path is asserted. **The frontend has no automated tests**, including the DAG engine,
-the most intricate logic in the repository. Overall: 45% of requirements automated, 18% unverified.
-Full breakdown in [D8 §5](./documentation/D8-rtm.md).
+The backend is covered end to end (34/34), with authorisation the best-tested area — every
+negative path is asserted. The frontend has Vitest covering the DAG engine (28/28, mutation-verified)
+but **nothing else**: the Pinia store, the keyboard dispatcher and every component are untested.
+Overall: 51% of requirements automated, 13% unverified. Full breakdown in
+[D8 §5](./documentation/D8-rtm.md).
 
 Known defects are catalogued in [D7 Part II](./documentation/D7-development-book.md) and risk-rated
 in [D6 §4](./documentation/D6-risks-delegation-policies.md). Still open and worth knowing about:
@@ -145,8 +147,10 @@ in [D6 §4](./documentation/D6-risks-delegation-policies.md). Still open and wor
 - **Rotate `JWT_SECRET` on any deployment that predates 2026-08-28.** The old default was published
   in this repo; tokens signed with it remain forgeable. Runbook:
   [D6 §7.1](./documentation/D6-risks-delegation-policies.md).
-- **`lib/dagSorter.ts` has no tests** — the highest-value gap in the codebase. The frontend has no
-  automated tests at all.
+- **`stores/taskStore.ts` has no tests** — now the highest-value gap: widest blast radius in the
+  repo, and where the last round of auth bugs lived.
+- **`computeCriticalPath` is order-dependent on cyclic graphs** (D7 F-24). Pinned by a test;
+  acyclic graphs are unaffected.
 
 ## Contributors
 

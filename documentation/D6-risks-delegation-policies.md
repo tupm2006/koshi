@@ -28,7 +28,7 @@ Proceed, but state what you did and why in your summary, and update the affected
 | Path / activity | Required care |
 |:--|:--|
 | `source/frontend/stores/taskStore.ts` | Widest blast radius in the repo. Preserve INV-02, INV-03. |
-| `source/frontend/lib/dagSorter.ts` | ⚠️ **Zero test coverage** (D5 GAP-01). Write the test first, then change. |
+| `source/frontend/lib/dagSorter.ts` | Now covered by `dagSorter.test.ts` (28 tests, mutation-verified). Keep it green; note F-24 is pinned deliberately. |
 | `source/frontend/lib/keyboard.ts` | Any binding change must also update `ShortcutsHelpModal.vue`, `README.md`, and D1 §3.1. |
 | `source/backend/app/routers/**` — logic within an existing shape | Response shape unchanged ⇒ yellow. Shape changed ⇒ 🔴. **Never remove a `require_member` / `require_project_pm` call** — that is 🔴 regardless of shape. |
 | `source/frontend/components/ProjectDashboard.vue` | UI only. Hiding or showing a control changes no permission; the server is the boundary (D3 §5b). |
@@ -88,7 +88,8 @@ documentation.
 | **RISK-03** | **No project-scoped authorisation.** Any authenticated user could read, mutate, or delete any task in any project. | Low | High | ✅ **Closed 2026-08-28.** `ProjectMember` is now the authorisation root; every project-scoped route calls `require_member` / `require_project_pm`. Non-members get `404` across project, task, sprint, AI and stats routes, asserted by four dedicated tests. |
 | **RISK-04** | **Duplicated status-cycle logic** client and server (D4 §3.1). Divergence silently desynchronises the UI from persisted state. | Medium | Medium | Both implementations currently agree. Any edit must change both. |
 | **RISK-05** | **`allow_origins=["*"]` with `allow_credentials=True`.** Invalid per the CORS spec and rejected by browsers; masks real origin policy. | Low | Medium | ✅ **Closed 2026-08-28.** Origins come from `CORS_ORIGINS`; `allow_credentials` is switched off automatically when the origin list is `*`, and `*` is rejected outside development. |
-| **RISK-06** | **`dagSorter.ts` has no tests** yet holds the most intricate logic in the repo. An AI edit could silently corrupt ordering. | High | High | ⚠️ **Open.** D5 GAP-01 — highest-value fix available. |
+| **RISK-06** | **`dagSorter.ts` has no tests** yet holds the most intricate logic in the repo. | Low | High | ✅ **Closed 2026-08-28.** 28 tests; verified by seeding 7 defects and confirming each was caught. |
+| **RISK-16** | **`taskStore.ts` has no tests** and now carries the widest blast radius in the repo — auth transitions, project selection, persistence ordering. All three DEC-012 defects lived here. | High | High | ⚠️ **Open.** D5 GAP-05; the Vitest runner now exists, so it is unblocked. |
 | **RISK-07** | **Documentation contradicting code.** The retired SRS/URD/README made at least seven claims the code did not support (status order, key bindings, `/api/v1`, a non-existent test file, the LLM vendor). An agent trusting prose writes wrong code. | Low | High | ✅ **Closed 2026-08-28.** Stale documents deleted; `README.md` and `CLAUDE.md` rewritten against the code; D1–D8 are the single source. Conflicts preserved for the record in D7 / DEC-005. |
 | **RISK-08** | **Dependency graph is server-side unresolvable** (D4 VIOLATION-01) — dependencies are `List[str]` but IDs are `int`. | **Certain** | High | ⚠️ **Open.** OQ-01, RED zone. |
 | **RISK-09** | **Two lockfiles** (`pnpm-lock.yaml`, `package-lock.json`) with `Dockerfile` using `npm install` while docs say `pnpm`. Dev and prod can resolve different trees. | Medium | Medium | ⚠️ **Open.** D7 / DEC-007. |
@@ -126,9 +127,13 @@ something else is a RED-zone violation regardless of how correct the fix is.
 
 **P3 — Contracts are not refactors.** See §2.
 
-**P4 — Test before touching untested logic.** For any 🟡 file with no coverage — `dagSorter.ts`
+**P4 — Test before touching untested logic.** For any 🟡 file with no coverage — `taskStore.ts`
 above all — write the characterisation test first, confirm it passes against current behaviour,
 then change the code.
+
+**P13 — A test that has never failed proves nothing.** After writing tests for previously-untested
+code, seed a deliberate defect and confirm the suite catches it, then revert. `dagSorter.test.ts`
+was validated this way against seven separate mutations.
 
 **P5 — Never weaken a test to make it pass.** A failing test is a finding. Report it. The one test
 that encodes a defect is flagged in D5 §5.

@@ -1,7 +1,7 @@
 # D5 — Tests & Acceptance Criteria
 
 **Purpose:** define what "correct" means, and record honestly what is currently verified.
-**Last verified by execution:** 2026-08-28 — `34 passed` in 21.7s (`source/backend`, Python 3.11).
+**Last verified by execution:** 2026-08-28 — backend `34 passed`, frontend `28 passed`.
 
 ---
 
@@ -36,13 +36,15 @@ creates nothing and **refuses to start** unless the database is at head (D3 §5c
 
 ```bash
 pnpm install
-pnpm run build                # vue-tsc -b && vite build  ← the ONLY automated frontend gate
+pnpm test                     # vitest run — 28 tests
+pnpm run test:watch           # vitest, watch mode
+pnpm run build                # vue-tsc -b && vite build
 pnpm run dev                  # manual verification at :5173
 ```
 
-There is **no frontend test runner**. `pnpm run build` is a type-check plus bundle; a green build
-means the types agree, nothing more. Treat every frontend acceptance criterion below as
-**manually verified only** unless stated otherwise.
+Vitest covers `lib/dagSorter.ts` only. Everything else in the frontend — the store, the keyboard
+dispatcher, `gitParser.ts`, every component — remains **manually verified only**; treat the
+acceptance criteria below accordingly unless a test is named.
 
 ---
 
@@ -66,7 +68,7 @@ means the types agree, nothing more. Treat every frontend acceptance criterion b
 | Workload & delayed-task stats | ✅ `test_ai_and_stats.py` | Smoke-level |
 | Production boot guard (all four insecure defaults) | ✅ `test_startup_safety.py` | Good — closes GAP-08 |
 | Migrations: fresh upgrade, legacy upgrade + backfill, downgrade | ✅ `test_migrations.py` | Good — covers the un-recoverable case |
-| `dagSorter.ts` — topological sort, cycles, critical path | ❌ **none** | **Highest-risk gap.** Most intricate logic in the repo, zero tests. |
+| `dagSorter.ts` — topological sort, cycles, critical path | ✅ `dagSorter.test.ts` (28) | Good — closes GAP-01. Mutation-tested: 7 seeded defects, all caught. |
 | `gitParser.ts` — diff parsing, secret detection | ❌ **none** | The retired SRS claimed a `gitParser.test.ts`; it never existed. |
 | `keyboard.ts` — 24 bindings, input guards | ❌ **none** | Manual only |
 | `taskStore.ts` — mutations, filters, persistence | ❌ **none** | Manual only |
@@ -108,11 +110,12 @@ Legend: **A** = automated · **M** = manual · **✗** = unverified
 
 | Req | Acceptance criteria | Method |
 |:--|:--|:--|
-| FR-GRAPH-01 | For every task `t` and every `d ∈ t.dependencies` present in the set, `index(d) < index(t)` in the output. | ✗ |
-| FR-GRAPH-02 | Two independent tasks with different priorities always emit in CRITICAL→LOW order; equal priority falls back to earlier `dueDate`, then earlier `createdAt`. Repeated runs on the same input give an identical array. | ✗ |
-| FR-GRAPH-03 | Given `A→B→C→A`, `topologicalSort` returns **all three** tasks, does not throw, and does not hang. | ✗ |
-| FR-GRAPH-04 | On a known fixture graph, `computeCriticalPath` returns exactly the expected ID set; `DONE` tasks are excluded (INV-05). | ✗ |
-| FR-GRAPH-04 | Weighting uses `priority × complexity` with the CPM scale (S1/M3/L5/XL8), **not** the storage scale. | ✗ |
+| FR-GRAPH-01 | Every dependency precedes its dependent; chains and diamonds resolve; unknown dependency ids are ignored; no task is dropped or duplicated. | **A** |
+| FR-GRAPH-02 | Priority orders CRITICAL→LOW; equal priority falls back to earlier `dueDate`, then `createdAt`; permuted input yields an identical array. | **A** |
+| FR-GRAPH-03 | Given `A→B→C→A`, `topologicalSort` returns **all three** tasks, does not throw and does not hang. Self-dependency is tolerated; the acyclic prefix sorts first and cycle members append in input order. | **A** |
+| FR-GRAPH-04 | On fixture graphs `computeCriticalPath` returns exactly the expected id set, including the whole chain rather than its endpoint; `DONE` tasks are excluded and a completed dependency breaks the chain (INV-05). | **A** |
+| FR-GRAPH-04 | Weighting is `priority × complexity` on the CPM scale (S1/M3/L5/XL8), **not** the storage scale; missing complexity defaults to M. | **A** |
+| — | ⚠️ On **cyclic** graphs the result depends on input order (F-24), pinned by a KNOWN LIMITATION test. | **A** |
 
 ### 3.3 Persistence (FR-PERS)
 
@@ -185,13 +188,14 @@ Legend: **A** = automated · **M** = manual · **✗** = unverified
 A change is done when **all** hold:
 
 1. `cd source/backend && pytest -q` passes with no new failures.
-2. `pnpm run build` completes with no TypeScript errors.
-3. Any contract in D4 that the change touches is updated **in the same commit**, and every consumer
+2. `pnpm test` passes with no new failures.
+3. `pnpm run build` completes with no TypeScript errors.
+4. Any contract in D4 that the change touches is updated **in the same commit**, and every consumer
    listed in D4 §1 is updated with it.
-4. The RTM (D8) row for the affected requirement is updated.
-5. If behaviour changed, the relevant acceptance criterion in §3 is updated **and** re-verified.
-6. A decision that closed off an alternative is recorded in D7.
-7. No new file is added under `submission/` (D6 §3).
+5. The RTM (D8) row for the affected requirement is updated.
+6. If behaviour changed, the relevant acceptance criterion in §3 is updated **and** re-verified.
+7. A decision that closed off an alternative is recorded in D7.
+8. No new file is added under `submission/` (D6 §3).
 
 ## 5. Tests that encode defects
 
@@ -204,15 +208,16 @@ loosening the assertion without reading D7 / DEC-003.
 
 | ID | Gap | Severity | Recommended action |
 |:--|:--|:--|:--|
-| GAP-01 | `dagSorter.ts` has zero tests | **Critical** | Add Vitest; cover FR-GRAPH-01…04 including the cycle fixture. Pure functions — cheapest coverage in the repo. |
+| ~~GAP-01~~ | ~~`dagSorter.ts` has zero tests~~ | — | ✅ **Closed 2026-08-28.** Vitest added; 28 tests over FR-GRAPH-01…04, tie-breaking, cycles and both weight scales. Surfaced F-24 in the process. |
 | ~~GAP-02~~ | ~~No negative authorisation tests~~ | — | ✅ **Closed 2026-08-28.** `test_projects_and_roles.py` covers MEMBER→403 on every PM action and non-member→404 across project, task, AI and stats routes. |
 | GAP-03 | `gitParser.ts` untested | **High** | Add `gitParser.test.ts` — secret detection and close-keyword regexes are security-adjacent. |
 | GAP-04 | No test distinguishes real LLM output from Tier-3 fallback | **Medium** | Assert cascade behaviour by mocking tiers, not just response shape. |
-| GAP-05 | `taskStore` mutations and filters untested | **Medium** | Vitest with a fake `idb-keyval`. |
+| GAP-05 | `taskStore` mutations and filters untested — now the largest gap, and where the DEC-012 auth defects lived | **High** | Vitest with a fake `idb-keyval`. The runner now exists, so this is unblocked. |
 | GAP-06 | No E2E keyboard coverage | **Medium** | Playwright over FR-INT-01…11. |
 | ~~GAP-08~~ | ~~`_check_production_safety` untested~~ | — | ✅ **Closed 2026-08-28.** `test_startup_safety.py` parametrises all four insecure defaults plus the safe and development cases. |
 | GAP-09 | No frontend test asserts that PM-only controls are hidden from a MEMBER | **Low** | Component test once a runner exists; the server-side refusal is already covered. |
 | GAP-07 | Performance/accessibility claims unmeasured | **Low** | Either measure them or soften NFR-01/03/04 in D1. |
 
-**Recommended first move:** add Vitest and close GAP-01. It is pure-function testing with no
-framework mocking, and it protects the logic most likely to be silently broken by an AI edit.
+**Recommended next move:** GAP-05 — `taskStore.ts`. It is now the largest untested surface, has the
+widest blast radius in the repo, and is where the three DEC-012 auth defects lived. The runner
+exists, so the only remaining cost is faking `idb-keyval` and the API client.

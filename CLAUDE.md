@@ -21,11 +21,13 @@ Guidance for AI agents working in this repository. **Read `documentation/` befor
 # Backend — must stay green
 cd source/backend && pytest -q          # expect: 34 passed
 
-# Frontend — the only automated gate that exists
+# Frontend
+pnpm test                               # expect: 28 passed (vitest)
 pnpm run build                          # vue-tsc -b && vite build
 ```
 
-There is no frontend test runner. A green build is a type check, not a correctness check.
+Vitest covers `lib/dagSorter.ts` only. The store, keyboard dispatcher and components have no tests —
+a green build there is a type check, not a correctness check.
 
 ## Standing rules
 
@@ -33,9 +35,10 @@ There is no frontend test runner. A green build is a type check, not a correctne
   set exists because the previous docs confidently described behaviour the code did not have.
 - **Scope discipline.** Fix what was asked. A drive-by fix of a known critical risk while doing
   something else is still a red-zone violation.
-- **Test before touching untested logic.** For any 🟡 file with no coverage — `lib/dagSorter.ts`
+- **Test before touching untested logic.** For any 🟡 file with no coverage — `stores/taskStore.ts`
   above all — write the characterisation test first, confirm it passes against current behaviour,
-  then change the code.
+  then change the code. A suite that has never failed proves nothing: seed a defect, confirm it is
+  caught, revert.
 - **Never weaken a test to make it pass.** A failing test is a finding; report it. One test
   deliberately encodes a defect — see D5 §5.
 - **Preserve the local-first ordering.** IndexedDB write precedes the network call, and neither

@@ -446,6 +446,61 @@ project.
 
 ---
 
+### DEC-013 — Vitest adopted; `dagSorter.ts` characterised
+**Date:** 2026-08-28 · **Status:** Active · **Requested by the maintainer**
+
+**Context.** D5 GAP-01 / RISK-06 had been the top-ranked gap since the first audit: the dependency
+graph engine held the most intricate logic in the repository with zero automated coverage, and no
+frontend test runner existed at all.
+
+**Decision.** Add Vitest (config lives in `vite.config.ts`, `environment: 'node'` since `lib/` is
+framework-free) and write **characterisation** tests — pinning what the code does today rather than
+what an idealised spec says, per D6 P4/P5.
+
+That distinction produced three assertions that would otherwise have looked like bugs to fix:
+
+- **Cycle tolerance** rather than throwing (DEC-002) is asserted as correct behaviour.
+- **The CPM weight scale** (S1/M3/L5/XL8) is pinned specifically, using a fixture where the storage
+  scale (S1/M2/L3/XL5) would select a *different* winner. Harmonising the two scales — an obvious
+  looking "cleanup" — now fails a test that explains why they differ (D4 §3.2).
+- **A due date only breaks ties when both tasks have one**; a dated task does not sort ahead of an
+  undated one. Labelled `QUIRK` so it reads as observed, not endorsed.
+
+**Validating the tests.** All 28 passed on the first run, which for previously-untested code is a
+warning sign rather than a success: a test that cannot fail proves nothing. Seven defects were
+seeded into `dagSorter.ts` one at a time — removing the priority tie-break, inverting edge
+direction, dropping the cycle remainder, including DONE tasks, swapping in the storage scale,
+returning only the chain endpoint, ignoring the due-date tie-break — and every one was caught
+(1–3 failures each). The source was then restored and confirmed byte-identical. This is now D6 P13.
+
+**Found in the process — F-24.** `computeCriticalPath` memoises by task id alone, but
+`getPathWeight`'s result also depends on the `visited` set that truncated the walk. On a **cyclic**
+graph a node can be memoised from a truncated traversal and reused where the truncation would not
+apply, so the same graph returns different answers depending on array order:
+
+```
+B <-> C  (cycle),  E depends on C
+computeCriticalPath([B, C, E]) -> {B, C}
+computeCriticalPath([E, B, C]) -> {B, C, E}
+```
+
+**Not fixed, deliberately.** The brief was to add tests; changing engine behaviour is a separate
+decision (D6 P2), and the defect only manifests on graphs that are already invalid and already
+degraded by DEC-002. It is pinned by a `KNOWN LIMITATION` test asserting both orders, so a future
+fix fails loudly and forces the documentation to be updated rather than silently diverging.
+
+The likely fix is to skip memoisation on any traversal that truncated at a visited node, at some
+cost to the memo hit rate. That is a judgement call for the maintainer.
+
+**Verification.** `pnpm test` → 28 passed. `pnpm test` is now part of the Definition of Done
+(D5 §4).
+
+**Gap unchanged in shape.** This covers one file. `taskStore.ts` — the widest-blast-radius module in
+the repo, and where all three DEC-012 auth defects lived — is still untested (GAP-05, RISK-16). The
+runner now exists, so it is unblocked.
+
+---
+
 ## Part II — Findings ledger
 
 Observations that are not yet decisions. Each should become a decision or a work item.
@@ -456,7 +511,7 @@ Observations that are not yet decisions. Each should become a decision or a work
 | F-02 | Google ID token signature verification failure fell back to **unverified** base64 payload decoding. | `routers/auth.py` | Critical | ✅ Closed — DEC-010 |
 | F-03 | JWT secret hardcoded in `config.py` and `docker-compose.yml`, both public. | | Critical | ⚠️ Mitigated — DEC-010. **Rotate any deployed secret**; old tokens stay forgeable. |
 | F-04 | No task endpoint verified project membership. Any user could mutate any task. | `routers/tasks.py` | High | ✅ Closed — DEC-009 |
-| F-05 | `dagSorter.ts` — the most intricate logic in the repo — has zero tests. | | High | Open — D5 GAP-01 |
+| F-05 | `dagSorter.ts` — the most intricate logic in the repo — has zero tests. | | High | ✅ Closed — DEC-013 (28 tests, mutation-verified) |
 | F-06 | `db/schema.sql` diverges from the ORM and is never executed. | | Medium | Superseded — Alembic is now the schema source (DEC-011). The file is stale legacy reference; **candidate for deletion**. |
 | F-07 | `allow_origins=["*"]` with `allow_credentials=True` is spec-invalid. | `main.py` | Medium | ✅ Closed — DEC-010 |
 | F-08 | `complexity_points` validated `ge=1, le=8` on create, unvalidated on update. | `schemas/task.py` | Low | Open |
@@ -474,6 +529,7 @@ Observations that are not yet decisions. Each should become a decision or a work
 | F-20 | Several UI tooltips and the footer legend still say `c` for create task; the binding is `n` (DEC-005). | `App.vue`, `MobileBottomNav.vue` | Low | Open — cosmetic, but it is the same class of drift as DEC-005 |
 | F-21 | The post-auth sequence was duplicated between boot and login and drifted, leaving a signed-in user with no projects loaded. | `taskStore.ts`, `AuthModal.vue` | High | ✅ Closed — DEC-012 (single `onAuthenticated`) |
 | F-22 | `App.vue` shadowed `taskStore.isDashboardOpen` with a local ref, making the store field dead state. | `App.vue` | Medium | ✅ Closed — DEC-012 |
+| F-24 | `computeCriticalPath` memoises by task id but the value depends on the traversal's `visited` set, so **cyclic** graphs yield order-dependent results. Acyclic graphs are unaffected. | `lib/dagSorter.ts` | Medium | Open — pinned by a KNOWN LIMITATION test (DEC-013). Fix: skip the memo when a walk truncated. |
 | F-23 | Deleting the SQLite file under a running uvicorn leaves it writing to a deleted inode ("attempt to write a readonly database"). Restart the process, do not just replace the file. | operational | Low | Open — documented here |
 
 ## Part III — Timeline
@@ -493,3 +549,4 @@ Observations that are not yet decisions. Each should become a decision or a work
 | **2026-08-28** | Insecure defaults gated and made boot-blocking; RISK-01/05/11/14 closed, RISK-02 mitigated (DEC-010). Suite 6 → 29. |
 | **2026-08-28** | Alembic adopted with an upgrade path for pre-existing databases; RISK-10 closed (DEC-011). |
 | **2026-08-28** | JWT secret rotated; three auth-UI defects fixed; RISK-02 closed for this checkout (DEC-012). Suite → 34. |
+| **2026-08-28** | Vitest adopted; `dagSorter.ts` characterised with 28 mutation-verified tests; GAP-01/RISK-06 closed, F-24 found (DEC-013). |
