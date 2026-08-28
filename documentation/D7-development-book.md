@@ -820,6 +820,8 @@ Observations that are not yet decisions. Each should become a decision or a work
 | F-32 | The backend had no `.dockerignore` behind `COPY . .`, so the image shipped `.env` (the rotated JWT secret), `data/koshi.db` (a developer database with bcrypt hashes) and the host `.venv`. The database copy also seeded the runtime volume, so `alembic upgrade head` ran against a pre-existing schema and the container refused to start. | `source/backend/Dockerfile` | **Critical** | ✅ Closed — DEC-018 |
 | F-33 | `AIDecomposerModal` and `GitDiffModal` reported "Inserted!" / "Applied to Tasks!" and closed after writing nothing, because every store write is a no-op on a read-only project (INV-15). The user was told their work was saved when it was not. | `AIDecomposerModal.vue`, `GitDiffModal.vue` | High | ✅ Closed — DEC-018 |
 | F-34 | `WeeklySummaryModal` returned early with no project selected without clearing `isLoading`, so it span forever and hid its own error message behind the spinner. | `WeeklySummaryModal.vue` | Medium | ✅ Closed — DEC-018 |
+| F-35 | The AI cascade was unobservable: every tier returned a bare `str`, so nothing — not the tests, not the logs, not the API response — could tell a real model answer from the deterministic fallback. A deployment with a revoked key served canned Vietnamese text and looked healthy. | `services/ai_service.py` | Medium | ✅ Closed — DEC-019 (`AITier` + a warning log) |
+| F-36 | `docker-compose.dev.yml` fell back to a shared constant `JWT_SECRET` when none was set, so a token minted on one developer's machine verified on another's. Found while verifying the RISK-19 rotation: the container kept accepting a pre-rotation token. | `docker-compose.dev.yml` | Medium | ✅ Closed — DEC-019 (no default; `scripts/dev-env.sh` writes a per-machine value) |
 | F-23 | Deleting the SQLite file under a running uvicorn leaves it writing to a deleted inode ("attempt to write a readonly database"). Restart the process, do not just replace the file. | operational | Low | Open — documented here |
 
 ### DEC-018 — gitParser and the AI modals tested; a secret-leaking image found
@@ -882,6 +884,68 @@ field should probably be removed from the contract instead (OQ-08).
 D5 §5 rather than hidden — the blank-diff guard in `handleAnalyze` is unreachable behind a
 `:disabled` button, so no component test can reach it.
 
+### DEC-019 — The AI cascade made observable; the leaked secret rotated
+
+**Date:** 2026-08-28 · **Closes:** D5 GAP-04, most of RISK-19 · **Tests:** backend 38 → 64
+
+**The problem GAP-04 named.** Every AI test asserted response *shape*. The deterministic fallback
+returns exactly the right shape — that is its entire purpose — so the suite could not distinguish a
+working AI deployment from one whose API key had been revoked six months earlier. Every test would
+stay green while every user received canned Vietnamese text instead of analysis.
+
+**Why this could not be fixed with tests alone.** The cascade had no notion of which tier answered.
+All three return a bare `str`; the caller cannot tell them apart, and neither could a test. So the
+first change was to make provenance exist: `_call_llm` now returns `(text, AITier)`.
+
+`AITier` is deliberately **not** in any HTTP response — that would be a D4 contract change, and D4
+changes are never made as a side effect of writing tests. It exists for two consumers: the tests,
+and a `logger.warning("AI DEGRADED: ...")` on every tier-3 answer. That log line is currently the
+*only* signal an operator would get that AI is dead, which is worth stating plainly rather than
+treating as solved.
+
+**What the tests mock.** `httpx.AsyncClient.post`, not `AIService` methods. Patching the class under
+test would have proved only that the mock works — it would not have noticed the URL, the auth
+header, the model name or the payload drifting. Mocking at the transport boundary means the tests
+also pin that tier 1 sends `Bearer <key>` and `temperature: 0.2`, and that tier 2 sends
+`stream: false` (streaming would return chunks the parser cannot read).
+
+One assertion is about restraint rather than function: with no API key configured, tier 1 must not
+be *attempted*, not merely fail. A deployment that forgot its key should not be posting prompts to
+an unauthenticated endpoint.
+
+**A mutation that survived, and the test that was wrong.** Removing the `res.status_code == 200`
+check from tier 1 did not fail the suite. The parametrised 401/429/500/503 test sends an empty body,
+so the mutant fell through on a `KeyError` from the missing `choices` — the right outcome for the
+wrong reason. A gateway or quota error can return a perfectly well-formed payload with a non-200
+code, so a test was added for exactly that. The lesson repeats DEC-016: a passing test is not
+evidence until you know *which* line made it pass.
+
+**RISK-19.** The secret was rotated, both images rebuilt from scratch with `--no-cache`, and the old
+image IDs deleted. The new backend image was then checked directly rather than assumed:
+
+```
+docker run --rm --entrypoint sh koshi-koshi-backend -c 'test -f /app/.env && echo LEAKED || echo clean'
+→ clean       (also: no data/koshi.db, no .venv)
+```
+
+**Verifying the rotation is what caught F-36.** After rotating, a pre-rotation bearer token was
+replayed against the running container and came back **200**. The secret in `source/backend/.env`
+had rotated, but the container never reads that file — it took `JWT_SECRET` from
+`docker-compose.dev.yml`, which fell back to a hardcoded `dev_only_not_a_real_secret`. A constant
+shared by every checkout is the same failure as the original leak, one directory over. The fallback
+is gone; `scripts/dev-env.sh` now writes a per-machine random value into a gitignored root `.env`.
+Replaying the same token after the fix returns **401**.
+
+This is why the runbook (D6 §7.1) gained two steps it did not have: verify the *image*, not just the
+config, and destroy the old images — rotation does not un-publish an image that contains the old key.
+
+**Not done, and not mine to do.** The production host still runs the old image with the old secret.
+Deployment is human-initiated by policy (D6 §3), so RISK-19 stays open until someone deploys and
+purges the registry copies. Until then every session on that host should be treated as forgeable.
+
+**Verification.** backend 64 passed, frontend 260 passed, `tsc --noEmit` clean, build clean.
+10 seeded mutations against the cascade, all caught after the status-code test was added.
+
 ## Part III — Timeline
 
 | Date | Event |
@@ -905,6 +969,7 @@ D5 §5 rather than hidden — the blank-diff guard in `handleAnalyze` is unreach
 | **2026-08-28** | Component tests for the four highest-risk `.vue` files; GAP-10/RISK-17 closed; two false-pass tests corrected (DEC-016). Frontend suite → 122. |
 | **2026-08-28** | Keyboard dispatcher and board views tested; GAP-12 closed; F-20 remnant and F-27 found (DEC-017). Frontend suite → 188. |
 | **2026-08-28** | `gitParser` and the AI modals tested; GAP-03/GAP-13 closed. Docker images found to be unbuildable (F-31) and to ship the JWT secret (F-32); local stack added (DEC-018). Frontend suite → 260. |
+| **2026-08-28** | AI cascade made observable and tested by tier; GAP-04 closed. Secret rotated and images rebuilt clean; a shared dev-secret fallback found and removed (DEC-019). Backend suite → 64. |
 
 ## Part IV — Open questions
 

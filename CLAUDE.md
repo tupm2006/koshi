@@ -19,7 +19,7 @@ Guidance for AI agents working in this repository. **Read `documentation/` befor
 
 ```bash
 # Backend — must stay green
-cd source/backend && pytest -q          # expect: 38 passed
+cd source/backend && pytest -q          # expect: 64 passed
 
 # Frontend
 pnpm test                               # expect: 260 passed (vitest)
@@ -32,7 +32,8 @@ docblock. Every non-trivial frontend module now has tests; what is left unverifi
 *cascade* (no test tells a real LLM answer from the deterministic fallback — D5 GAP-04) and the
 IndexedDB round-trip, which is mocked everywhere.
 
-Local stack: `docker compose -f docker-compose.dev.yml up -d --build`, then `localhost:8080`.
+Local stack: `./scripts/dev-env.sh` once (writes a per-machine `JWT_SECRET` into a gitignored
+`./.env`), then `docker compose -f docker-compose.dev.yml up -d --build` and `localhost:8080`.
 
 ## Standing rules
 

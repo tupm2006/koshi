@@ -1,7 +1,7 @@
 # D5 — Tests & Acceptance Criteria
 
 **Purpose:** define what "correct" means, and record honestly what is currently verified.
-**Last verified by execution:** 2026-08-28 — backend `38 passed`, frontend `260 passed`.
+**Last verified by execution:** 2026-08-28 — backend `64 passed`, frontend `260 passed`.
 
 ---
 
@@ -15,7 +15,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pytest -q
 ```
-Expected: **38 passed**. (`app/database.py` creates the sqlite directory itself, so no `mkdir` is needed.) Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
+Expected: **64 passed**. (`app/database.py` creates the sqlite directory itself, so no `mkdir` is needed.) Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
 
 ### Database migrations
 
@@ -242,7 +242,7 @@ loosening the assertion without reading D7 / DEC-003.
 | ~~GAP-01~~ | ~~`dagSorter.ts` has zero tests~~ | — | ✅ **Closed 2026-08-28.** Vitest added; 28 tests over FR-GRAPH-01…04, tie-breaking, cycles and both weight scales. Surfaced F-24 in the process. |
 | ~~GAP-02~~ | ~~No negative authorisation tests~~ | — | ✅ **Closed 2026-08-28.** `test_projects_and_roles.py` covers MEMBER→403 on every PM action and non-member→404 across project, task, AI and stats routes. |
 | ~~GAP-03~~ | ~~`gitParser.ts` untested~~ | — | ✅ **Closed 2026-08-28.** 39 characterisation tests. Surfaced F-29 (dead `blockedTaskIds`), F-30 (substring auto-resolution, fixed) and the limits of the secret scanner, now recorded as OQ-08. |
-| GAP-04 | No test distinguishes real LLM output from Tier-3 fallback | **Medium** | Assert cascade behaviour by mocking tiers, not just response shape. |
+| ~~GAP-04~~ | ~~No test distinguishes real LLM output from Tier-3 fallback~~ | — | ✅ **Closed 2026-08-28.** `test_ai_cascade.py` (26) mocks each tier at the `httpx` boundary and asserts *which tier answered*. Required making provenance observable at all — see F-35. Mutation-tested: 10 seeded defects, all caught. |
 | ~~GAP-05~~ | ~~`taskStore` untested~~ | — | ✅ **Closed 2026-08-28.** 24 tests over the screen state machine, offline write policy, project selection and cache partitioning, id translation, status cycle and filters. |
 | ~~GAP-10~~ | ~~No `.vue` component has a test~~ | — | ✅ **Closed 2026-08-28.** `@vue/test-utils` + jsdom added; 61 tests over the four highest-risk components, mutation-verified. |
 | ~~GAP-12~~ | ~~`lib/keyboard.ts` and the board components are untested~~ | — | ✅ **Closed 2026-08-28.** 66 tests across the dispatcher, both board views and the inspector, mutation-verified. |
@@ -252,10 +252,14 @@ loosening the assertion without reading D7 / DEC-003.
 | GAP-09 | No frontend test asserts that PM-only controls are hidden from a MEMBER | **Low** | Component test once a runner exists; the server-side refusal is already covered. |
 | GAP-07 | Performance/accessibility claims unmeasured | **Low** | Either measure them or soften NFR-01/03/04 in D1. |
 
-**Recommended next move:** GAP-04 — no test distinguishes real LLM output from the Tier-3
-deterministic fallback, so an outage that silently degrades every AI feature to canned text would
-not fail the suite. After that, GAP-06 (Playwright over the keyboard model end to end), which is
-the only remaining way to catch a binding that works in jsdom but not in a browser.
+**Recommended next move:** GAP-06 — Playwright over the keyboard model end to end. It is now the
+only remaining way to catch a binding that works in jsdom but not in a real browser, and the
+keyboard model is the product's distinguishing feature. After that, GAP-07: either measure the
+NFR-01/03/04 claims or soften them in D1, because an unmeasured performance claim in a requirements
+document is worse than no claim.
+
+**Every gap rated Medium or above is now closed.** What is left (GAP-06, GAP-07, GAP-09) needs
+tooling this repo does not yet have, not tests somebody forgot to write.
 
 **One surviving mutation, recorded rather than papered over.** Removing the blank-diff guard from
 `GitDiffModal.handleAnalyze` does not fail the suite. The guard is unreachable through the UI — the

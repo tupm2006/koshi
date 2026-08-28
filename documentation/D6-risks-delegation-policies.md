@@ -93,7 +93,7 @@ documentation.
 | **RISK-06** | **`dagSorter.ts` has no tests** yet holds the most intricate logic in the repo. | Low | High | ✅ **Closed 2026-08-28.** 28 tests; verified by seeding 7 defects and confirming each was caught. |
 | **RISK-16** | **`taskStore.ts` has no tests** despite the widest blast radius in the repo. | Low | High | ✅ **Closed 2026-08-28.** 24 tests, mutation-verified against 8 seeded defects (DEC-015). |
 | **RISK-17** | **No `.vue` component has a test.** | Low | Medium | ✅ **Closed 2026-08-28.** 61 component tests across `AuthDialog`, `ProfilePage`, `ProjectDashboard` and `LandingPage`, mutation-verified (DEC-016). The board components remain uncovered — D5 GAP-12. |
-| **RISK-19** | **The published backend image contained `.env`.** Every build before 2026-08-28 copied the rotated JWT secret and a developer database with bcrypt hashes into the image, because `COPY . .` had no `.dockerignore` (F-32). Anyone who has pulled that image, or can `exec` into a container running it, can read the signing key and forge a session for any account. | High | **Critical** | ⚠️ **Open — human action required.** A `.dockerignore` now excludes it, but that does not un-publish what was already built. Rotate the secret again, rebuild, redeploy, and delete any cached copies of the old image. |
+| **RISK-19** | **The published backend image contained `.env`.** Every build before 2026-08-28 copied the rotated JWT secret and a developer database with bcrypt hashes into the image, because `COPY . .` had no `.dockerignore` (F-32). Anyone who has pulled that image, or can `exec` into a container running it, can read the signing key and forge a session for any account. | High | **Critical** | 🟡 **Partly closed 2026-08-28 (DEC-019).** Done locally: secret rotated, both images rebuilt from scratch, old image IDs deleted, absence of `/app/.env` verified in the new image. **Still outstanding — human action:** the production host `umi` is still running the old image with the old secret. Deploy (§7.1 step 5) and delete the registry/host copies. Until then, treat every session on that host as forgeable. |
 | **RISK-18** | **Pricing figures on the landing page are placeholders.** Publishing them unchanged would advertise prices nobody agreed to. | Medium | Medium | ⚠️ **Open.** Replace the `pricing.*` values in `lib/translations.ts` before launch. |
 | **RISK-07** | **Documentation contradicting code.** The retired SRS/URD/README made at least seven claims the code did not support (status order, key bindings, `/api/v1`, a non-existent test file, the LLM vendor). An agent trusting prose writes wrong code. | Low | High | ✅ **Closed 2026-08-28.** Stale documents deleted; `README.md` and `CLAUDE.md` rewritten against the code; D1–D8 are the single source. Conflicts preserved for the record in D7 / DEC-005. |
 | **RISK-08** | **Dependency graph was server-side unresolvable** — dependencies were `List[str]` against `int` ids. | Low | High | ✅ **Closed 2026-08-28.** Integer ids are canonical; unresolvable, self- and cross-project dependencies are rejected (D7 / DEC-014). |
@@ -201,8 +201,21 @@ python -c "from app.config import settings; print(settings.JWT_SECRET == setting
 #    token must now return 401.
 ```
 
-**Rotate immediately if:** the secret ever appeared in source control, a log, or a screenshot; a
-deployment ran with the published default; or someone with access to it leaves the project.
+**Step 2b — check the image, not just the config.** A secret set correctly in `.env` is still
+compromised if `.env` is inside the image. Verify before every deploy:
+
+```bash
+docker run --rm --entrypoint sh <backend-image> -c 'test -f /app/.env && echo LEAKED || echo clean'
+# must print: clean
+```
+
+**Step 5 — destroy the old images.** Rotation does not un-publish an image that contains the old
+secret. Remove every local and registry copy built before the fix (`docker rmi`, plus the registry's
+own delete), or the key remains readable by anyone who can pull it.
+
+**Rotate immediately if:** the secret ever appeared in source control, a log, an image layer, or a
+screenshot; a deployment ran with the published default; or someone with access to it leaves the
+project.
 
 > The value `koshi_super_secret_jwt_key_2026_academic_spec` shipped in this repository's public
 > history. **Any deployment that ever ran with it must be rotated**, and sessions issued under it

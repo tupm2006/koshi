@@ -1,9 +1,12 @@
 import enum
 import json
+import logging
 import re
 import httpx
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class AIFeature(str, enum.Enum):
@@ -19,14 +22,40 @@ class AIFeature(str, enum.Enum):
     ASSIGNMENT = "assignment"
 
 
+class AITier(str, enum.Enum):
+    """
+    Which tier of the cascade actually produced an answer.
+
+    The cascade is silent by design — every tier returns the same `str`, so a
+    deployment whose API key has expired keeps serving canned Vietnamese text
+    and looks entirely healthy. That was D5 GAP-04: the tests asserted response
+    *shape*, which tier 3 satisfies perfectly, so a total AI outage left the
+    suite green.
+
+    Tracking the tier costs nothing at runtime and makes the difference
+    assertable. It is deliberately NOT part of any HTTP response — that would
+    be a D4 contract change. It exists for tests and for the log line below.
+    """
+    CLOUD = "cloud"            # tier 1 — configured OpenAI-compatible endpoint
+    OLLAMA = "ollama"          # tier 2 — local model
+    DETERMINISTIC = "fallback"  # tier 3 — no model was reached at all
+
+
 class AIService:
     @classmethod
-    async def _call_llm(cls, feature: "AIFeature", system_prompt: str, user_prompt: str) -> str:
+    async def _call_llm(
+        cls, feature: "AIFeature", system_prompt: str, user_prompt: str
+    ) -> Tuple[str, "AITier"]:
         """
         Executes LLM request with graceful fallback cascade:
         1. Configured OpenAI-compatible endpoint (if key present)
         2. Local Ollama server (http://localhost:11434)
         3. Deterministic heuristic compiler (offline zero-failure guarantee)
+
+        Returns the text *and* the tier that produced it. Callers that only want
+        the text should still not discard the tier silently — the point of
+        returning it is that falling through to tier 3 is a degradation, not a
+        success, even though it never raises.
         """
         # 1. Cloud API, whenever a key is configured. This used to also require
         #    "openai" in the URL, which silently disabled tier 1 for every other
@@ -46,9 +75,13 @@ class AIService:
                     res = await client.post(settings.AI_API_URL, headers=headers, json=payload)
                     if res.status_code == 200:
                         data = res.json()
-                        return data["choices"][0]["message"]["content"]
-            except Exception:
-                pass
+                        return data["choices"][0]["message"]["content"], AITier.CLOUD
+                    logger.warning(
+                        "AI tier 1 (%s) returned HTTP %s for %s; falling through",
+                        settings.AI_API_URL, res.status_code, feature.value,
+                    )
+            except Exception as exc:
+                logger.warning("AI tier 1 failed for %s: %s", feature.value, exc)
 
         # 2. Try Local Ollama endpoint
         try:
@@ -64,15 +97,22 @@ class AIService:
                 res = await client.post(settings.OLLAMA_URL, json=ollama_payload)
                 if res.status_code == 200:
                     data = res.json()
+                    # Ollama answers in its own shape behind /api/chat and in the
+                    # OpenAI shape behind /v1/chat/completions; accept both.
                     if "choices" in data:
-                        return data["choices"][0]["message"]["content"]
+                        return data["choices"][0]["message"]["content"], AITier.OLLAMA
                     elif "message" in data:
-                        return data["message"]["content"]
-        except Exception:
-            pass
+                        return data["message"]["content"], AITier.OLLAMA
+        except Exception as exc:
+            logger.info("AI tier 2 (ollama) unavailable for %s: %s", feature.value, exc)
 
         # 3. Deterministic Heuristic Engine Fallback
-        return cls._deterministic_fallback(feature, user_prompt)
+        logger.warning(
+            "AI DEGRADED: no model reached for %s; serving the deterministic "
+            "fallback. Output is canned text, not analysis.",
+            feature.value,
+        )
+        return cls._deterministic_fallback(feature, user_prompt), AITier.DETERMINISTIC
 
     @classmethod
     def _deterministic_fallback(cls, feature: "AIFeature", user_prompt: str) -> str:
@@ -139,7 +179,8 @@ class AIService:
             "nhận diện rủi ro từ các task bị BLOCKED hoặc quá hạn, và đề xuất việc ưu tiên."
         )
         user_prompt = f"Dữ liệu nhiệm vụ tuần này:\n{json.dumps(task_data, ensure_ascii=False, indent=2)}"
-        return await cls._call_llm(AIFeature.WEEKLY_SUMMARY, system_prompt, user_prompt)
+        text, _tier = await cls._call_llm(AIFeature.WEEKLY_SUMMARY, system_prompt, user_prompt)
+        return text
 
     @classmethod
     async def extract_meeting_minutes(cls, raw_notes: str) -> Dict[str, Any]:
@@ -152,7 +193,7 @@ class AIService:
             "Chỉ trả về định dạng JSON hợp lệ."
         )
         user_prompt = f"Nội dung ghi chép cuộc họp thô:\n{raw_notes}"
-        raw_res = await cls._call_llm(AIFeature.MEETING_MINUTES, system_prompt, user_prompt)
+        raw_res, _tier = await cls._call_llm(AIFeature.MEETING_MINUTES, system_prompt, user_prompt)
         
         # Clean JSON markdown fences if present
         clean_json = raw_res.strip()
@@ -163,6 +204,12 @@ class AIService:
         try:
             return json.loads(clean_json)
         except Exception:
+            # A model answered but not in JSON. That is still a degradation —
+            # the user gets canned minutes — so it is logged like one.
+            logger.warning(
+                "AI tier %s returned unparseable JSON for meeting minutes; "
+                "serving the deterministic fallback.", _tier.value,
+            )
             return json.loads(cls._deterministic_fallback(AIFeature.MEETING_MINUTES, user_prompt))
 
     @classmethod
@@ -179,7 +226,7 @@ class AIService:
             f"Nhiệm vụ mới:\nTitle: {task_title}\nDesc: {task_desc}\n\n"
             f"Danh sách thành viên và khối lượng hiện tại:\n{json.dumps(team_workload, ensure_ascii=False, indent=2)}"
         )
-        raw_res = await cls._call_llm(AIFeature.ASSIGNMENT, system_prompt, user_prompt)
+        raw_res, _tier = await cls._call_llm(AIFeature.ASSIGNMENT, system_prompt, user_prompt)
 
         clean_json = raw_res.strip()
         if clean_json.startswith("```"):
@@ -189,4 +236,8 @@ class AIService:
         try:
             return json.loads(clean_json)
         except Exception:
+            logger.warning(
+                "AI tier %s returned unparseable JSON for assignment; "
+                "serving the deterministic fallback.", _tier.value,
+            )
             return json.loads(cls._deterministic_fallback(AIFeature.ASSIGNMENT, user_prompt))

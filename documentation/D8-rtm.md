@@ -145,12 +145,12 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 
 | Req | Work item | Implementation | Verification | St |
 |:--|:--|:--|:--|:--:|
-| FR-AI-01 | Weekly summary | `routers/ai.py::generate_weekly_summary`, `ai_service.py::generate_weekly_summary`, `WeeklySummaryModal.vue` | ✅ `test_mandated_ai_features` + `AIModals.test.ts` (6) | ✅ shape only — provenance untested, GAP-04 |
-| FR-AI-02 | Meeting minutes | `routers/ai.py::extract_meeting_minutes`, `ai_service.py::extract_meeting_minutes`, `MeetingMinutesModal.vue` | ✅ same + `AIModals.test.ts` (5) | ✅ shape only — provenance untested, GAP-04 |
-| FR-AI-03 | Assignment recommendation | `routers/ai.py::recommend_assignment`, `ai_service.py::recommend_task_assignment`, `WorkloadAssignModal.vue` | ✅ same + `AIModals.test.ts` (6) | ✅ shape only — provenance untested, GAP-04 |
+| FR-AI-01 | Weekly summary | `routers/ai.py::generate_weekly_summary`, `ai_service.py::generate_weekly_summary`, `WeeklySummaryModal.vue` | ✅ `test_mandated_ai_features`, `test_ai_cascade.py`, `AIModals.test.ts` (6) | ✅ |
+| FR-AI-02 | Meeting minutes | `routers/ai.py::extract_meeting_minutes`, `ai_service.py::extract_meeting_minutes`, `MeetingMinutesModal.vue` | ✅ same + `test_ai_cascade.py` (fence stripping, unparseable-JSON degradation) + `AIModals.test.ts` (5) | ✅ |
+| FR-AI-03 | Assignment recommendation | `routers/ai.py::recommend_assignment`, `ai_service.py::recommend_task_assignment`, `WorkloadAssignModal.vue` | ✅ same + `test_ai_cascade.py` + `AIModals.test.ts` (6) | ✅ |
 | FR-AI-04 | Goal decomposition | `routers/ai.py::decompose_goal` (hardcoded), `lib/aiDecomposer.ts`, `AIDecomposerModal.vue` | ✅ asserts `len == 3`; `AIModals.test.ts` (7) covers insertion and dependency wiring | ⚠️✅ **test pins the stub** — D5 §5, DEC-003 |
 | FR-AI-05 | Git diff analysis | `lib/gitParser.ts::parseGitDiff` called directly by `GitDiffModal.vue` | ✅ `gitParser.test.ts` (39) + `AIModals.test.ts` (5) | ✅ — but the BLOCKED-task heuristic is loose by design; OQ-08 |
-| FR-AI-06 | 3-tier cascade | `ai_service.py::_call_llm`, `_deterministic_fallback` | ✅ implicitly — CI runs with no key and no Ollama | ✅ |
+| FR-AI-06 | 3-tier cascade | `ai_service.py::_call_llm`, `_deterministic_fallback`, `AITier` | ✅ `test_ai_cascade.py` (26) — each tier mocked at the httpx boundary, asserted by provenance | ✅ |
 | FR-AI-07 | Workload stats | `routers/stats.py::get_member_workloads` | ✅ `test_workload_and_delayed_tasks_stats` | ✅ |
 | FR-AI-08 | Delayed tasks | `routers/stats.py::get_delayed_tasks` | ✅ same | 🟡 no overdue fixture |
 
@@ -264,12 +264,12 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | Graph (FR-GRAPH) | 5 | 5 | 0 | 0 |
 | Persistence (FR-PERS) | 6 | 2 | 3 | 1 |
 | Auth (FR-AUTH) | 10 | 10 | 0 | 0 |
-| AI (FR-AI) | 8 | 7 | 0 | 1 |
+| AI (FR-AI) | 8 | 8 | 0 | 0 |
 | Projects (FR-PROJ) | 12 | 9 | 2 | 1 |
 | Non-functional (NFR) | 10 | 3 | 3 | 4 |
-| **Total** | **90** | **75** | **9** | **6** |
+| **Total** | **90** | **76** | **9** | **5** |
 
-**Reading.** 83% automated, 10% manual-only, 7% unverified — up from 33% automated at rev 1.
+**Reading.** 84% automated, 10% manual-only, 6% unverified — up from 33% automated at rev 1.
 **Every non-trivial frontend module now has tests**: both stores, both pure libraries, the keyboard
 dispatcher, and thirteen components including all six AI modals. The imbalance noted at rev 1 —
 "automation is still almost entirely backend, and the frontend carries the product's distinguishing
@@ -277,14 +277,16 @@ logic with no automated verification at all" — no longer holds.
 
 What remains unverified is genuinely hard to unit-test rather than merely unwritten:
 
-- **FR-AI cascade behaviour** (GAP-04). Every AI row is covered for *shape*, none for *provenance*:
-  no test distinguishes a real LLM answer from the Tier-3 deterministic fallback. An outage that
-  silently degraded every AI feature to canned text would leave the suite green. This is now the
-  weakest claim in the matrix.
 - **NFR-01/03/04** — frame budget, load time, contrast. These need measurement tooling, not tests.
   Either measure them or soften the claims in D1.
 - **FR-PERS offline round-trip** — IndexedDB is mocked in every frontend test. The *policy* is
   covered (INV-15, in the store and now in both writing modals); the *persistence* is not.
 
-**Highest-leverage next work item:** D5 GAP-04 — assert the AI cascade by mocking each tier, so a
-degraded deployment fails the suite instead of passing it quietly.
+**Highest-leverage next work item:** D5 GAP-06 — Playwright over the keyboard model. Every
+remaining gap needs tooling rather than tests: a browser (GAP-06), a profiler and a contrast checker
+(GAP-07). There is no module left that somebody simply forgot to test.
+
+**One caveat on the AI rows.** They are now covered for provenance in the *service*, but nothing
+surfaces the tier to an operator except a log line. A production deployment silently serving tier-3
+answers would still not page anyone. That is a monitoring gap, not a test gap, and it is out of
+scope for this matrix — recorded here so it is not mistaken for solved (F-35).

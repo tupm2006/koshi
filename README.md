@@ -46,7 +46,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 alembic upgrade head               # build/update the schema
-pytest -q                          # 38 tests
+pytest -q                          # 64 tests
 ```
 
 On first run with an empty database the app seeds two accounts (`pm@tupm.qzz.io` and
@@ -56,6 +56,7 @@ enabled outside development.
 
 **Docker — local**
 ```bash
+./scripts/dev-env.sh                # once: writes a per-machine JWT_SECRET to ./.env
 docker compose -f docker-compose.dev.yml up -d --build
 open http://localhost:8080          # backend also on 127.0.0.1:8000
 ```
@@ -153,7 +154,8 @@ Tier 3 output is currently indistinguishable from real model output to the calle
 
 ## Project status
 
-The backend is covered end to end (38/38), with authorisation the best-tested area. The frontend
+The backend is covered end to end (64/64), with authorisation and the AI cascade the best-tested
+areas. The frontend
 has 260 tests over both pure libraries, both stores, the keyboard dispatcher and thirteen
 components — every suite mutation-verified. Overall: 83% of requirements automated, 7% unverified.
 Full breakdown in [D8 §5](./documentation/D8-rtm.md).
@@ -161,12 +163,15 @@ Full breakdown in [D8 §5](./documentation/D8-rtm.md).
 Known defects are catalogued in [D7 Part II](./documentation/D7-development-book.md) and risk-rated
 in [D6 §4](./documentation/D6-risks-delegation-policies.md). Still open and worth knowing about:
 
-- **Rotate `JWT_SECRET` on any deployment that predates 2026-08-28** — and again if you have ever
-  built or pulled the backend image, which was shipping `.env` inside it until the `.dockerignore`
-  was added (D6 RISK-19). The old default was also published in this repo. Runbook:
+- **The production host still runs the pre-rotation secret** (D6 RISK-19). It was rotated locally
+  and both images rebuilt clean, but deploying is human-initiated by policy. Until it is deployed,
+  treat every session on that host as forgeable. Rotate on any deployment predating 2026-08-28, and
+  again if you have ever built or pulled the backend image, which was shipping `.env` inside it
+  until the `.dockerignore` was added. The old default was also published in this repo. Runbook:
   [D6 §7.1](./documentation/D6-risks-delegation-policies.md).
-- **No test distinguishes real AI output from the deterministic fallback** (D5 GAP-04), so a
-  degraded deployment would not fail the suite. Currently the weakest claim in the matrix.
+- **Nothing alerts an operator when AI silently degrades.** The cascade now logs
+  `AI DEGRADED` on every fallback and the tests assert which tier answered, but nothing monitors
+  that log — a production deployment serving canned text would not page anyone (D7 F-35).
 - **The Git diff analyser resolves BLOCKED tasks on a title word match**, with no closing keyword
   required, and offers to write DONE for them. Narrowed but not removed — see
   [D7 OQ-08](./documentation/D7-development-book.md).

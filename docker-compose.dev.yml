@@ -26,7 +26,12 @@ services:
     environment:
       - DATABASE_URL=sqlite:///./data/koshi.db
       - ENVIRONMENT=development
-      - JWT_SECRET=${JWT_SECRET:-dev_only_not_a_real_secret}
+      # No fallback default, even here. A shared constant that every checkout
+      # uses is exactly the shape of the leak this project already had: tokens
+      # minted on one machine verify on another. `scripts/dev-env.sh` writes a
+      # per-machine random value into the gitignored root .env, which compose
+      # reads automatically.
+      - JWT_SECRET=${JWT_SECRET:?run scripts/dev-env.sh first (writes ./.env)}
       - CORS_ORIGINS=http://localhost:8080
       - SEED_DEMO_DATA=true
       - ALLOW_UNVERIFIED_GOOGLE_TOKENS=false
