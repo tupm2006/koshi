@@ -91,6 +91,44 @@ const INITIAL_TASKS: Task[] = [
 
 const STATUS_ORDER: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'];
 
+const PRIORITY_WEIGHTS: Record<TaskPriority, number> = {
+  CRITICAL: 4,
+  HIGH: 3,
+  MEDIUM: 2,
+  LOW: 1,
+};
+
+export function compareTasks(a: Task, b: Task, criticalSet: Set<string> = new Set()): number {
+  // 1. Critical Path (Non-DONE critical path tasks prioritized)
+  const aCrit = criticalSet.has(a.id) && a.status !== 'DONE' ? 1 : 0;
+  const bCrit = criticalSet.has(b.id) && b.status !== 'DONE' ? 1 : 0;
+  if (aCrit !== bCrit) return bCrit - aCrit;
+
+  // 2. Priority: CRITICAL (4) > HIGH (3) > MEDIUM (2) > LOW (1)
+  const aPri = PRIORITY_WEIGHTS[a.priority] ?? 1;
+  const bPri = PRIORITY_WEIGHTS[b.priority] ?? 1;
+  if (aPri !== bPri) return bPri - aPri;
+
+  // 3. Due Date: Ascending (earliest due date first, tasks without due date last)
+  if (a.dueDate && b.dueDate) {
+    const aTime = new Date(a.dueDate).getTime();
+    const bTime = new Date(b.dueDate).getTime();
+    if (aTime !== bTime) return aTime - bTime;
+  } else if (a.dueDate && !b.dueDate) {
+    return -1;
+  } else if (!a.dueDate && b.dueDate) {
+    return 1;
+  }
+
+  // 4. Stable numerical / string ID
+  const aNum = parseInt(a.id.replace(/\D/g, ''), 10);
+  const bNum = parseInt(b.id.replace(/\D/g, ''), 10);
+  if (!isNaN(aNum) && !isNaN(bNum) && aNum !== bNum) {
+    return aNum - bNum;
+  }
+  return a.id.localeCompare(b.id);
+}
+
 export const useTaskStore = defineStore('taskStore', {
   state: () => ({
     tasks: [] as Task[],
@@ -113,6 +151,11 @@ export const useTaskStore = defineStore('taskStore', {
   }),
 
   getters: {
+    sortedTasks(state): Task[] {
+      const critSet = computeCriticalPath(state.tasks);
+      return [...state.tasks].sort((a, b) => compareTasks(a, b, critSet));
+    },
+
     filteredTasks(state): Task[] {
       let result = state.tasks;
 
@@ -134,12 +177,30 @@ export const useTaskStore = defineStore('taskStore', {
         result = result.filter((t) => t.priority === state.filter.priority);
       }
 
+      const critSet = computeCriticalPath(state.tasks);
+
       if (state.filter.onlyCriticalPath) {
-        const critSet = computeCriticalPath(state.tasks);
         result = result.filter((t) => critSet.has(t.id));
       }
 
-      return result;
+      return [...result].sort((a, b) => compareTasks(a, b, critSet));
+    },
+
+    columns(state): { status: TaskStatus; label: string; tasks: Task[] }[] {
+      const critSet = computeCriticalPath(state.tasks);
+      const labels: Record<TaskStatus, string> = {
+        TODO: 'To Do',
+        IN_PROGRESS: 'In Progress',
+        BLOCKED: 'Blocked',
+        DONE: 'Done',
+      };
+      return STATUS_ORDER.map((status) => ({
+        status,
+        label: labels[status],
+        tasks: state.tasks
+          .filter((t) => t.status === status)
+          .sort((a, b) => compareTasks(a, b, critSet)),
+      }));
     },
 
     tasksByColumn(): Record<TaskStatus, Task[]> {
