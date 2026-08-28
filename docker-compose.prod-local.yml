@@ -1,0 +1,75 @@
+# Compose derives the project name from the directory when none is given, so all
+# three files in this repo would be project "koshi" — and `up` on one would treat
+# the others' containers as orphans and remove them. It did exactly that once
+# (F-38). An explicit name keeps the stacks independent.
+name: koshi-prod-local
+
+# A real production instance, running on this machine.
+#
+#   ./scripts/local-prod.sh up          # migrate, then start
+#   open http://localhost:8090
+#
+# This is NOT docker-compose.dev.yml with a different port. The whole point is
+# that the production settings are in force:
+#
+#   ENVIRONMENT=production        the startup safety guard is ARMED — the app
+#                                 refuses to boot on a weak secret, a wildcard
+#                                 CORS origin, or with demo seeding enabled
+#   SEED_DEMO_DATA=false          no pm@tupm.qzz.io / koshi123 accounts; you
+#                                 register a real one
+#   CORS_ORIGINS pinned           to this instance's own origin, not "*"
+#   no implicit create_all        Alembic owns the schema; the app refuses to
+#                                 start unless the database is at head, so
+#                                 migrations run as an explicit step
+#
+# Differences from `docker-compose.yml` (the deployment file) are only about
+# where it sits: ports are published to localhost instead of joining an external
+# `proxy-net` behind Caddy, and there is no TLS because there is no domain.
+# Nothing about the application's security posture is relaxed.
+services:
+  koshi-backend:
+    build:
+      context: ./source/backend
+      dockerfile: Dockerfile
+    container_name: koshi-backend-prod-local
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=sqlite:///./data/koshi.db
+      - ENVIRONMENT=production
+      # Separate from the dev stack's JWT_SECRET on purpose: a session minted
+      # against the seeded demo data must not be valid here. `scripts/dev-env.sh`
+      # generates both.
+      - JWT_SECRET=${PROD_JWT_SECRET:?run scripts/dev-env.sh first (writes ./.env)}
+      - CORS_ORIGINS=http://localhost:8090
+      - SEED_DEMO_DATA=false
+      - ALLOW_UNVERIFIED_GOOGLE_TOKENS=false
+      - AI_API_URL=https://api.openai.com/v1/chat/completions
+      - AI_API_KEY=${AI_API_KEY:-}
+      - AI_MODEL_NAME=gpt-4o-mini
+      - OLLAMA_URL=http://host.docker.internal:11434/v1/chat/completions
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - koshi-prod-local-data:/app/data
+    networks:
+      - koshi-prod-local
+
+  koshi-frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: koshi-frontend-prod-local
+    restart: unless-stopped
+    depends_on:
+      - koshi-backend
+    ports:
+      - "127.0.0.1:8090:80"
+    networks:
+      - koshi-prod-local
+
+volumes:
+  koshi-prod-local-data:
+
+networks:
+  koshi-prod-local:
+    driver: bridge

@@ -7,12 +7,27 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-if [ -f .env ] && grep -q '^JWT_SECRET=.\+' .env; then
-  echo ".env already has a JWT_SECRET; leaving it alone."
-  echo "To rotate deliberately: remove the JWT_SECRET line and rerun."
+# Two independent secrets. The dev stack seeds accounts with a known password;
+# the local production stack does not. Sharing one secret between them would let
+# a session minted against demo data authenticate against the real instance.
+wrote=0
+for name in JWT_SECRET PROD_JWT_SECRET; do
+  if [ -f .env ] && grep -q "^${name}=.\+" .env; then
+    echo "  ${name}: already set, leaving it alone"
+  else
+    printf '%s=%s\n' "$name" "$(openssl rand -hex 32)" >> .env
+    echo "  ${name}: generated"
+    wrote=1
+  fi
+done
+
+if [ "$wrote" = "0" ]; then
+  echo
+  echo "Nothing to do. To rotate one deliberately, delete its line from .env and rerun."
   exit 0
 fi
 
-printf 'JWT_SECRET=%s\n' "$(openssl rand -hex 32)" >> .env
-echo "Wrote a new JWT_SECRET to ./.env  (gitignored — never commit it)"
-echo "Now: docker compose -f docker-compose.dev.yml up -d --build"
+echo
+echo "Written to ./.env (gitignored — never commit it)."
+echo "  dev stack:   docker compose -f docker-compose.dev.yml up -d --build"
+echo "  local prod:  ./scripts/local-prod.sh up"

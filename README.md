@@ -54,15 +54,28 @@ On first run with an empty database the app seeds two accounts (`pm@tupm.qzz.io`
 sample tasks. Seeding is controlled by `SEED_DEMO_DATA` and the server **refuses to start** with it
 enabled outside development.
 
-**Docker — local**
+**Docker — development stack** (seeded demo accounts, relaxed guards)
 ```bash
-./scripts/dev-env.sh                # once: writes a per-machine JWT_SECRET to ./.env
+./scripts/dev-env.sh                # once: writes per-machine secrets to ./.env
 docker compose -f docker-compose.dev.yml up -d --build
 open http://localhost:8080          # backend also on 127.0.0.1:8000
 ```
 
 Runs `alembic upgrade head` before serving, then seeds the demo accounts. Development settings, so
 never point it at real data. `docker compose -f docker-compose.dev.yml down -v` removes the volume.
+
+**Docker — production settings, locally** → http://localhost:8090
+```bash
+./scripts/local-prod.sh up          # build, verify image, back up, migrate, start, assert posture
+./scripts/local-prod.sh down        # stop, keep the database
+./scripts/local-prod.sh reset       # stop and destroy the database
+```
+
+Not the dev stack on another port. `ENVIRONMENT=production`, so the startup safety guard is **armed**
+rather than exempted; no demo seeding, so you register the first account yourself; CORS pinned; its
+own secret and volume. The script asserts each of those against the running container and fails if
+any has been relaxed. Runs alongside the dev stack — each compose file declares its own project
+name, without which they evict each other's containers (D7 F-38).
 
 **Docker — deployment**
 ```bash

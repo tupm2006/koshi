@@ -1,3 +1,9 @@
+# Compose derives the project name from the directory when none is given, so all
+# three files in this repo would be project "koshi" — and `up` on one would treat
+# the others' containers as orphans and remove them. It did exactly that once
+# (F-38). An explicit name keeps the stacks independent.
+name: koshi
+
 services:
   koshi-backend:
     build:

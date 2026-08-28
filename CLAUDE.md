@@ -32,8 +32,17 @@ docblock. Every non-trivial frontend module now has tests; what is left unverifi
 *cascade* (no test tells a real LLM answer from the deterministic fallback — D5 GAP-04) and the
 IndexedDB round-trip, which is mocked everywhere.
 
-Local stack: `./scripts/dev-env.sh` once (writes a per-machine `JWT_SECRET` into a gitignored
-`./.env`), then `docker compose -f docker-compose.dev.yml up -d --build` and `localhost:8080`.
+Local stacks: `./scripts/dev-env.sh` once (writes per-machine secrets into a gitignored `./.env`),
+then either
+
+- **dev** — `docker compose -f docker-compose.dev.yml up -d --build` → `localhost:8080`.
+  Seeded demo accounts, `ENVIRONMENT=development`, safety guard exempted.
+- **production settings** — `./scripts/local-prod.sh up` → `localhost:8090`. Guard armed, no
+  seeding, CORS pinned, own secret and volume. Use this to check anything security-related; the dev
+  stack cannot tell you whether the production posture holds.
+
+Both run at once. Every compose file declares an explicit top-level `name:` — without it they share
+the directory-derived project name and `up` on one deletes the others (F-38).
 
 ## Standing rules
 

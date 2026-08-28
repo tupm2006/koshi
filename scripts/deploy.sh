@@ -103,11 +103,16 @@ say "Building images from scratch"
 ssh "$HOST" "cd '$DIR' && docker compose build --no-cache"
 
 say "Verifying the built image carries no secret"
-ssh "$HOST" "cd '$DIR' && docker compose run --rm --no-deps --entrypoint sh koshi-backend -c '
-  test -f /app/.env && echo LEAKED_ENV;
-  ls /app/data/*.db >/dev/null 2>&1 && echo LEAKED_DB;
-  test -d /app/.venv && echo LEAKED_VENV;
-  echo checked'" | grep -q LEAKED && die "the built image still contains secrets or data" || true
+# Inspect the IMAGE, not a container. `docker compose run` mounts the data
+# volume, so it would report the live production database as a leak — and
+# worse, it would pass on an empty volume, which is exactly when you least
+# need reassurance.
+ssh "$HOST" "cd '$DIR' && img=\$(docker compose config --images koshi-backend) &&
+  docker run --rm --entrypoint sh \$img -c '
+    test -f /app/.env && echo LEAKED_ENV;
+    ls /app/data/*.db >/dev/null 2>&1 && echo LEAKED_DB;
+    test -d /app/.venv && echo LEAKED_VENV;
+    echo checked'" | grep -q LEAKED && die "the built image still contains secrets or data" || true
 
 # ---------------------------------------------------------------- migrate
 # Outside development the API refuses to start unless the database is at head

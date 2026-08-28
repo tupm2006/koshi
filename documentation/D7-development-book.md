@@ -823,6 +823,8 @@ Observations that are not yet decisions. Each should become a decision or a work
 | F-35 | The AI cascade was unobservable: every tier returned a bare `str`, so nothing — not the tests, not the logs, not the API response — could tell a real model answer from the deterministic fallback. A deployment with a revoked key served canned Vietnamese text and looked healthy. | `services/ai_service.py` | Medium | ✅ Closed — DEC-019 (`AITier` + a warning log) |
 | F-36 | `docker-compose.dev.yml` fell back to a shared constant `JWT_SECRET` when none was set, so a token minted on one developer's machine verified on another's. Found while verifying the RISK-19 rotation: the container kept accepting a pre-rotation token. | `docker-compose.dev.yml` | Medium | ✅ Closed — DEC-019 (no default; `scripts/dev-env.sh` writes a per-machine value) |
 | F-37 | The documented deploy command (`tar --exclude=.git --exclude=node_modules --exclude=dist \| ssh umi ...`) excluded no secrets, so deploying shipped the developer's `.env` and `source/backend/.env` over production's — putting the live host into `ENVIRONMENT=development` with `SEED_DEMO_DATA=true` and `CORS_ORIGINS=*`, which the startup guard exempts. It also shipped three developer SQLite databases and a host `.venv`. | `CLAUDE.md`, now `scripts/deploy.sh` | **Critical** | ✅ Closed — DEC-020 |
+| F-38 | Three compose files in one directory all defaulted to project name `koshi` (from the directory), so `up` on one treated the others' containers as orphans and removed them. Bringing up the local production stack destroyed the running dev stack. | `docker-compose*.yml` | Medium | ✅ Closed — DEC-021 (explicit top-level `name:`) |
+| F-39 | The "image contains no secret" check ran via `docker compose run`, which **mounts the data volume** — so it inspected image *plus* volume. It reported the runtime database as a leak, and worse, it passed on an empty volume, which is exactly when reassurance is least warranted. Written by me in DEC-020 and DEC-019. | `scripts/deploy.sh`, `scripts/local-prod.sh` | Medium | ✅ Closed — DEC-021 (`docker run` against the image, nothing mounted) |
 | F-23 | Deleting the SQLite file under a running uvicorn leaves it writing to a deleted inode ("attempt to write a readonly database"). Restart the process, do not just replace the file. | operational | Low | Open — documented here |
 
 ### DEC-018 — gitParser and the AI modals tested; a secret-leaking image found
@@ -1008,6 +1010,52 @@ start on a stale schema" guard into "migrate silently on every restart" — a co
 secret. Everything that can be done from here is done; what remains needs someone with SSH access
 to run `ROTATE=1 ./scripts/deploy.sh <host>`.
 
+### DEC-021 — A production instance on the development machine
+
+**Date:** 2026-08-28 · **Closes:** nothing in D5; adds a deployable target
+
+**Why.** The `umi` host belongs to a third party and is unreachable from this checkout, so RISK-19's
+remaining step cannot be performed here. The owner asked instead for a separate instance on this
+machine. The useful version of that request is not "the dev stack on another port" — it is an
+instance where the **production settings are actually in force**, because those are the settings
+nobody has ever exercised locally.
+
+`docker-compose.prod-local.yml` runs with `ENVIRONMENT=production` (so `_check_production_safety` is
+armed rather than exempted), `SEED_DEMO_DATA=false` (no `koshi123` accounts), `CORS_ORIGINS` pinned
+to its own origin, its own secret, and its own volume. The only concessions to being on a laptop are
+that ports are published to localhost instead of joining Caddy's `proxy-net`, and there is no TLS
+because there is no domain. Nothing about the security posture is relaxed.
+
+**The posture is asserted, not assumed.** `scripts/local-prod.sh` queries the running container's
+settings and fails if `ENVIRONMENT` is a development alias, the secret is the dev default,
+`SEED_DEMO_DATA` is on, CORS is a wildcard, or unverified Google tokens are accepted. A future edit
+that quietly relaxes one of those breaks the start, rather than producing a "production" instance
+that is nothing of the sort.
+
+**Two defects found by doing it, both mine.**
+
+`up` on the new stack **deleted the running dev stack** (F-38). Compose derives the project name
+from the directory when none is given, so all three files were project `koshi`; bringing up one
+made the others' containers look like orphans. Each file now declares an explicit `name:`. The
+symptom was loud, but the same mechanism against the *deployment* file on a shared host would not
+have been.
+
+The image-cleanliness check I wrote in DEC-019/020 was wrong (F-39). `docker compose run` mounts the
+data volume, so it was inspecting image *plus* volume: it flagged the legitimate runtime database as
+a leak on the second run, and — the part that matters — it had **passed on the first run only
+because the volume was empty**. A check that passes for the wrong reason is worse than no check,
+because it is quoted as evidence. Both scripts now inspect the image directly via `docker run` with
+nothing mounted, resolving the name with `config --images` rather than `images -q` (which lists only
+images of existing containers, and so returns nothing immediately after a `down`).
+
+**Verified end to end** against the running instance: registration returns a user object with no
+`role` field (roles are per-project); the creator gets `my_role: PM` on their own project; a task
+cycles `TODO → IN_PROGRESS → BLOCKED → DONE → TODO` in the documented order (INV-01); an unknown
+dependency id is rejected with 400; a non-member reading the project gets **404, not 403**
+(existence non-disclosure); the AI weekly summary returns tier-3 output with no key configured; and
+the seeded demo password that works on the dev stack is refused here with 401. The smoke-test data
+was then destroyed, so the instance is empty and awaiting its first real signup.
+
 ## Part III — Timeline
 
 | Date | Event |
@@ -1033,6 +1081,7 @@ to run `ROTATE=1 ./scripts/deploy.sh <host>`.
 | **2026-08-28** | `gitParser` and the AI modals tested; GAP-03/GAP-13 closed. Docker images found to be unbuildable (F-31) and to ship the JWT secret (F-32); local stack added (DEC-018). Frontend suite → 260. |
 | **2026-08-28** | AI cascade made observable and tested by tier; GAP-04 closed. Secret rotated and images rebuilt clean; a shared dev-secret fallback found and removed (DEC-019). Backend suite → 64. |
 | **2026-08-28** | Deploy authorised by the owner but unreachable from this machine; inspecting the documented command found it shipped developer secrets and dev settings over production (F-37). Replaced with `scripts/deploy.sh` (DEC-020). |
+| **2026-08-28** | Production-configured instance stood up locally on :8090 and verified end to end; compose project-name collision (F-38) and a false-passing image check (F-39) found and fixed (DEC-021). |
 
 ## Part IV — Open questions
 
