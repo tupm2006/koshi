@@ -52,7 +52,7 @@ def login_user(req: UserLogin, db: Session = Depends(get_db)):
 def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
     """
     Verify Google OAuth ID Token strictly using Google JWKS.
-    Supports controlled academic demo/mock tokens with .mock_signature or mock_google_token prefix.
+    Synthetic mock tokens are strictly gated behind is_test_env to prevent authentication bypass.
     """
     email = None
     full_name = None
@@ -60,9 +60,15 @@ def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
     avatar_url = None
 
     credential = req.credential
+    is_test_env = bool(os.getenv("PYTEST_CURRENT_TEST")) or settings.ENVIRONMENT in ("test", "testing")
 
-    # 1. Controlled Academic Demo / Mock Token Handler
-    if credential.startswith("mock_google_token_") or credential.endswith(".mock_signature") or "mock_google_token" in credential or credential.startswith("google_mock_"):
+    # 1. Controlled Test Token Handler (strictly gated in test environment)
+    if is_test_env and (
+        credential.startswith("mock_google_token_")
+        or credential.endswith(".mock_signature")
+        or "mock_google_token" in credential
+        or credential.startswith("google_mock_")
+    ):
         try:
             if credential.startswith("mock_google_token_"):
                 email = credential.replace("mock_google_token_", "")
@@ -88,7 +94,7 @@ def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
         except Exception as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Invalid demo token format: {str(e)}"
+                detail=f"Invalid test token format: {str(e)}"
             )
     else:
         # 2. Strict Real Google JWKS Certificate Verification
