@@ -55,7 +55,7 @@ koshi/
 | File | Exports | Responsibility | Requirements |
 |:--|:--|:--|:--|
 | `dagSorter.ts` | `topologicalSort(tasks)`, `computeCriticalPath(tasks)` | Kahn's algorithm with deterministic tie-breaking; memoised longest-weighted-path search over non-`DONE` tasks. **Tested** — `dagSorter.test.ts` (28). | FR-GRAPH-01…05 |
-| `keyboard.ts` | keydown dispatcher | Single global `switch` mapping keys → store actions. **The one authoritative list of key bindings.** | FR-INT-01…13 |
+| `keyboard.ts` | keydown dispatcher, `isInputActive` | Single global `switch` mapping keys → store actions. **The one authoritative list of key bindings.** **Tested** — `keyboard.test.ts` (38). | FR-INT-01…14 |
 | `gitParser.ts` | `parseGitDiff(diff, tasks)` | Regex extraction of `close/fix/resolve #ID`; scans added lines for TODO/FIXME, empty catch blocks, hardcoded secrets, `: any`. | FR-AI-05 |
 | `aiDecomposer.ts` | client-side goal heuristics | Tier-1 (<5 ms) local decomposition before any network call. | FR-AI-04 |
 | `translations.ts` | `MESSAGES`, `LOCALES`, `LOCALE_LABELS` | English + Vietnamese dictionary. `Translations` is derived from the English object, so a key missing elsewhere is a **compile error**, not a runtime fallback. | FR-I18N-01…05 |
@@ -87,9 +87,9 @@ The frontend's contract surface: `TaskStatus`, `TaskPriority`, `Complexity`, `Ta
 
 | Component | Trigger | Responsibility |
 |:--|:--|:--|
-| `TaskTable.vue` | view `TABLE` | High-density rows; permanent `border-l-2` to prevent traversal jitter; mobile swipe gestures. |
-| `KanbanBoard.vue` | view `KANBAN` (`b`) | 4 status columns; `ring-inset` selection. |
-| `TaskDetailModal.vue` | `Enter` | Full inspector: description, criteria, dependencies, comments. Largest component (~478 lines). |
+| `TaskTable.vue` | view `TABLE` | High-density rows; permanent `border-l-2` to prevent traversal jitter; mobile swipe gestures. Exposes `data-task` / `data-selected` as stable test hooks. Renders **two** layouts (desktop + mobile), so an edited row contains two inputs. |
+| `KanbanBoard.vue` | view `KANBAN` (`b`) | 4 status columns; `ring-inset` selection. Exposes `data-column` / `data-active-card` as stable test hooks. |
+| `TaskDetailModal.vue` | `Enter` | Full inspector: description, criteria, dependencies, comments. Largest component (~478 lines). **Owns its own keyboard mode** — the global dispatcher stands down while it is open, so `i` and `Escape` are handled here. Auto-saves on every field change. |
 | `CreateTaskModal.vue` | `n` | Task creation form. |
 | `TaskContextMenu.vue` | right-click | Per-task action menu. |
 | `AIDecomposerModal.vue` | `a` | FR-AI-04 goal decomposition. |

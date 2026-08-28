@@ -727,6 +727,60 @@ function over a store that is already covered, needing no DOM.
 
 ---
 
+### DEC-017 — Keyboard dispatcher and board views tested
+**Date:** 2026-08-28 · **Status:** Active · **Requested by the maintainer**
+
+**Context.** GAP-12 was the last concentration of untested behaviour: `lib/keyboard.ts` carried all
+fourteen FR-INT requirements on manual verification alone, and the three board components rendered
+the data users actually work with.
+
+**Coverage added (66 tests).**
+
+| Target | Tests | Focus |
+|:--|--:|:--|
+| `lib/keyboard.ts` | 38 | All fourteen bindings, `isInputActive`, the typing guard, deference to the detail modal, `preventDefault` behaviour, mount/unmount lifecycle. |
+| `TaskTable` + `KanbanBoard` | 15 | Rendering from the selected project, filters, selection tracking, column placement by status, per-column counts. |
+| `TaskDetailModal` | 13 | Its own keyboard mode, edit buffers, blank-title refusal, task switching, and that the offline write gate applies here too. |
+
+**Stable test hooks added to production markup.** Selection was expressed only through Tailwind
+classes, so a test would have had to assert on `ring-indigo-500` — which breaks on any restyle.
+`data-task`, `data-selected`, `data-column` and `data-active-card` were added instead: three
+attributes that say what they mean and survive a redesign. A deliberate, small change to production
+code in service of testability.
+
+**Three things the tests found:**
+
+1. **`isInputActive` did not return a boolean.** It is declared `: boolean` but ended with
+   `target.isContentEditable`, which is `undefined` on an element where the property is not
+   implemented — so the function returned `undefined`, not `false`. Real browsers always define it,
+   so this never misbehaved in production, but the function did not honour its own signature.
+   Changed to `=== true`.
+
+2. **F-20 had a remnant.** `TaskTable`'s empty state still told users to *"Press `c`"* — the binding
+   retired in DEC-005 and fixed in DEC-014 everywhere except here. A test now asserts the `<kbd>`
+   reads `n`, so the next drift fails a build instead of misleading a user.
+
+3. **`TaskTable` renders two inputs while editing**, not one, because it emits separate desktop and
+   mobile layouts and CSS decides which is visible. Not a defect, but the test asserts the real
+   number with the reason stated rather than the tidy one — a test that quietly expected 1 would
+   have been wrong about the component.
+
+**Mutation testing.** Ten defects seeded: rebinding create back to `c`, swapping `Enter`/`i`,
+dropping the typing guard, deleting on Cmd+Backspace, letting `h`/`l` work in table view, ignoring
+`unmount`, highlighting every table row, ignoring the kanban status filter, closing the inspector
+while editing, and allowing a blank title. **All ten were caught** (1–6 failures each). The
+measuring script now also distinguishes a compile-breaking mutation from a genuine survivor, after
+that produced a false pass in DEC-016.
+
+**Verification.** Frontend 122 → 188 tests; backend 38 unchanged; type-check and build clean.
+
+**Gap.** What is left is small and known: `lib/gitParser.ts` (GAP-03) and the six AI modals
+(GAP-13). `gitParser` is the better target — a pure function, security-adjacent since it scans
+diffs for hardcoded secrets, and the subject of a test file the retired SRS claimed existed and
+never did.
+
+---
+
 ## Part II — Findings ledger
 
 Observations that are not yet decisions. Each should become a decision or a work item.
@@ -752,12 +806,14 @@ Observations that are not yet decisions. Each should become a decision or a work
 | ~~F-17~~ | ~~Tests require `source/backend/data/` to exist before the first run.~~ **Incorrect when written** — `app/database.py` creates the sqlite directory itself. Corrected in D5 §1. | `database.py` | — | Withdrawn |
 | F-18 | Widespread deprecated `datetime.utcnow()`. | backend | Low | ✅ Closed — DEC-014 (warnings 175 → 8) |
 | F-19 | `AuthModal.vue` quick-login buttons were labelled "PM" / "Member", implying global roles. | `AuthModal.vue` | Low | ✅ Closed — DEC-012 (relabelled `pm@` / `dev@`, dev-only) |
-| F-20 | UI tooltips said `c` for create task; the binding is `n`. | `App.vue`, `MobileBottomNav.vue` | Low | ✅ Closed — DEC-014 |
+| F-20 | UI tooltips said `c` for create task; the binding is `n`. | `App.vue`, `MobileBottomNav.vue`, `TaskTable.vue` | Low | ✅ Closed — DEC-014, with a remnant in `TaskTable`'s empty state found and fixed by DEC-017 |
 | F-21 | The post-auth sequence was duplicated between boot and login and drifted, leaving a signed-in user with no projects loaded. | `taskStore.ts`, `AuthModal.vue` | High | ✅ Closed — DEC-012 (single `onAuthenticated`) |
 | F-22 | `App.vue` shadowed `taskStore.isDashboardOpen` with a local ref, making the store field dead state. | `App.vue` | Medium | ✅ Closed — DEC-012 |
 | F-24 | `computeCriticalPath` memoised results from truncated walks, so cyclic graphs were order-dependent. | `lib/dagSorter.ts` | Medium | ✅ Closed — DEC-014 (truncated results never cached) |
 | F-25 | `ApiClient.analyzeGitDiff` fabricated results and shadowed the real `parseGitDiff`. | `services/api.ts` | Medium | ✅ Closed — DEC-014 |
 | F-26 | Dockerfile ran `npm install` copying neither lockfile, so the image resolved an untested dependency tree. | `Dockerfile` | Medium | ✅ Closed — DEC-014 |
+| F-27 | `isInputActive` is declared `: boolean` but returned `undefined` when `isContentEditable` was not implemented. Harmless in real browsers; a signature violation regardless. | `lib/keyboard.ts` | Low | ✅ Closed — DEC-017 |
+| F-28 | `TaskTable` renders two edit inputs (desktop + mobile layouts) for a single edited row. Not a defect; recorded so a future test does not assume one. | `TaskTable.vue` | Low | Documented — DEC-017 |
 | F-23 | Deleting the SQLite file under a running uvicorn leaves it writing to a deleted inode ("attempt to write a readonly database"). Restart the process, do not just replace the file. | operational | Low | Open — documented here |
 
 ## Part III — Timeline
@@ -781,3 +837,4 @@ Observations that are not yet decisions. Each should become a decision or a work
 | **2026-08-28** | Task identity unified and 11 further findings closed; landing + profile pages added (DEC-014). Backend suite → 38. |
 | **2026-08-28** | Guest mode removed; offline writes narrowed to personal projects; marketing landing page; en/vi localisation; store tests (DEC-015). Frontend suite → 61. |
 | **2026-08-28** | Component tests for the four highest-risk `.vue` files; GAP-10/RISK-17 closed; two false-pass tests corrected (DEC-016). Frontend suite → 122. |
+| **2026-08-28** | Keyboard dispatcher and board views tested; GAP-12 closed; F-20 remnant and F-27 found (DEC-017). Frontend suite → 188. |

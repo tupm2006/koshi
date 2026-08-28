@@ -16,7 +16,9 @@ export function isInputActive(target: EventTarget | null): boolean {
     target.tagName === 'INPUT' ||
     target.tagName === 'TEXTAREA' ||
     target.tagName === 'SELECT' ||
-    target.isContentEditable
+    // `=== true` because `isContentEditable` is not implemented everywhere
+    // (jsdom leaves it undefined), and the signature promises a boolean.
+    target.isContentEditable === true
   );
 }
 

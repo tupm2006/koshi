@@ -109,6 +109,7 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
       @drop="(e) => handleDrop(e, col.status, colIndex)"
       role="region"
       :aria-label="`${col.label} column`"
+      :data-column="col.status"
     >
       <!-- Column Header -->
       <div class="shrink-0 pb-2.5 border-b border-slate-300 dark:border-slate-800 flex items-center justify-between select-none">
@@ -142,6 +143,8 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
           @click="selectCard(task, colIndex, rowIndex)"
           @dblclick="taskStore.openDetail(task.id)"
           role="article"
+          :data-task="task.id"
+          :data-active-card="taskStore.activeKanbanTask?.id === task.id"
         >
           <!-- Top Row: ID & Badges -->
           <div class="flex items-center justify-between gap-1 mb-1.5 text-xs font-mono">

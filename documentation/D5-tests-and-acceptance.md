@@ -1,7 +1,7 @@
 # D5 — Tests & Acceptance Criteria
 
 **Purpose:** define what "correct" means, and record honestly what is currently verified.
-**Last verified by execution:** 2026-08-28 — backend `38 passed`, frontend `122 passed`.
+**Last verified by execution:** 2026-08-28 — backend `38 passed`, frontend `188 passed`.
 
 ---
 
@@ -36,18 +36,17 @@ creates nothing and **refuses to start** unless the database is at head (D3 §5c
 
 ```bash
 pnpm install
-pnpm test                     # vitest run — 122 tests
+pnpm test                     # vitest run — 188 tests
 pnpm run test:watch           # vitest, watch mode
 pnpm run build                # vue-tsc -b && vite build
 pnpm run dev                  # manual verification at :5173
 ```
 
-Vitest covers the pure modules, both stores, and four components: `AuthDialog`, `ProfilePage`,
-`ProjectDashboard` and `LandingPage`. Component tests opt into jsdom with a
-`// @vitest-environment jsdom` docblock; `test-setup.ts` supplies the `matchMedia` stub jsdom lacks.
+Vitest covers every pure module, both stores, and seven components. Component and keyboard tests
+opt into jsdom with a `// @vitest-environment jsdom` docblock; `test-setup.ts` supplies the
+`matchMedia` stub jsdom lacks.
 
-Still **manually verified only**: `lib/keyboard.ts`, `lib/gitParser.ts`, and the board components
-(`TaskTable`, `KanbanBoard`, `TaskDetailModal`, the AI modals).
+Still **manually verified only**: `lib/gitParser.ts` and the six AI modals.
 
 ---
 
@@ -82,7 +81,10 @@ Still **manually verified only**: `lib/keyboard.ts`, `lib/gitParser.ts`, and the
 | `ProfilePage` — identity, dirty-state editing, memberships, sign-out | ✅ `ProfilePage.test.ts` (17) | Good |
 | `ProjectDashboard` — PM affordances vs MEMBER restrictions | ✅ `ProjectDashboard.test.ts` (14) | Good — affordance only; the server is the boundary |
 | `LandingPage` — sections, i18n switching, content commitments | ✅ `LandingPage.test.ts` (14) | Good |
-| `lib/keyboard.ts`, `lib/gitParser.ts`, board components | ❌ **none** | Manual only |
+| `lib/keyboard.ts` — all 14 bindings, input guards, modal deference, lifecycle | ✅ `keyboard.test.ts` (38) | Good — closes GAP-12. Mutation-tested: 6 seeded defects, all caught. |
+| `TaskTable` / `KanbanBoard` — rendering, filters, selection, column placement | ✅ `BoardViews.test.ts` (15) | Good |
+| `TaskDetailModal` — its own keyboard mode, editing, read-only gate | ✅ `TaskDetailModal.test.ts` (13) | Good |
+| `lib/gitParser.ts`, AI modals | ❌ **none** | Manual only |
 | Any Vue component | ❌ **none** | Manual only |
 | Offline / IndexedDB behaviour | ❌ **none** | Manual only |
 | Performance (NFR-01, NFR-03) | ❌ **none** | Claims are unmeasured |
@@ -243,12 +245,14 @@ loosening the assertion without reading D7 / DEC-003.
 | GAP-04 | No test distinguishes real LLM output from Tier-3 fallback | **Medium** | Assert cascade behaviour by mocking tiers, not just response shape. |
 | ~~GAP-05~~ | ~~`taskStore` untested~~ | — | ✅ **Closed 2026-08-28.** 24 tests over the screen state machine, offline write policy, project selection and cache partitioning, id translation, status cycle and filters. |
 | ~~GAP-10~~ | ~~No `.vue` component has a test~~ | — | ✅ **Closed 2026-08-28.** `@vue/test-utils` + jsdom added; 61 tests over the four highest-risk components, mutation-verified. |
-| GAP-12 | The board components (`TaskTable`, `KanbanBoard`, `TaskDetailModal`, AI modals) and `lib/keyboard.ts` are still untested. | **Medium** | The harness now exists; keyboard dispatch is the highest value next, since FR-INT-01…13 rest entirely on manual checks. |
+| ~~GAP-12~~ | ~~`lib/keyboard.ts` and the board components are untested~~ | — | ✅ **Closed 2026-08-28.** 66 tests across the dispatcher, both board views and the inspector, mutation-verified. |
+| GAP-13 | The six AI modals have no tests. Each is a thin shell over an endpoint already covered server-side. | **Low** | Component tests following the `AuthDialog` pattern. |
 | GAP-06 | No E2E keyboard coverage | **Medium** | Playwright over FR-INT-01…11. |
 | ~~GAP-08~~ | ~~`_check_production_safety` untested~~ | — | ✅ **Closed 2026-08-28.** `test_startup_safety.py` parametrises all four insecure defaults plus the safe and development cases. |
 | GAP-09 | No frontend test asserts that PM-only controls are hidden from a MEMBER | **Low** | Component test once a runner exists; the server-side refusal is already covered. |
 | GAP-07 | Performance/accessibility claims unmeasured | **Low** | Either measure them or soften NFR-01/03/04 in D1. |
 
-**Recommended next move:** GAP-12 — `lib/keyboard.ts`. Fourteen interaction requirements
-(FR-INT-01…14) rest entirely on manual verification, and the dispatcher is a pure function over a
-store that is already covered, so it needs no DOM at all.
+**Recommended next move:** GAP-03 — `lib/gitParser.ts`. It is a pure function, it is
+security-adjacent (it scans diffs for hardcoded secrets), and the retired SRS claimed a test file
+for it that never existed. GAP-13 (AI modals) is lower value: each is a thin shell over an endpoint
+already covered server-side.

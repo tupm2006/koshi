@@ -179,7 +179,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
     <div v-if="taskStore.filteredTasks.length === 0" class="flex flex-col items-center justify-center py-20 px-4 text-center">
       <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300">No tasks found</h3>
       <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
-        Press <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 font-mono text-xs">c</kbd> or tap Create Task.
+        Press <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 font-mono text-xs">n</kbd> or tap Create Task.
       </p>
       <button
         type="button"
@@ -208,6 +208,8 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
         @dblclick="taskStore.openDetail(task.id)"
         @contextmenu="(e) => handleContextMenu(e, task, idx)"
         role="listitem"
+        :data-task="task.id"
+        :data-selected="idx === taskStore.selectedIndex"
       >
         <!-- Desktop Row View (>= md) -->
         <div class="relative z-10 hidden md:grid grid-cols-[80px_120px_1fr_90px_110px_100px_70px] items-center gap-3 px-4 w-full h-full">

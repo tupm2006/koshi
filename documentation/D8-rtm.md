@@ -28,19 +28,19 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 
 | Req | Work item | Implementation | Verification | St |
 |:--|:--|:--|:--|:--:|
-| FR-INT-01 | View toggle | `source/frontend/lib/keyboard.ts` (`b`), `App.vue`, `taskStore.ts::viewMode` | manual | 🟡 |
-| FR-INT-02 | Table traversal | `lib/keyboard.ts` (`j`/`k`/`↓`/`↑`), `taskStore.ts::selectedIndex` | manual | 🟡 |
-| FR-INT-03 | Kanban 2D traversal | `lib/keyboard.ts` (`h`/`l`), `taskStore.ts::kanbanColIndex`/`kanbanRowIndex`, `KanbanBoard.vue` | manual | 🟡 |
-| FR-INT-04 | Status cycle | `taskStore.ts::STATUS_ORDER` + `lib/keyboard.ts` (`Space`) | server twin ✅ `test_tasks.py` | 🟡 |
-| FR-INT-05 | Lateral shift | `lib/keyboard.ts` (`H`/`L`), `taskStore.ts::syncKanbanFocusToTask` | manual | 🟡 |
-| FR-INT-06 | Priority hotkeys | `lib/keyboard.ts` (`1`–`4`) | manual | 🟡 |
-| FR-INT-07 | Create / edit / inspect | `lib/keyboard.ts` (`n`/`i`/`Enter`), `CreateTaskModal.vue`, `TaskDetailModal.vue` | manual | 🟡 some UI tooltips still say `c` — F-20 |
-| FR-INT-08 | Delete | `lib/keyboard.ts` (`d`/`Backspace`), `taskStore.ts::deleteTask` | manual | 🟡 |
-| FR-INT-09 | Search focus | `lib/keyboard.ts` (`/`), `taskStore.ts::filter.searchQuery` | manual | 🟡 |
-| FR-INT-10 | Input guards | `lib/keyboard.ts::isInputActive` | — | ❌ |
-| FR-INT-11 | Capture-phase Escape | `App.vue` (`addEventListener('keydown', h, true)`) | manual | 🟡 |
-| FR-INT-12 | Theme toggle | `lib/keyboard.ts` (`t`), `stores/themeStore.ts` | manual | 🟡 |
-| FR-INT-13 | Help modal | `lib/keyboard.ts` (`?`), `ShortcutsHelpModal.vue` | manual | 🟡 |
+| FR-INT-01 | View toggle | `lib/keyboard.ts` (`b`), `App.vue`, `taskStore.ts::viewMode` | ✅ `keyboard.test.ts` | ✅ |
+| FR-INT-02 | Table traversal | `lib/keyboard.ts` (`j`/`k`/`↓`/`↑`), `taskStore.ts::selectedIndex` | ✅ incl. bounds | ✅ |
+| FR-INT-03 | Kanban 2D traversal | `lib/keyboard.ts` (`h`/`l`), `taskStore.ts`, `KanbanBoard.vue` | ✅ `keyboard.test.ts`, `BoardViews.test.ts` | ✅ |
+| FR-INT-04 | Status cycle | `taskStore.ts::STATUS_ORDER` + `lib/keyboard.ts` (`Space`) | ✅ both sides | ✅ |
+| FR-INT-05 | Lateral shift | `lib/keyboard.ts` (`H`/`L`), `taskStore.ts::syncKanbanFocusToTask` | ✅ incl. table-view no-op | ✅ |
+| FR-INT-06 | Priority hotkeys | `lib/keyboard.ts` (`1`–`4`) | ✅ all four | ✅ |
+| FR-INT-07 | Create / edit / inspect | `lib/keyboard.ts` (`n`/`i`/`Enter`), `CreateTaskModal.vue`, `TaskDetailModal.vue` | ✅ incl. `c` asserted dead | ✅ |
+| FR-INT-08 | Delete | `lib/keyboard.ts` (`d`/`Backspace`), `taskStore.ts::deleteTask` | ✅ incl. Cmd/Ctrl passthrough | ✅ |
+| FR-INT-09 | Search focus | `lib/keyboard.ts` (`/`), `taskStore.ts::filter.searchQuery` | ✅ | ✅ |
+| FR-INT-10 | Input guards | `lib/keyboard.ts::isInputActive` | ✅ all element types + guard behaviour | ✅ |
+| FR-INT-11 | Capture-phase Escape | `App.vue`, `lib/keyboard.ts`, `TaskDetailModal.vue` | ✅ dispatcher + modal deference | 🟡 App.vue capture layer |
+| FR-INT-12 | Theme toggle | `lib/keyboard.ts` (`t`), `stores/themeStore.ts` | ✅ `keyboard.test.ts` | ✅ |
+| FR-INT-13 | Help modal | `lib/keyboard.ts` (`?`), `ShortcutsHelpModal.vue` | ✅ dispatch | 🟡 modal itself |
 | FR-INT-14 | Mobile nav | `MobileBottomNav.vue`, `TaskTable.vue` swipe handlers | manual | 🟡 |
 
 ### 2.1b Navigation & entry
@@ -177,7 +177,7 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 
 | File | Serves | Verified by | Zone |
 |:--|:--|:--|:--:|
-| `lib/keyboard.ts` | FR-INT-01…13 | none | 🟡 |
+| `lib/keyboard.ts` | FR-INT-01…14 | ✅ `keyboard.test.ts` (38, mutation-verified) | 🟡 |
 | `lib/dagSorter.ts` | FR-GRAPH-01…04 | ✅ `dagSorter.test.ts` (28, mutation-verified) | 🟡 |
 | `lib/gitParser.ts` | FR-AI-05 (now actually wired up) | **none** | 🟡 GAP-03 |
 | `lib/aiDecomposer.ts` | FR-AI-04 (tier 1) | none | 🟡 |
@@ -188,9 +188,9 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | `types/task.ts` | **contract C3** — every component | `pnpm run build` | 🔴 |
 | `index.html` | NFR-05 | manual | 🟡 |
 | `App.vue` | FR-INT-01, FR-INT-11, FR-PERS-03 | none | 🟡 |
-| `components/TaskTable.vue` | FR-INT-02, FR-INT-14, NFR-04 | none | 🟢 styling / 🟡 logic |
-| `components/KanbanBoard.vue` | FR-INT-03, FR-INT-05, INV-01 | none | 🟢 styling / 🟡 logic |
-| `components/TaskDetailModal.vue` | FR-DOM-06, FR-DOM-09, FR-INT-07 | none | 🟡 |
+| `components/TaskTable.vue` | FR-INT-02, FR-INT-14, NFR-04 | ✅ `BoardViews.test.ts` | 🟢 styling / 🟡 logic |
+| `components/KanbanBoard.vue` | FR-INT-03, FR-INT-05, INV-01 | ✅ `BoardViews.test.ts` | 🟢 styling / 🟡 logic |
+| `components/TaskDetailModal.vue` | FR-DOM-06, FR-DOM-09, FR-INT-07, INV-15 | ✅ `TaskDetailModal.test.ts` (13) | 🟡 |
 | `components/*Modal.vue` (AI) | FR-AI-01…05 | none | 🟢 styling / 🟡 logic |
 | `components/ProjectDashboard.vue` | FR-PROJ-01…08, FR-AUTH-06 | ✅ `ProjectDashboard.test.ts` (14) + server tests | 🟡 |
 | `components/LandingPage.vue` | FR-NAV-01, FR-MKT-01…05, FR-I18N-02 | ✅ `LandingPage.test.ts` (14) | 🟡 |
@@ -257,7 +257,7 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | Navigation (FR-NAV) | 5 | 5 | 0 | 0 |
 | Localisation (FR-I18N) | 5 | 5 | 0 | 0 |
 | Marketing (FR-MKT) | 5 | 5 | 0 | 0 |
-| Interaction (FR-INT) | 14 | 0 | 13 | 1 |
+| Interaction (FR-INT) | 14 | 11 | 3 | 0 |
 | Domain (FR-DOM) | 10 | 9 | 0 | 1 |
 | Graph (FR-GRAPH) | 5 | 4 | 1 | 0 |
 | Persistence (FR-PERS) | 6 | 2 | 3 | 1 |
@@ -265,13 +265,13 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | AI (FR-AI) | 8 | 6 | 1 | 1 |
 | Projects (FR-PROJ) | 12 | 9 | 2 | 1 |
 | Non-functional (NFR) | 10 | 3 | 3 | 4 |
-| **Total** | **90** | **62** | **21** | **7** |
+| **Total** | **90** | **73** | **11** | **6** |
 
-**Reading.** 69% automated, 23% manual-only, 8% unverified — up from 33% automated at rev 1. Both
-stores, every pure module and the four highest-risk components are covered.
+**Reading.** 81% automated, 12% manual-only, 7% unverified — up from 33% automated at rev 1. Every
+pure module, both stores, the keyboard dispatcher and seven components are covered.
 
-What remains manual is concentrated in one place: the **board interaction layer** — `lib/keyboard.ts`
-and the table/kanban/detail components. That is all fourteen FR-INT requirements. Authorisation is now the
+What remains is small and known: `lib/gitParser.ts`, the six AI modals, and a handful of visual
+requirements (contrast, frame budget) that need tooling rather than unit tests. Authorisation is now the
 **best-covered area in the repository** — all ten FR-AUTH rows are automated, including every
 negative path, which is the reverse of its position in rev 1.
 
@@ -279,6 +279,6 @@ The imbalance is unchanged in shape though: automation is still almost entirely 
 frontend carries the product's distinguishing logic (graph engine, keyboard model, local-first
 store, and now the dashboard) with **no automated verification at all**.
 
-**Highest-leverage next work item:** D5 GAP-12 — `lib/keyboard.ts`. Fourteen requirements rest on
-manual verification alone, and the dispatcher is a pure function over an already-covered store, so
-it needs no DOM. The board components come after.
+**Highest-leverage next work item:** D5 GAP-03 — `lib/gitParser.ts`. A pure function, no DOM
+needed, security-adjacent (it scans diffs for hardcoded secrets), and the retired SRS claimed a test
+file for it that never existed.

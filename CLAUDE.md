@@ -22,13 +22,13 @@ Guidance for AI agents working in this repository. **Read `documentation/` befor
 cd source/backend && pytest -q          # expect: 38 passed
 
 # Frontend
-pnpm test                               # expect: 122 passed (vitest)
+pnpm test                               # expect: 188 passed (vitest)
 pnpm run build                          # vue-tsc -b && vite build
 ```
 
-Vitest covers both stores, the pure modules, and four components (`AuthDialog`, `ProfilePage`,
-`ProjectDashboard`, `LandingPage`). Component tests opt into jsdom with a
-`// @vitest-environment jsdom` docblock. **Untested:** `lib/keyboard.ts` and the board components.
+Vitest covers both stores, every pure module including the keyboard dispatcher, and seven
+components. Component and keyboard tests opt into jsdom with a `// @vitest-environment jsdom`
+docblock. **Untested:** `lib/gitParser.ts` and the six AI modals.
 
 ## Standing rules
 
@@ -36,8 +36,8 @@ Vitest covers both stores, the pure modules, and four components (`AuthDialog`, 
   set exists because the previous docs confidently described behaviour the code did not have.
 - **Scope discipline.** Fix what was asked. A drive-by fix of a known critical risk while doing
   something else is still a red-zone violation.
-- **Test before touching untested logic.** For any 🟡 file with no coverage — `lib/keyboard.ts` and
-  the board components — write the characterisation test first, confirm it passes against current
+- **Test before touching untested logic.** For any 🟡 file with no coverage — `lib/gitParser.ts`
+  and the AI modals — write the characterisation test first, confirm it passes against current
   behaviour, then change the code. A suite that has never failed proves nothing: seed a defect,
   confirm it is caught, revert. If a mutation seems to survive, check it actually ran — one that
   breaks template compilation reports "no tests", which reads as a false pass.
@@ -62,8 +62,12 @@ identical. Changing the order is 🔴 RED.
 
 **Kanban is exactly 4 columns**, navigation wraps via `(c ± 1 + 4) % 4`.
 
-**Keyboard bindings** live in one file, `source/frontend/lib/keyboard.ts`. Changing one also means
-updating `ShortcutsHelpModal.vue`, `README.md`, and D1 §3.1.
+**Keyboard bindings** live in one file, `source/frontend/lib/keyboard.ts`, and are covered by
+`keyboard.test.ts`. Changing one also means updating `ShortcutsHelpModal.vue`, `TaskTable.vue`'s
+empty state, `README.md`, and D1 §3.1 — that set has drifted twice already (DEC-005, DEC-017).
+
+**`data-task` / `data-selected` / `data-column` / `data-active-card`** on the board components are
+test hooks. Keep them when restyling; class-based selectors were what they replaced.
 
 **`types/task.ts` is a contract.** Any breaking change to `Task` requires bumping the IndexedDB key
 version (`koshi_tasks_v2_p{projectId}`) — there is no migration code and stale values are read back
