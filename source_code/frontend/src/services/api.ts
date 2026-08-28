@@ -53,6 +53,8 @@ export function parseJwt<T = any>(token: string): T | null {
   }
 }
 
+export const decodeJwtPayload = parseJwt;
+
 export interface UserProfile {
   id: number;
   email: string;
