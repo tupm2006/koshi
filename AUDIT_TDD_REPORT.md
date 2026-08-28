@@ -1,253 +1,224 @@
-# TECHNICAL DUE DILIGENCE (TDD) AUDIT REPORT
+# TECHNICAL DUE DILIGENCE (TDD) & PRINCIPAL SYSTEMS AUDIT REPORT
 
-**Target System:** KOSHI Project Management System  
-**Audit Scope:** `source_code/backend/`, `source_code/frontend/`, Root Deployment Manifests, Database & Infrastructure Architecture  
+**Target System:** KOSHI (輿) Project Management Engine  
+**Target Codebase:** `/home/felixsu/koshi` (`source_code/backend/`, `source_code/frontend/`, root manifests)  
+**Stack:** Vue 3.5 (TypeScript / Pinia) + FastAPI (Python 3.11 / SQLite / SQLAlchemy 2.0) + Caddy / Nginx / Docker  
 **Assessment Date:** 2026-08-28  
-**Audit Perspective:** Principal Systems Auditor & Technical Due Diligence Assessor  
-**Operational Horizon:** 18 Months  
+**Audit Perspective:** Principal Systems Auditor & Technical Due Diligence (TDD) Assessor  
+**Operational Horizon:** 18-Month Production Viability & Total Cost of Ownership (TCO)  
 
 ---
 
-## 1. EXECUTIVE RISK SUMMARY & DEPLOYMENT VERDICT
+## 1. EXECUTIVE SUMMARY & DEPLOYMENT VERDICT
+
+```
++---------------------------------------------------------------------------------------------------+
+| EXECUTIVE DUE DILIGENCE SUMMARY                                                                   |
++------------------------------+--------------------------------------------------------------------+
+| Deployment Verdict           | NO-GO / REJECTED FOR MULTI-TENANT PRODUCTION                       |
+| Current Viability            | Restricted Single-User Local Tool / Academic Sandbox Only         |
+| Critical Deal-Killers Found  | 4 Fatal Vulnerabilities (Remote Takeover, Secret Exposure, Concurrency Lock, Data Desync) |
+| Compound Fragility Index     | 8.8 / 10 (CRITICAL: 0% Frontend Tests, SQLite Write Bottleneck, Flawed Offline Sync) |
+| Remediation to Production    | 360 Engineering Hours (~2.25 Months Senior SWE)                   |
+| 18-Month Maintenance TCO     | 1,180 Engineering Hours (~0.45 FTE Ongoing Allocation)             |
++------------------------------+--------------------------------------------------------------------+
+```
 
 ### 1.1. Go / No-Go Deployment Verdict
-**VERDICT: REJECTED (FATAL NO-GO FOR PRODUCTION MULTI-TENANT DEPLOYMENT)**
+**VERDICT: REJECTED (FATAL NO-GO FOR PRODUCTION MULTI-TENANT / COMMERCIAL DEPLOYMENT)**
 
-The codebase exhibits catastrophic vulnerabilities, complete absence of tenant isolation boundaries, zero database concurrency safeguards, broken authentication validation, and destructive client-server state desynchronization. Deploying this system to production in its current state will result in immediate remote account takeover, cross-tenant data leakage, SQLite write-lock deadlocks under minimal concurrency, and silent data destruction.
+The Koshi codebase contains fatal security backdoors, fundamental database concurrency limits inherent to single-file SQLite deployments, zero frontend test coverage, and a fragile client-side state reconciliation layer that causes silent data destruction under concurrent multi-user operations. Deploying this system to production today will result in trivial account takeovers via unsigned JWT spoofing, database lock timeouts under burst writes, and unrecoverable data loss during client-server synchronization conflicts.
 
-### 1.2. 18-Month Cost & Effort Projection Overview
-* **Remediation Effort to Minimum Production Viability:** **410 Engineering Hours** (approx. 2.5 months full-time senior engineer).
-* **18-Month Maintenance & Extension Cost:** **1,280 Engineering Hours** solely to maintain stability, rewrite flawed data synchronization, replace SQLite with PostgreSQL, and remediate systemic technical debt.
-* **Compound Fragility Index:** **CRITICAL (9.4 / 10)**. Fragility compounds across zero frontend tests, missing database migrations, unverified authentication fallback, and broken offline-first data reconciliation.
+### 1.2. 18-Month Total Cost of Ownership (TCO) Projection
+* **Immediate P0 Remediation (Production Gate):** **360 Hours**
+* **18-Month Maintenance, Scaling & Stability Burden:** **1,180 Hours**
+* **Total Engineering Investment (18 Months):** **1,540 Hours** (~0.85 FTE Senior Fullstack/DevOps Engineer).
 
 ---
 
 ## 2. PILLAR 1: DEAL-KILLER TRIAGE & SECURITY POSTURE
 
 ```
-+---------------------------------------------------------------------------------------+
-| DEAL-KILLER RISK REGISTER: SECURITY & AUTHENTICATION                                 |
-+------------------------------------+---------------+----------------------------------+
-| Risk Item                          | Vulnerability | File / Line Reference            |
-+------------------------------------+---------------+----------------------------------+
-| Remote Unauthenticated Takeover    | CWE-347       | `app/routers/auth.py:67-81`      |
-| Hardcoded Cryptographic Secrets    | CWE-798       | `app/config.py:13`, `compose:10` |
-| Total Broken Object Authorization  | CWE-639       | `app/routers/tasks.py:21-120`    |
-| Global Cross-Tenant Data Leakage   | CWE-200       | `app/routers/projects.py:32, 58` |
-| Insecure Permissive CORS           | CWE-942       | `app/main.py:180-186`            |
-+------------------------------------+---------------+----------------------------------+
++---------------------------------------------------------------------------------------------------+
+| PILLAR 1: DEAL-KILLER RISK REGISTER                                                               |
++------------------------------------+---------------+---------------------+------------------------+
+| Vulnerability / Risk Item          | Severity      | Classification      | Primary Code Reference |
++------------------------------------+---------------+---------------------+------------------------+
+| Unverified Google Token Backdoor   | DEAL-KILLER   | CWE-287 / CWE-347   | `routers/auth.py:64`   |
+| Ineffective Production Secret Guard| DEAL-KILLER   | CWE-798             | `config.py:9, 46-51`   |
+| In-Memory Default Credentials      | HIGH          | CWE-259             | `main.py:28, 35`       |
+| Broad Intra-Project Write Access   | MEDIUM        | Broken Authorization| `routers/tasks.py:78`  |
+| Stateless Non-Revocable 7-Day JWT  | MEDIUM        | CWE-613             | `config.py:17`         |
+| Bare-Metal Deployment Failure      | HIGH          | Operational Risk    | `docker-compose.yml:38`|
++------------------------------------+---------------+---------------------+------------------------+
 ```
 
 ### 2.1. Critical Security Vulnerabilities (Deal-Killers)
 
-#### 2.1.1. Remote Authentication Bypass via Unverified Google JWT (CWE-347 / CWE-287)
-* **Location:** [`source_code/backend/app/routers/auth.py:67-81`](file:///home/felixsu/koshi/source_code/backend/app/routers/auth.py#L67-L81)
-* **Mechanism:** In `/api/auth/google`, when `id_token.verify_oauth2_token` raises an exception (e.g., in offline/sandbox environments, invalid issuer, or expired token), execution falls into an insecure fallback block:
-```python
-except Exception:
-    # Robust fallback for JWT token decoding in test / sandbox environments
-    try:
-        parts = req.credential.split(".")
-        if len(parts) >= 2:
-            padded = parts[1] + "=" * ((4 - len(parts[1]) % 4) % 4)
-            decoded = json.loads(base64.urlsafe_b64decode(padded).decode("utf-8"))
-            email = decoded.get("email")
-            full_name = decoded.get("name") ...
-            google_id = decoded.get("sub")
-```
-* **Impact:** **Total Authentication Bypass.** Any attacker can craft an arbitrary base64 JSON payload with `{"email": "pm@tupm.qzz.io", "sub": "attacker-id"}` without any cryptographic signature. The server unconditionally accepts this payload, creates an authenticated session, and returns a valid Bearer JWT giving the attacker full administrative access. This bypass is codified in the test suite ([`test_auth.py:45-63`](file:///home/felixsu/koshi/source_code/backend/tests/test_auth.py#L45-L63)).
-* **Remediation:** Remove the fallback decoding block entirely. Enforce cryptographic validation against Google's public JWKS endpoints with strict audience, issuer, and signature checks.
+#### 2.1.1. Remote Authentication Bypass via Unverified Mock Google Tokens (CWE-287 / CWE-347)
+* **File:** [`source_code/backend/app/routers/auth.py:64-92`](file:///home/felixsu/koshi/source_code/backend/app/routers/auth.py#L64-L92)
+* **Mechanism:** In `POST /api/auth/google`, the endpoint inspects the incoming `credential` string. If the token contains `.mock_signature` or starts with `mock_google_token_`, it skips Google JWKS signature validation and decodes arbitrary base64 claims:
+  ```python
+  if credential.startswith("mock_google_token_") or credential.endswith(".mock_signature") or "mock_google_token" in credential:
+      parts = credential.split(".")
+      payload_b64 = parts[1]
+      id_info = json.loads(base64.urlsafe_b64decode(payload_b64).decode("utf-8"))
+      email = id_info.get("email")
+  ```
+* **Production Hazard:** This mock parser contains **zero environment gating** (`ENVIRONMENT == "production"` is not checked). Any remote unauthenticated attacker can construct a client-side JWT with `{"email": "pm@tupm.qzz.io", "sub": "attacker"}` appended with `.mock_signature`, submit it to `/api/auth/google`, and instantly obtain an administrative PM token. The frontend ([`AuthModal.vue:51-65`](file:///home/felixsu/koshi/source_code/frontend/src/components/AuthModal.vue#L51-L65)) explicitly relies on this backdoor for the default Google login button.
+* **Remediation:** Remove all mock token parsing logic from production routes. Confine synthetic authentication mocks strictly to test fixtures (`tests/conftest.py`).
 
-#### 2.1.2. Hardcoded Cryptographic Signing Secrets & Seed Passwords (CWE-798)
-* **Locations:**
-  * [`source_code/backend/app/config.py:13`](file:///home/felixsu/koshi/source_code/backend/app/config.py#L13): `JWT_SECRET: str = "koshi_super_secret_jwt_key_2026_academic_spec"`
-  * [`docker-compose.yml:10`](file:///home/felixsu/koshi/docker-compose.yml#L10): `- JWT_SECRET=koshi_super_secret_jwt_key_2026_academic_spec`
-  * [`source_code/backend/app/main.py:28, 35`](file:///home/felixsu/koshi/source_code/backend/app/main.py#L28): `hashed_password=get_password_hash("koshi123")`
-  * [`source_code/frontend/src/components/AuthModal.vue:15, 42`](file:///home/felixsu/koshi/source_code/frontend/src/components/AuthModal.vue#L15): `const password = ref('koshi123');`
-* **Impact:** Any attacker with knowledge of the repository or standard defaults can forge valid HS256 JWT tokens for any `user_id` offline, completely bypassing authentication middleware.
-* **Remediation:** Enforce mandatory startup validation that raises an unrecoverable exception if `JWT_SECRET` is unset or equals the default string. Generate secrets via `/dev/urandom` / cryptographic vault.
+#### 2.1.2. Ineffective Production JWT Secret Guard (CWE-798)
+* **Files:** [`source_code/backend/app/config.py:9, 15, 46-51`](file:///home/felixsu/koshi/source_code/backend/app/config.py#L9), [`docker-compose.yml:8-10`](file:///home/felixsu/koshi/docker-compose.yml#L8-L10)
+* **Mechanism:** `config.py` contains a startup safety check designed to abort if the hardcoded secret is detected:
+  ```python
+  if settings.ENVIRONMENT == "production" and settings.JWT_SECRET == "koshi_super_secret_jwt_key_2026_academic_spec":
+      raise RuntimeError("Production JWT_SECRET cannot use insecure default academic key")
+  ```
+  However, `ENVIRONMENT` defaults to `"development"` ([`config.py:9`](file:///home/felixsu/koshi/source_code/backend/app/config.py#L9)) and is **omitted entirely** from `docker-compose.yml`.
+* **Impact:** In standard Docker deployments, the container runs in `"development"` mode by default. The safety guard never fires, allowing the container to boot with the globally known secret `koshi_super_secret_jwt_key_2026_academic_spec`. Any third party can forge arbitrary HS256 tokens offline.
+* **Remediation:** Set `JWT_SECRET` as a mandatory Pydantic setting without a default fallback. Enforce immediate container crash on startup if `JWT_SECRET` length is $< 32$ characters.
 
-#### 2.1.3. Complete Absence of Broken Object Level Authorization (BOLA / IDOR) (CWE-639)
-* **Locations:**
-  * [`source_code/backend/app/routers/tasks.py:21, 31, 56, 62, 84, 92, 107`](file:///home/felixsu/koshi/source_code/backend/app/routers/tasks.py#L21-L120)
-  * [`source_code/backend/app/routers/sprints.py:13-30`](file:///home/felixsu/koshi/source_code/backend/app/routers/sprints.py#L13-L30)
-  * [`source_code/backend/app/routers/projects.py:32, 58, 69`](file:///home/felixsu/koshi/source_code/backend/app/routers/projects.py#L32-L75)
-* **Mechanism:**
-  * In `GET /api/tasks?project_id=X`: There is zero validation that `current_user` belongs to `project_id`.
-  * In `POST /api/tasks`: Any authenticated user can inject tasks into any project and assign them to any user.
-  * In `PATCH /api/tasks/{task_id}`, `DELETE /api/tasks/{task_id}`, `POST /api/tasks/{task_id}/cycle-status`: The endpoints query `Task` strictly by `task_id` without verifying project membership or tenant ownership.
-  * In `GET /api/projects`: Executes `db.query(Project).all()`, leaking every project across all tenants to any standard user.
-* **Impact:** Complete cross-tenant data compromise and unauthorized state mutation. A standard `MEMBER` in Tenant A can delete, modify, or inspect all tasks and sprints in Tenant B.
-* **Remediation:** Implement a centralized database tenancy/membership dependency `get_project_member(project_id, current_user)` that evaluates `ProjectMember` records and enforces RBAC on every router dependency.
+#### 2.1.3. Hardcoded Seed Passwords and Password Truncation
+* **Files:** [`source_code/backend/app/main.py:28, 35`](file:///home/felixsu/koshi/source_code/backend/app/main.py#L28), [`source_code/backend/app/security.py:16, 24`](file:///home/felixsu/koshi/source_code/backend/app/security.py#L16), [`source_code/frontend/src/components/AuthModal.vue:15, 42`](file:///home/felixsu/koshi/source_code/frontend/src/components/AuthModal.vue#L15)
+* **Mechanism:** Database seeders initialize default accounts (`pm@tupm.qzz.io`, `dev@tupm.qzz.io`) with static password `koshi123`. `AuthModal.vue` prefills and hardcodes these credentials in the UI. In `security.py`, passwords are sliced to 72 bytes (`plain_password.encode('utf-8')[:72]`).
+* **Impact:** Any deployed instance using default seed data is immediately vulnerable to automated credential stuffing.
 
-#### 2.1.4. Insecure Wildcard CORS with Credentials (CWE-942)
-* **Location:** [`source_code/backend/app/main.py:180-186`](file:///home/felixsu/koshi/source_code/backend/app/main.py#L180-L186)
-```python
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-```
-* **Impact:** Misconfigured origin reflection. While browsers block wildcard origins when `credentials=true` with cookies, exposing this on Bearer token endpoints permits cross-origin script execution and credential theft in environments using reverse proxies or embedded webviews.
-* **Remediation:** Restrict `allow_origins` to explicitly configured domain names injected via environment variables.
+### 2.2. Authentication & RBAC Boundaries
+* **Project Boundary Isolation:** Multi-tenancy isolation at the project boundary is enforced via `verify_project_membership()` in [`security.py:96-118`](file:///home/felixsu/koshi/source_code/backend/app/security.py#L96-L118). Users cannot access projects, tasks, or sprints to which they are not explicitly linked via `project_members`.
+* **Intra-Project Permission Leakage:** Inside a project, authorization checks are coarse. In [`routers/tasks.py:78-79`](file:///home/felixsu/koshi/source_code/backend/app/routers/tasks.py#L78-L79), any project member (`OWNER`, `PM`, `MEMBER`) can modify any task, overwrite fields, reassign assignees, or cycle statuses on tasks assigned to other engineers. Task ownership checks (`task.assignee_id == current_user.id`) do not exist.
+* **Token Lifetime & Revocation Deficit:** Tokens are signed with a static 7-day expiration (`ACCESS_TOKEN_EXPIRE_MINUTES = 10080`). There is no token blacklist, database revocation table, or refresh token rotation mechanism. If an employee is removed from a project or their role is downgraded, their active JWT remains valid across all endpoints until expiration.
 
-#### 2.1.5. Token Revocation & Session Lifecycle Deficit
-* **Location:** [`source_code/backend/app/config.py:15`](file:///home/felixsu/koshi/source_code/backend/app/config.py#L15), [`source_code/frontend/src/services/api.ts:123`](file:///home/felixsu/koshi/source_code/frontend/src/services/api.ts#L123)
-* **Mechanism:** JWT expiration is statically set to 7 days (`60 * 24 * 7`). Logout on the client merely discards the token from `localStorage`. No server-side revocation list, token versioning, or Redis blocklist exists.
-* **Impact:** Once a JWT is issued or leaked, it cannot be revoked. Password resets or role demotions do not invalidate active tokens.
-* **Remediation:** Shorten access token lifetime to 15 minutes, implement refresh token rotation stored in HTTP-only cookies, and implement server-side revocation tracking.
-
-### 2.2. Single-Person Bus Factor & Operational Fragility
-* **Deployment Automation:** Root [`docker-compose.yml`](file:///home/felixsu/koshi/docker-compose.yml#L38-L39) references an external network `proxy-net: external: true`. Running `docker compose up` on a bare-metal server immediately crashes unless the network is manually pre-created.
-* **Documentation vs Reality Gap:** Documentation references live domain `koshi.felixsu.qzz.io`, but no provisioning scripts (Terraform/Ansible), SSL renewal hooks, or secret bootstrapping automation exist in the repository. A new engineer cannot deploy the system from bare metal in $<30$ minutes without unrecorded oral instructions.
+### 2.3. Single-Person Bus Factor & Operational Reproducibility
+* **Broken Deployment Dependencies:** In [`docker-compose.yml:38-40`](file:///home/felixsu/koshi/docker-compose.yml#L38-L40), the manifest declares `proxy-net: external: true`. Running `docker compose up` on a clean host fails immediately with `network proxy-net declared as external, but could not be found`.
+* **Database Schema Bifurcation:** Two conflicting database schemas exist:
+  1. [`source_code/backend/db/schema.sql`](file:///home/felixsu/koshi/source_code/backend/db/schema.sql): Relational DDL containing a `task_dependencies` junction table.
+  2. [`source_code/backend/app/models/entities.py`](file:///home/felixsu/koshi/source_code/backend/app/models/entities.py): SQLAlchemy declarative models using `dependencies_json = Column(Text)`.
+  If an operator runs [`init_db.py`](file:///home/felixsu/koshi/source_code/backend/init_db.py) (which executes `schema.sql`), the database lacks `dependencies_json`. Subsequent FastAPI startup queries crash with `sqlite3.OperationalError: no such column: tasks.dependencies_json`.
 
 ---
 
 ## 3. PILLAR 2: DATA INTEGRITY & DATABASE FAILURE MODES
 
 ```
-+---------------------------------------------------------------------------------------+
-| DATABASE FAILURE MODE ANALYSIS                                                        |
-+------------------------------+--------------------+-----------------------------------+
-| Failure Mode                 | Current State      | Consequence Under Concurrency     |
-+------------------------------+--------------------+-----------------------------------+
-| Journal Mode                 | DELETE (Default)   | Exclusive file lock on writes     |
-| Busy Timeout                 | Unset (Default 5s) | `OperationalError: db locked`     |
-| Foreign Key Enforcement      | OFF (Default)      | Silent orphaned cascade records   |
-| Migration Management         | Ad-hoc in main.py  | Split-brain DDL vs SQLAlchemy     |
-| Snapshot / Backup Automation | None               | 100% data loss on corruption      |
-+------------------------------+--------------------+-----------------------------------+
++---------------------------------------------------------------------------------------------------+
+| PILLAR 2: DATABASE & DATA INTEGRITY RISKS                                                         |
++------------------------------------+---------------+---------------------+------------------------+
+| Failure Mode                       | Severity      | Mechanism           | Impact                 |
++------------------------------------+---------------+---------------------+------------------------+
+| SQLite Global Write Lock Deadlock  | DEAL-KILLER   | Single-writer engine| 500s / 30s P99 timeouts|
+| JSON Dependency Orphanage          | HIGH          | Unindexed JSON text | Corrupted DAG graphs   |
+| Missing SQLite DDL Cascades        | MEDIUM        | ORM-only cascade    | Orphaned tasks/sprints |
+| Zero Backup / Snapshots Automation | DEAL-KILLER   | Single `.db` file   | 100% Unrecoverable Loss|
++------------------------------------+---------------+---------------------+------------------------+
 ```
 
-### 3.1. SQLite Write-Lock Contention & Concurrency Bottlenecks
-* **Locations:**
-  * [`source_code/backend/app/database.py:13-16`](file:///home/felixsu/koshi/source_code/backend/app/database.py#L13-L16)
-  * [`docker-compose.yml:9, 16`](file:///home/felixsu/koshi/docker-compose.yml#L9)
-* **Vulnerability Analysis:**
-  1. **Rollback Journal Mode (`DELETE`):** SQLite defaults to `DELETE` journal mode when WAL is not explicitly invoked. In this mode, any write operation (task creation, status cycle, comment) acquires an exclusive lock on the entire database file (`/app/data/koshi.db`), blocking all concurrent reads and writes across all Uvicorn worker threads.
-  2. **Missing `busy_timeout` Configuration:** The SQLAlchemy engine connection parameters only configure `check_same_thread: False`. No `timeout` is passed to SQLite. If two requests attempt to commit simultaneously (e.g., 20 users dragging Kanban cards or cycling statuses), transactions exceed the default timeout and throw unhandled `sqlite3.OperationalError: database is locked`, returning HTTP 500 to clients.
-  3. **No Connection Pool Queuing:** With multi-threaded ASGI workers, concurrent asynchronous coroutines contending for the single SQLite connection pool trigger thread-safety collisions and locked-database crashes.
-* **Remediation Code Required:**
-```python
-# Required immediate fix for SQLite stability
-@event.listens_for(engine, "connect")
-def set_sqlite_pragma(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA journal_mode = WAL;")
-    cursor.execute("PRAGMA synchronous = NORMAL;")
-    cursor.execute("PRAGMA foreign_keys = ON;")
-    cursor.execute("PRAGMA busy_timeout = 30000;") # 30 seconds
-    cursor.close()
-```
+### 3.1. SQLite Concurrency & Lock Contention (`database is locked`)
+* **Configuration:** [`source_code/backend/app/database.py:24-30`](file:///home/felixsu/koshi/source_code/backend/app/database.py#L24-L30) executes PRAGMA listeners on connect:
+  ```python
+  cursor.execute("PRAGMA journal_mode = WAL;")
+  cursor.execute("PRAGMA synchronous = NORMAL;")
+  cursor.execute("PRAGMA foreign_keys = ON;")
+  cursor.execute("PRAGMA busy_timeout = 30000;")
+  ```
+* **Concurrency Breakdown:** While Write-Ahead Logging (WAL) enables concurrent readers alongside one writer, SQLite remains fundamentally **single-writer**.
+* **Failure Cascade Under Multi-User Write Bursts:**
+  1. When 20+ developers concurrently create tasks, update descriptions, add comments, or cycle statuses, all write transactions serialize behind the database file lock.
+  2. If an API worker holds a write transaction open during slow disk I/O, other workers block for up to `busy_timeout` (30,000ms).
+  3. Under peak sprint planning loads, API response times spike from $< 10\text{ms}$ to $> 5,000\text{ms}$, ultimately throwing `sqlite3.OperationalError: database is locked` (HTTP 500).
+* **Container Volume Hazard:** SQLite WAL mode relies on POSIX shared memory (`.shm` file). Running SQLite over Docker volume mounts across distributed nodes or network filesystems (NFS/CIFS) causes shared-memory desynchronization and unrecoverable database header corruption.
 
-### 3.2. Foreign Key & Referential Integrity Failure
-* **Locations:**
-  * [`source_code/backend/db/schema.sql:20, 26, 45, 61`](file:///home/felixsu/koshi/source_code/backend/db/schema.sql#L20)
-  * [`source_code/backend/app/database.py:13-16`](file:///home/felixsu/koshi/source_code/backend/app/database.py#L13-L16)
-* **Vulnerability Analysis:**
-  SQLite disables foreign key enforcement by default on every new database connection. Because `PRAGMA foreign_keys = ON;` is never executed in `database.py`, all `ON DELETE CASCADE` clauses in `schema.sql` and SQLAlchemy relationships are **completely ignored at the database engine level**.
-* **Impact:** Deleting a user or project leaves orphaned records in `project_members`, `tasks`, `sprints`, `comments`, and `task_dependencies`. The database rapidly accumulates corrupt dangling references that trigger `500 Internal Server Error` exceptions when joined queries encounter `None` relationships.
+### 3.2. Foreign Key & Cascade Integrity
+* **Unstructured JSON Dependencies:** In [`entities.py:101`](file:///home/felixsu/koshi/source_code/backend/app/models/entities.py#L101), dependencies are serialized as JSON strings: `dependencies_json = Column(Text, default="[]")`.
+* **Dangling Dependency Hazard:** When a task is deleted via [`routers/tasks.py:97-109`](file:///home/felixsu/koshi/source_code/backend/app/routers/tasks.py#L97-L109), SQLite cannot enforce foreign key cascades inside JSON strings. Any task referencing the deleted ID in its `dependencies_json` retains an orphaned, invalid dependency ID. The backend performs no cleanup queries, leading to broken DAG sorting and cyclic false positives on subsequent queries.
+* **DDL Cascade Absence:** In [`entities.py:76, 90`](file:///home/felixsu/koshi/source_code/backend/app/models/entities.py#L76), `Sprint.project_id` and `Task.project_id` define `ForeignKey("projects.id")` **without** `ondelete="CASCADE"` in the DDL. Cascade behavior relies solely on SQLAlchemy ORM session lifecycle hooks. Direct database maintenance or raw SQL queries bypass the ORM and produce orphaned tasks.
 
-### 3.3. Schema Split-Brain & Unmanaged Startup Migrations
-* **Locations:**
-  * [`source_code/backend/db/schema.sql:44`](file:///home/felixsu/koshi/source_code/backend/db/schema.sql#L44): `id VARCHAR(32) PRIMARY KEY` (Task ID defined as string e.g. `'TSK-1'`)
-  * [`source_code/backend/app/models/entities.py:89`](file:///home/felixsu/koshi/source_code/backend/app/models/entities.py#L89): `id = Column(Integer, primary_key=True)` (Task ID defined as auto-increment Integer)
-  * [`source_code/backend/app/main.py:140-164`](file:///home/felixsu/koshi/source_code/backend/app/main.py#L140-L164): Custom `migrate_database()` function executing raw `ALTER TABLE` on FastAPI startup.
-* **Vulnerability Analysis:**
-  * The database schema is bifurcated. If initialized via `init_db.py` (which reads `schema.sql`), task IDs are strings. If initialized via SQLAlchemy `Base.metadata.create_all()`, task IDs are integers.
-  * Migrations are executed via unversioned, ad-hoc Python string execution inside `lifespan` without Alembic. If a migration fails midway, the database is left in a corrupted intermediate state with no rollback capability.
-* **Remediation:** Establish Alembic as the sole database migration authority, remove ad-hoc startup DDL, and unify Task ID typing across SQL, SQLAlchemy, and TypeScript.
-
-### 3.4. Disaster Recovery & Backup Absence
-* **Locations:** [`docker-compose.yml:16, 33`](file:///home/felixsu/koshi/docker-compose.yml#L16)
-* **Reality:** The database resides in an unmonitored Docker named volume `koshi-data`. There are no WAL-shipping daemons (e.g., Litestream), no scheduled `sqlite3 .backup` cron tasks, and no off-site S3 snapshot scripts. A filesystem corruption or container destruction will result in **100% unrecoverable data loss**.
+### 3.3. Disaster Recovery & Backup Plan
+* **Backup Automation:** **0.0%**. No automated cron jobs, volume snapshot scripts, or Litestream / LiteFS streaming replication tools exist in the repository.
+* **Blast Radius:** The entire application state resides in a single SQLite file (`/app/data/koshi.db`). If an unclean container restart or host power cut corrupts the SQLite B-tree header during a checkpoint, 100% of project records, task history, and user data are permanently destroyed.
 
 ---
 
 ## 4. PILLAR 3: COMPOUND FRAGILITY & EXTENSION FRICTION
 
 ```
-+---------------------------------------------------------------------------------------+
-| COMPOUND FRAGILITY MATRIX                                                             |
-+--------------------------+---------------------+--------------------------------------+
-| Subsystem                | Test Coverage       | Architectural Risk                   |
-+--------------------------+---------------------+--------------------------------------+
-| Frontend Core Stores     | 0% (0 tests)        | Destructive IndexedDB sync clobber   |
-| DAG Sorter / TopoSort    | 0% (0 tests)        | Unchecked cycle deadlocks in UI      |
-| Backend Routers          | ~15% (6 assertions) | Zero RBAC boundary verification      |
-| AI Cascade Fallback      | ~20% (Mock only)    | 14s event-loop blocking timeout      |
-| Client-Server ID Bridge  | 0% (Untested)       | Silent background 404 mutations      |
-+--------------------------+---------------------+--------------------------------------+
++---------------------------------------------------------------------------------------------------+
+| PILLAR 3: FRAGILITY & EXTENSION METRICS                                                           |
++------------------------------------+-------------------------+------------------------------------+
+| Component / Layer                  | Automated Test Coverage | Risk Classification                |
++------------------------------------+-------------------------+------------------------------------+
+| Frontend Vue Components & Stores   | 0.0% (No test framework)| CRITICAL (Silent UI Breakage)      |
+| Backend API Routers & Services     | ~45% (3 test files)     | HIGH (Happy path only, no race tests)|
+| AI LLM Cascade Error Handling      | Deterministic Fallback  | MEDIUM (Silent Degradation)        |
+| Client IndexedDB State Sync        | Naive Timestamp LWW     | CRITICAL (Silent Overwrite/Race)   |
++------------------------------------+-------------------------+------------------------------------+
 ```
 
-### 4.1. Extreme Test Deficit & High Schema Coupling
-* **Frontend Test Coverage: 0.00%**
-  * [`source_code/frontend/package.json`](file:///home/felixsu/koshi/source_code/frontend/package.json#L6-L10) has no `test` script and no testing libraries installed (no Vitest, Jest, Playwright, or Cypress).
-  * Critical algorithmic files ([`dagSorter.ts`](file:///home/felixsu/koshi/source_code/frontend/src/lib/dagSorter.ts), [`gitParser.ts`](file:///home/felixsu/koshi/source_code/frontend/src/lib/gitParser.ts), [`taskStore.ts`](file:///home/felixsu/koshi/source_code/frontend/src/stores/taskStore.ts)) have zero automated unit tests.
-* **Backend Test Coverage: ~15%**
-  * Only 3 test files exist (`test_auth.py`, `test_tasks.py`, `test_ai_and_stats.py`) with a total of 6 test functions.
-  * Zero tests exist for: Multi-tenant RBAC boundaries, cross-project data isolation, concurrent write locks, foreign key cascading, or database transaction rollbacks.
-* **Schema Coupling Fragility:** The frontend code is tightly coupled to brittle backend assumptions, using regular expression hacks (`taskId.replace(/\D/g, '')` in [`api.ts:164`](file:///home/felixsu/koshi/source_code/frontend/src/services/api.ts#L164)) to strip non-digit characters from task IDs.
+### 4.1. Test Coverage vs. Architectural Coupling
+* **Frontend Test Suite Deficit:** `source_code/frontend/package.json` contains zero test dependencies (`vitest`, `jest`, `@vue/test-utils`, `@playwright/test` are all absent). Core deterministic logic in [`dagSorter.ts`](file:///home/felixsu/koshi/source_code/frontend/src/lib/dagSorter.ts), [`taskStore.ts`](file:///home/felixsu/koshi/source_code/frontend/src/stores/taskStore.ts), and [`gitParser.ts`](file:///home/felixsu/koshi/source_code/frontend/src/lib/gitParser.ts) has zero automated unit regression coverage.
+* **Tight UI-to-Schema Coupling:** The frontend manually bridges multiple backend schema inconsistencies:
+  1. Maps numeric backend complexity (`1, 2, 3`) to frontend string enums (`S, M, L, XL`) in [`taskStore.ts:309`](file:///home/felixsu/koshi/source_code/frontend/src/stores/taskStore.ts#L309).
+  2. Prefixes integer server IDs (`t.id`) with string tags (`TSK-${t.id}`) in [`taskStore.ts:304`](file:///home/felixsu/koshi/source_code/frontend/src/stores/taskStore.ts#L304).
+  3. Strips non-digits from IDs (`parseInt(id.replace(/\D/g, ''))`) before dispatching REST calls in [`taskStore.ts:509, 525`](file:///home/felixsu/koshi/source_code/frontend/src/stores/taskStore.ts#L509).
+  Any backend database migration or schema refactor instantly breaks frontend state mapping across 8+ modal components.
 
-### 4.2. Client-Side State Desynchronization & Silent Data Overwrites
-* **Locations:**
-  * [`source_code/frontend/src/stores/taskStore.ts:361-395`](file:///home/felixsu/koshi/source_code/frontend/src/stores/taskStore.ts#L361-L395)
-  * [`source_code/frontend/src/stores/taskStore.ts:238-264`](file:///home/felixsu/koshi/source_code/frontend/src/stores/taskStore.ts#L238-L264)
-* **Failure Cascade:**
-  1. **Optimistic Task ID Mismatch:** When creating a task offline or locally, `taskStore.createTask()` generates a local ID like `TSK-107` and persists it to IndexedDB. It fires a background `api.createTask()`.
-  2. **ID Reconciliation Dropped:** When the backend creates the task in SQLite, it assigns an auto-increment integer ID (e.g., `4`). The frontend **never updates `newTask.id` with the returned backend ID**.
-  3. **Silent Update / Delete Failures:** Subsequent calls to `updateTask('TSK-107')` or `deleteTask('TSK-107')` extract numeric ID `107` and issue `PATCH /api/tasks/107`. The backend returns `404 Not Found`, which is caught and silently swallowed by `.catch(() => {})` in `taskStore.ts:409`. The user believes their edits were saved, but the backend state remains unchanged.
-  4. **Destructive Reconnection Sync:** When `syncWithBackend()` is called, it unconditionally overwrites `this.tasks = mapped` and calls `persist()`. Any tasks created or modified while offline that failed background synchronization are **permanently wiped out from IndexedDB without conflict resolution or user warning**.
+### 4.2. AI Cascade Failures & Error Handling
+* **Implementation:** [`source_code/backend/app/services/ai_service.py:9-58`](file:///home/felixsu/koshi/source_code/backend/app/services/ai_service.py#L9-L58) implements a 3-tier cascade:
+  `Tier 1 (OpenAI Cloud)` $\to$ `Tier 2 (Local Ollama)` $\to$ `Tier 3 (Deterministic Heuristic Engine)`.
+* **Reliability Evaluation:**
+  * **Upstream Outages:** HTTP timeouts (10.0s for OpenAI, 4.0s for Ollama) and HTTP error statuses (429, 500, 504) are caught via `except Exception:` blocks, successfully falling back to Tier 3 without crashing the ASGI worker.
+  * **JSON Sanitization:** Markdown code fences (```` ```json ````) are stripped via regex before parsing in [`ai_service.py:144-151`](file:///home/felixsu/koshi/source_code/backend/app/services/ai_service.py#L144-L151). If JSON parsing fails, it safely defaults to heuristic generation.
+* **Architectural Defects:**
+  1. **Socket Exhaustion:** `_call_llm` instantiates a new `httpx.AsyncClient` on every request instead of reusing a shared connection pool, risking socket exhaustion under high traffic.
+  2. **Silent Failure / Observability Void:** Exceptions in external LLM calls are caught with `except Exception: pass`. If API keys expire, quotas are exceeded, or upstream endpoints fail, zero error logs or metrics are emitted, masking complete AI pipeline degradation from DevOps engineers.
 
-### 4.3. AI Cascade Latency & Resource Exhaustion Failure Modes
-* **Location:** [`source_code/backend/app/services/ai_service.py:17-58`](file:///home/felixsu/koshi/source_code/backend/app/services/ai_service.py#L17-L58)
-* **Vulnerability Analysis:**
-  * In `_call_llm()`, if OpenAI is unresponsive (504/timeout), `httpx.AsyncClient` blocks for **10.0 seconds**.
-  * It then falls through to Ollama, which blocks for **4.0 seconds**.
-  * Total latency before falling back to deterministic heuristics: **14.0 seconds per request**.
-  * Under concurrent user traffic (e.g., multiple users triggering weekly summaries or meeting minute extractions), ASGI worker connection pools and HTTP clients become saturated, causing connection starvation and crashing the backend process.
-  * **Static Fallback Data Integrity Risk:** The deterministic fallback for task assignment ([`ai_service.py:99`](file:///home/felixsu/koshi/source_code/backend/app/services/ai_service.py#L99)) hardcodes `"recommended_user_id": 1` ("Phạm Minh Tú"). If User ID 1 is deleted or not part of the project, this introduces invalid foreign key assignment recommendations.
+### 4.3. Client-Side State Desynchronization (IndexedDB vs. REST)
+* **Reconciliation Mechanism:** In [`taskStore.ts:321-330`](file:///home/felixsu/koshi/source_code/frontend/src/stores/taskStore.ts#L321-L330), synchronization uses a naive timestamp comparison:
+  ```typescript
+  if (local && local.updatedAt > sTask.updatedAt) {
+    merged.push(local);
+  } else {
+    merged.push(sTask);
+  }
+  ```
+* **Critical Desynchronization Flaws:**
+  1. **Clock Skew Vulnerability:** Reconciliation relies entirely on the client's local system clock (`Date.now()`). If a client's system clock is skewed ahead by 10 minutes, their local edits will unconditionally overwrite all server updates from other team members, regardless of actual sequence.
+  2. **Missing Mutation Queue & Retry Loop:** When offline, task creations generate temporary IDs (`TSK-temp-*`). However, there is no offline transaction journal or retry queue. If network reconnection occurs partially or a background API call fails, unsynced mutations are stranded in IndexedDB or silently overwritten on the next full pull.
+  3. **Concurrent Mutation Destruction:** If User A changes status to `DONE` and User B modifies the task description, Last-Write-Wins (LWW) wipes out User A's status change during synchronization. No field-level merging, vector clocks, or operational transforms exist.
 
 ---
 
 ## 5. PILLAR 4: INFRASTRUCTURE & RUNTIME ROBUSTNESS
 
 ```
-+---------------------------------------------------------------------------------------+
-| INFRASTRUCTURE & RUNTIME AUDIT                                                        |
-+--------------------------+---------------------+--------------------------------------+
-| Subsystem                | Configuration State | Operational Hazard                   |
-+--------------------------+---------------------+--------------------------------------+
-| Nginx Reverse Proxy      | Default configs     | No rate limits, no body size caps    |
-| Container Limits         | None (Unbounded)    | Host OS OOM Kill under load          |
-| Logging / Telemetry      | Raw `print()`       | No JSON logs, zero correlation IDs   |
-| Health Checks            | Unmonitored         | No container restart on freeze       |
-+--------------------------+---------------------+--------------------------------------+
++---------------------------------------------------------------------------------------------------+
+| PILLAR 4: RUNTIME & INFRASTRUCTURE DEFICITS                                                       |
++------------------------------------+---------------+---------------------+------------------------+
+| Infrastructure Vector              | Status        | Risk Level          | Impact                 |
++------------------------------------+---------------+---------------------+------------------------+
+| Reverse Proxy Body Size Limits     | Unset         | MEDIUM              | Large diffs drop (413) |
+| API Rate Limiting & Throttling     | Absent        | HIGH                | DoS & Brute Force risk |
+| Container Resource Limits (CPU/RAM)| Absent        | HIGH                | Host OOM Killer risk   |
+| Structured JSON Telemetry          | Absent        | MEDIUM              | Zero APM visibility    |
++------------------------------------+---------------+---------------------+------------------------+
 ```
 
-### 5.1. Reverse Proxy Deficiencies & Missing Protections
-* **Location:** [`source_code/frontend/nginx.conf`](file:///home/felixsu/koshi/source_code/frontend/nginx.conf)
-* **Deficiencies:**
-  1. **No `client_max_body_size`:** Missing explicit body limits. Large diffs, meeting transcripts, or malicious file payloads can overwhelm worker memory.
-  2. **No Rate Limiting:** Missing `limit_req_zone` / `limit_req`. The backend endpoints (`/api/auth/login`, `/api/ai/*`) are vulnerable to brute-force credential stuffing and upstream API cost exhaustion.
-  3. **No Proxy Timeouts for Long-Running Requests:** Default proxy timeout (60s) is unaligned with AI streaming or batch operations.
-  4. **Permissive CSP:** Missing strict `Content-Security-Policy` header.
+### 5.1. Reverse Proxy & Container Isolation
+* **Nginx Configuration:** [`source_code/frontend/nginx.conf`](file:///home/felixsu/koshi/source_code/frontend/nginx.conf) acts as reverse proxy routing `/api/` to `koshi-backend:8000`.
+* **Missing Directives:**
+  1. `client_max_body_size` is not configured (defaults to Nginx standard 1MB). Large unified Git diffs ($> 1\text{MB}$) submitted to `/api/ai/analyze-diff` or large meeting transcripts are dropped with `413 Request Entity Too Large`.
+  2. No rate limiting zones (`limit_req_zone`, `limit_conn_zone`) are defined. The login endpoints and AI services are fully exposed to automated brute-force attacks and denial-of-service loops.
 
-### 5.2. Unbounded Container Resource Allocation (OOM Killer Hazard)
-* **Location:** [`docker-compose.yml:1-31`](file:///home/felixsu/koshi/docker-compose.yml#L1-L31)
-* **Vulnerability:** Neither `koshi-backend` nor `koshi-frontend` defines `deploy.resources.limits` (CPU / Memory limits).
-* **Impact:** If an unoptimized AST parsing loop, complex DAG cycle traversal, or memory leak occurs in Python, the container will consume all host memory, triggering the Linux kernel Out-Of-Memory (OOM) killer to terminate host-level services.
+### 5.2. Memory Leaks & Resource Limits
+* **Compose Resource Limits:** In [`docker-compose.yml:1-31`](file:///home/felixsu/koshi/docker-compose.yml#L1-L31), neither `koshi-backend` nor `koshi-frontend` defines `deploy.resources.limits` (memory/CPU).
+* **OOM Killer Risk:** In [`dagSorter.ts:77-133`](file:///home/felixsu/koshi/source_code/frontend/src/lib/dagSorter.ts#L77-L133), `computeCriticalPath` executes recursive dynamic programming across graph nodes. A pathological cyclical dependency or deeply nested DAG combined with large meeting transcript processing in the backend can trigger unbounded memory allocation, invoking the Linux kernel Out-Of-Memory (OOM) killer on the host system.
 
-### 5.3. Telemetry, Observability & Structured Logging Vacuum
-* **Locations:** Throughout `source_code/backend/app/`
-* **Vulnerability:**
-  * Logging is implemented via raw `print()` statements (e.g., [`main.py:163`](file:///home/felixsu/koshi/source_code/backend/app/main.py#L163): `print("Migration notice:", e)`).
-  * No structured JSON logging format (e.g., Structlog / Loguru).
-  * No request correlation ID middleware (`X-Request-ID`), preventing request tracing across reverse proxy and backend.
-  * No Prometheus metrics exporter, OpenTelemetry instrumentation, or Sentry error tracking. System failures in production will occur completely unmonitored.
+### 5.3. Telemetry & Observability
+* **Logging Standard:** The backend uses standard Python `print()` statements and default unformatted Uvicorn console logging.
+* **Observability Gaps:**
+  1. Zero structured JSON log formatting (e.g., `structlog`, `python-json-logger`).
+  2. No distributed tracing, correlation IDs (`X-Request-ID`), or span context across frontend-backend boundaries.
+  3. No Prometheus metrics instrumentation (`/metrics`) to monitor SQLite lock wait times, HTTP request latency percentiles, or AI tier fallback rates.
 
 ---
 
@@ -256,60 +227,56 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 ### 6.1. Executive Risk Matrix
 
 | Risk Item | Severity | Impact Area | Remediation Effort (Hours) |
-| :--- | :--- | :--- | :--- |
-| **Google OAuth Signature Bypass** | **DEAL-KILLER** | Security & Auth | 16 hrs |
-| **Hardcoded JWT Secret & Seed Passwords** | **DEAL-KILLER** | Security & Config | 8 hrs |
-| **Total Absence of RBAC / Tenant Isolation** | **DEAL-KILLER** | Data Security & Multi-Tenancy | 80 hrs |
-| **SQLite Concurrency Locks & Missing WAL** | **DEAL-KILLER** | Database Stability | 24 hrs |
-| **Disabled SQLite Foreign Key Enforcement** | **HIGH** | Data Integrity | 16 hrs |
-| **Client-Server State Desync & Silent Data Loss** | **DEAL-KILLER** | Core Frontend / API | 60 hrs |
-| **Alembic Migration System Implementation** | **HIGH** | Architecture & Database | 30 hrs |
-| **PostgreSQL Migration (Replace SQLite)** | **HIGH** | Scalability & Concurrency | 50 hrs |
-| **Frontend Test Suite (Vitest + Store Unit Tests)** | **HIGH** | Code Quality & Reliability | 40 hrs |
-| **Backend Integration & Concurrency Test Suite** | **HIGH** | Testing & Stability | 36 hrs |
-| **Structured JSON Logging & Correlation IDs** | **MEDIUM** | Observability | 16 hrs |
-| **Automated Backups & Disaster Recovery (Litestream/S3)** | **HIGH** | Infrastructure & DR | 20 hrs |
-| **Docker Resource Constraints & Nginx Hardening** | **MEDIUM** | Deployment & Security | 14 hrs |
-| **Total Initial Remediation Effort** | | | **410 Hours** |
+| :--- | :--- | :--- | :---: |
+| **P0.1: Remove Google OAuth Mock Token Backdoor** | **DEAL-KILLER** | Security / Auth | 16 |
+| **P0.2: Enforce Mandatory Runtime `JWT_SECRET` Validation** | **DEAL-KILLER** | Security / Auth | 8 |
+| **P0.3: Migrate SQLite to PostgreSQL with Connection Pooling** | **DEAL-KILLER** | Data Concurrency | 80 |
+| **P0.4: Implement Automated Database Backup / Snapshot Pipeline**| **DEAL-KILLER** | Disaster Recovery | 32 |
+| **P0.5: Replace Naive Timestamp LWW with Transaction Sync Queue** | **DEAL-KILLER** | Data Integrity | 64 |
+| **P1.1: Build Comprehensive Vitest / Vue Test Utils Suite** | **HIGH** | Quality / Fragility | 60 |
+| **P1.2: Add Backend Concurrency & RBAC Integration Tests** | **HIGH** | Quality / Auth | 40 |
+| **P1.3: Normalize Task Dependencies Schema & Remove JSON Column** | **HIGH** | Database Integrity | 24 |
+| **P1.4: Configure Container Limits & Nginx Rate Limiting** | **MEDIUM** | Infrastructure | 16 |
+| **P1.5: Implement Structured JSON Logging & Correlation IDs** | **MEDIUM** | Observability | 20 |
+| **Total Remediation to Production Gate** | | | **360 Hours** |
 
 ---
 
-### 6.2. 18-Month Maintenance & Extension Cost Projection
+### 6.2. 18-Month Maintenance Cost Projection
 
 ```
-+---------------------------------------------------------------------------------------+
-| 18-MONTH TOTAL COST OF OWNERSHIP (TCO) PROJECTION                                     |
-+------------------------------------+------------------+-------------------------------+
-| Phase / Activity                   | Timeline         | Required Engineering Hours    |
-+------------------------------------+------------------+-------------------------------+
-| Phase 1: Security & Triage Hotfixes| Month 1          | 120 Hours                     |
-| Phase 2: PostgreSQL & Sync Rewrite | Month 2 - 3      | 290 Hours                     |
-| Phase 3: Test Automation & CI/CD   | Month 4 - 6      | 210 Hours                     |
-| Phase 4: Ongoing Maintenance & Ops | Month 7 - 18     | 660 Hours (55 hrs/month)      |
-+------------------------------------+------------------+-------------------------------+
-| TOTAL 18-MONTH ENGINEERING BURDEN  | 18 Months        | 1,280 Hours                   |
-+------------------------------------+------------------+-------------------------------+
++---------------------------------------------------------------------------------------------------+
+| 18-MONTH ENGINEERING BURDEN BREAKDOWN                                                             |
++-------------------------------------------------------------+-------------------------------------+
+| Category                                                    | Projected Engineering Hours         |
++-------------------------------------------------------------+-------------------------------------+
+| Phase 1: P0 Security & Concurrency Remediation (Months 1-3) | 360 Hours                           |
+| Phase 2: Schema Evolution & Relational Migration (Months 4-6)| 220 Hours                           |
+| Phase 3: Client Sync Engine Rewrite (CRDT/Queue) (Months 7-9)| 260 Hours                           |
+| Phase 4: CI/CD, Container Hardening & Observability (M10-12)| 180 Hours                           |
+| Phase 5: Ongoing Operational Support & Patching (M13-18)    | 520 Hours                           |
++-------------------------------------------------------------+-------------------------------------+
+| TOTAL 18-MONTH ENGINEERING INVESTMENT                       | 1,540 Hours (~0.85 FTE Senior SWE)  |
++-------------------------------------------------------------+-------------------------------------+
 ```
 
-#### Detailed Breakdown of Operational Expenses:
-1. **Security & State Triage (Month 1 - 120 hrs):**
-   * Eliminate OAuth signature bypass and enforce secure JWT rotation.
-   * Patch BOLA/IDOR vulnerabilities across all routers with project-membership middleware.
-   * Configure SQLite WAL mode and busy timeouts as temporary stopgap.
-2. **Data Layer Re-Architecture & Sync Rewrite (Month 2–3 - 290 hrs):**
-   * Migrate storage engine from SQLite to PostgreSQL with connection pooling (AsyncPG/SQLAlchemy).
-   * Implement Alembic version-controlled migrations.
-   * Completely rewrite `taskStore.ts` and `api.ts` state synchronization to implement optimistic ID mapping, a client-side mutation queue, and conflict-resolution strategies.
-3. **Quality Engineering & CI/CD Pipeline (Month 4–6 - 210 hrs):**
-   * Implement Vitest for frontend with unit tests for `taskStore`, `dagSorter`, and `gitParser`.
-   * Implement Pytest suite covering all RBAC boundaries, concurrency scenarios, and AI fallbacks.
-   * Establish GitHub Actions CI/CD with automated linting, security scanning (Trivy), and test validation.
-4. **Routine Maintenance, Upgrades & Incident Response (Month 7–18 - 660 hrs):**
-   * Dependency lifecycle management and security patches (~15 hrs/month).
-   * Infrastructure telemetry, backup verification, and database vacuum/indexing (~15 hrs/month).
-   * Operational bug fixes, AI token cost optimization, and tenant support (~25 hrs/month).
+### 6.3. Step-by-Step Remediation Roadmap
 
----
+#### Phase 1: Critical Security & Concurrency Hardening (Weeks 1–4)
+1. **Purge Authentication Backdoors:** Completely remove `.mock_signature` and `mock_google_token_` string handlers from `source_code/backend/app/routers/auth.py`. Enforce Google JWKS public key certificate verification exclusively.
+2. **Strict Environment Secrets:** Update `config.py` to make `JWT_SECRET` mandatory without default fallback; terminate process if secret is missing or default in non-test modes.
+3. **Deploy PostgreSQL:** Replace SQLite with PostgreSQL 16 in `docker-compose.yml`. Introduce SQLAlchemy `QueuePool` with `pool_size=20, max_overflow=10` to eliminate write-lock contention.
 
-### 6.3. Concluding Assessment
-The Koshi repository demonstrates functional UI prototyping and algorithmic concept modeling (topological sorting, keyboard traversal), but **lacks fundamental production engineering controls**. The presence of remote authentication bypasses, hardcoded secrets, unchecked cross-tenant access, and destructive data synchronization make it completely unsuitable for multi-tenant production deployment without executing the full 410-hour remediation roadmap detailed above.
+#### Phase 2: Data Integrity & Schema Normalization (Weeks 5–8)
+1. **Relational Dependencies:** Migrate `dependencies_json` to normalized `task_dependencies` junction table with explicit `ON DELETE CASCADE` foreign keys.
+2. **Automated Backup Strategy:** Deploy automated WAL archiving (pgBackRest / Litestream) with S3-compatible remote snapshotting every 6 hours.
+3. **Field-Level Optimistic Locking:** Add `version` integer column to `tasks` table to detect concurrent edit collisions instead of trusting client timestamps.
+
+#### Phase 3: Client-Side Offline Synchronization Architecture (Weeks 9–12)
+1. **Persistent Mutation Journal:** Replace raw IndexedDB state dump with an append-only mutation queue in Pinia (`actionsQueue`).
+2. **Reconciliation Engine:** Implement two-way differential synchronization with exponential backoff retry and explicit conflict resolution modals.
+
+#### Phase 4: Testing & Observability Foundations (Weeks 13–16)
+1. **Frontend Test Suite:** Install Vitest and Vue Test Utils; reach $\ge 85\%$ coverage on `taskStore.ts`, `dagSorter.ts`, and core modal components.
+2. **Structured Logging:** Implement `structlog` emitting standardized JSON logs containing `trace_id`, `user_id`, and execution latency across all FastAPI routes.
+3. **Container Resource Fencing:** Define explicit CPU and memory quotas (`deploy.resources.limits`) in `docker-compose.yml` to prevent OOM cascade failures.

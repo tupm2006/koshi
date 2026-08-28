@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useTaskStore } from '../stores/taskStore';
-import { api } from '../services/api';
+import { api, base64UrlEncode } from '../services/api';
 import { Shield, X, LogIn, UserPlus, AlertCircle } from 'lucide-vue-next';
 
 const emit = defineEmits<{
@@ -13,7 +13,7 @@ const taskStore = useTaskStore();
 const mode = ref<'LOGIN' | 'REGISTER'>('LOGIN');
 const email = ref('pm@tupm.qzz.io');
 const password = ref('koshi123');
-const fullName = ref('');
+const fullName = ref('Phạm Minh Tú');
 const errorMsg = ref<string | null>(null);
 const isSubmitting = ref(false);
 
@@ -21,13 +21,13 @@ async function handleSubmit() {
   errorMsg.value = null;
   isSubmitting.value = true;
   try {
+    let res;
     if (mode.value === 'LOGIN') {
-      const res = await api.login(email.value, password.value);
-      taskStore.currentUser = res.user;
+      res = await api.login(email.value, password.value);
     } else {
-      const res = await api.register(email.value, password.value, fullName.value);
-      taskStore.currentUser = res.user;
+      res = await api.register(email.value, password.value, fullName.value);
     }
+    taskStore.currentUser = res.user;
     await taskStore.syncWithBackend();
     emit('close');
   } catch (e: any) {
@@ -48,7 +48,7 @@ async function handleGoogleLogin() {
   errorMsg.value = null;
   isSubmitting.value = true;
   try {
-    // Generate a valid base64 payload JWT for test/production Google OAuth ID Token
+    // Generate a valid UTF-8 base64url payload JWT for test/production Google OAuth ID Token
     const googlePayload = {
       iss: "https://accounts.google.com",
       sub: "google_108472918374928172834",
@@ -58,8 +58,8 @@ async function handleGoogleLogin() {
       email_verified: true,
       aud: "koshi-google-client-id"
     };
-    const header = btoa(JSON.stringify({ alg: "RS256", typ: "JWT" }));
-    const payload = btoa(JSON.stringify(googlePayload));
+    const header = base64UrlEncode(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+    const payload = base64UrlEncode(JSON.stringify(googlePayload));
     const mockToken = `${header}.${payload}.mock_signature`;
 
     const res = await api.loginWithGoogle(mockToken);

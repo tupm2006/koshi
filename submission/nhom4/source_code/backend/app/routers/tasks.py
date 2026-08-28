@@ -104,6 +104,16 @@ def delete_task(task_id: int, db: Session = Depends(get_db), current_user: User 
         db,
         allowed_roles=[ProjectMemberRoleEnum.OWNER, ProjectMemberRoleEnum.PM]
     )
+
+    # Clean up any sibling task referencing the deleted task ID in its dependencies_json
+    sibling_tasks = db.query(Task).filter(Task.project_id == task.project_id).all()
+    for sibling in sibling_tasks:
+        if sibling.id == task_id:
+            continue
+        deps = sibling.dependencies
+        if task_id in deps or str(task_id) in deps:
+            sibling.dependencies = [d for d in deps if d != task_id and str(d) != str(task_id)]
+
     db.delete(task)
     db.commit()
     return None

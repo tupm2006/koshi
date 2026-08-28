@@ -46,21 +46,24 @@ CREATE TABLE IF NOT EXISTS tasks (
     sprint_id INTEGER REFERENCES sprints(id) ON DELETE SET NULL,
     assignee_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     title VARCHAR(255) NOT NULL,
-    description TEXT,
-    status VARCHAR(20) NOT NULL DEFAULT 'TODO' CHECK (status IN ('TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE')),
-    priority VARCHAR(20) NOT NULL DEFAULT 'MEDIUM' CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
-    complexity_points INTEGER NOT NULL DEFAULT 2, -- S=1, M=2, L=3, XL=5
-    due_date DATETIME,
-    blocking_reason VARCHAR(500),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    description TEXT DEFAULT '',
+    status VARCHAR(20) DEFAULT 'TODO' CHECK (status IN ('TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE')),
+    priority VARCHAR(20) DEFAULT 'MEDIUM' CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
+    complexity_points INTEGER DEFAULT 2,
+    due_date TIMESTAMP NULL,
+    blocking_reason VARCHAR(255) NULL,
+    dependencies_json TEXT DEFAULT '[]',
+    acceptance_criteria_json TEXT DEFAULT '[]',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS task_dependencies (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    depends_on_task_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    UNIQUE(task_id, depends_on_task_id)
+    depends_on_id INTEGER NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_task_dep UNIQUE (task_id, depends_on_id)
 );
 
 CREATE TABLE IF NOT EXISTS comments (
