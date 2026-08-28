@@ -54,6 +54,8 @@ Do **not** proceed on your own initiative, even if the change looks obviously co
 | **Deploying** (the `ssh umi` + `docker compose` flow in `CLAUDE.md`) | Overwrites a live production host. Human-initiated only. |
 | **`git push`, force-push, branch deletion, history rewriting** | Never without an explicit instruction. |
 | **Deleting `source/backend/app/data/koshi.db`** | Committed binary; may hold data someone wants. |
+| **Editing an existing Alembic revision** | Immutable once applied. Add a new revision instead (P12). |
+| **Changing the migration backfill policy** | It decides who keeps access to what. See `0002`'s docstring. |
 
 ## 2. Escalation path for a contract change
 
@@ -82,7 +84,7 @@ documentation.
 | ID | Risk | Likelihood | Impact | Mitigation / status |
 |:--|:--|:--:|:--:|:--|
 | **RISK-01** | **Unverified Google ID tokens.** `routers/auth.py` fell back to base64-decoding the JWT payload without verifying the signature, letting anyone forge a session for any email. | Low | Critical | ✅ **Closed 2026-08-28.** Gated behind `ALLOW_UNVERIFIED_GOOGLE_TOKENS`, default **off**, blocked entirely outside development, returning `401` otherwise. Covered by `test_unverified_google_token_rejected_when_flag_disabled`. The test suite opts in explicitly. |
-| **RISK-02** | **Hardcoded JWT secret.** The same default lived in `config.py` *and* `docker-compose.yml`, in a public repo, so any token could be forged. | Low | Critical | ⚠️ **Mitigated 2026-08-28, not eliminated.** The default is now an obvious placeholder, `docker-compose.yml` requires `JWT_SECRET` from the environment, and startup **fails** outside development if the default is still in force. A real secret store is still the right end state, and any DB seeded under the old secret should be treated as compromised. |
+| **RISK-02** | **Hardcoded JWT secret.** The same default lived in `config.py` *and* `docker-compose.yml`, in a public repo, so any token could be forged. | Low | Critical | ✅ **Closed for this checkout 2026-08-28.** Secret rotated to a fresh 256-bit value held in a gitignored `.env`; tokens signed with the published secret are now rejected. The default is an obvious placeholder, compose requires `JWT_SECRET` from the environment, and startup fails outside development if it is unchanged. ⚠️ **Any other deployment must rotate independently** — see the runbook in §7. |
 | **RISK-03** | **No project-scoped authorisation.** Any authenticated user could read, mutate, or delete any task in any project. | Low | High | ✅ **Closed 2026-08-28.** `ProjectMember` is now the authorisation root; every project-scoped route calls `require_member` / `require_project_pm`. Non-members get `404` across project, task, sprint, AI and stats routes, asserted by four dedicated tests. |
 | **RISK-04** | **Duplicated status-cycle logic** client and server (D4 §3.1). Divergence silently desynchronises the UI from persisted state. | Medium | Medium | Both implementations currently agree. Any edit must change both. |
 | **RISK-05** | **`allow_origins=["*"]` with `allow_credentials=True`.** Invalid per the CORS spec and rejected by browsers; masks real origin policy. | Low | Medium | ✅ **Closed 2026-08-28.** Origins come from `CORS_ORIGINS`; `allow_credentials` is switched off automatically when the origin list is `*`, and `*` is rejected outside development. |
@@ -90,7 +92,7 @@ documentation.
 | **RISK-07** | **Documentation contradicting code.** The retired SRS/URD/README made at least seven claims the code did not support (status order, key bindings, `/api/v1`, a non-existent test file, the LLM vendor). An agent trusting prose writes wrong code. | Low | High | ✅ **Closed 2026-08-28.** Stale documents deleted; `README.md` and `CLAUDE.md` rewritten against the code; D1–D8 are the single source. Conflicts preserved for the record in D7 / DEC-005. |
 | **RISK-08** | **Dependency graph is server-side unresolvable** (D4 VIOLATION-01) — dependencies are `List[str]` but IDs are `int`. | **Certain** | High | ⚠️ **Open.** OQ-01, RED zone. |
 | **RISK-09** | **Two lockfiles** (`pnpm-lock.yaml`, `package-lock.json`) with `Dockerfile` using `npm install` while docs say `pnpm`. Dev and prod can resolve different trees. | Medium | Medium | ⚠️ **Open.** D7 / DEC-007. |
-| **RISK-10** | **No DB migrations.** Schema comes from `create_all`, which never alters an existing table. A column change silently does nothing to a deployed volume. | Medium | High | ⚠️ **Open.** Adopt Alembic before any production schema change. |
+| **RISK-10** | **No DB migrations.** Schema came from `create_all`, which never alters an existing table, so a column change silently did nothing to a deployed volume. | Low | High | ✅ **Closed 2026-08-28.** Alembic adopted with a pre-roles baseline (`0001`) and the roles migration (`0002`), both reversible. Outside development the app creates no schema and refuses to start unless the DB is at head. Covered by `test_migrations.py`, including upgrade of a populated legacy database. |
 | **RISK-11** | **Seed data fires on an empty users table** in the lifespan hook, including a fixed password `koshi123` for `pm@tupm.qzz.io`. | Low | High | ✅ **Closed 2026-08-28.** Gated behind `SEED_DEMO_DATA`, and startup fails if it is enabled outside development. |
 | **RISK-12** | **Tier-3 AI output is indistinguishable from real model output** to the caller. Users may act on canned text believing it is analysis. | High | Medium | Surface the tier in the response (e.g. a `source` field). |
 | **RISK-13** | **No client/server reconciliation.** IndexedDB and SQLite diverge silently; last-write-wins. | High | Medium | ⚠️ **Open** (accepted for v1, D1 §4). **Partially reduced 2026-08-28:** the cache is now partitioned per project (`koshi_tasks_v2_p{id}`), so cross-project contamination is no longer possible. Divergence *within* a project remains unreconciled, and matters more now the app is genuinely multi-user. |
@@ -148,5 +150,61 @@ this class of mistake; never relax it to make a deployment "work".
 a permission. Every rule enforced in a component must also be enforced in a router, and the router
 check is the one that counts.
 
+**P12 — Never edit an applied migration.** Once a revision may have run anywhere, it is immutable;
+correct it with a new revision. Editing it silently desynchronises databases that already ran it.
+
 **P10 — Bulk edits are scoped.** Any find-and-replace runs against `source/` and `documentation/`
 only. Never `submission/`, `node_modules/`, `.venv/`, or `dist/`.
+
+---
+
+## 7. Operational runbooks
+
+### 7.1 Rotating the JWT secret
+
+Rotation **invalidates every existing session** — all users are signed out and must log in again.
+There is no dual-key grace period; that is the intended blast radius when a secret is suspected
+compromised.
+
+```bash
+# 1. Generate
+openssl rand -hex 32
+
+# 2. Set it wherever the deployment reads configuration (never in source control)
+#    Local:  source/backend/.env        (gitignored)
+#    Docker: JWT_SECRET=... docker compose up -d
+
+# 3. Restart the API. Verify it did not fall back to the development default:
+python -c "from app.config import settings; print(settings.JWT_SECRET == settings.DEV_JWT_SECRET)"
+# must print False
+
+# 4. Confirm old tokens are refused — any request with a pre-rotation bearer
+#    token must now return 401.
+```
+
+**Rotate immediately if:** the secret ever appeared in source control, a log, or a screenshot; a
+deployment ran with the published default; or someone with access to it leaves the project.
+
+> The value `koshi_super_secret_jwt_key_2026_academic_spec` shipped in this repository's public
+> history. **Any deployment that ever ran with it must be rotated**, and sessions issued under it
+> treated as forgeable.
+
+### 7.2 Applying migrations
+
+```bash
+cd source/backend
+alembic current                 # where is this database?
+alembic upgrade head            # migrate
+
+# Database created before Alembic existed (no alembic_version table):
+alembic stamp 0001_initial_schema && alembic upgrade head
+```
+
+Outside development the API refuses to start unless the database is at head, and names the command
+to run. Back up before migrating: `0002` drops `users.role`, and its `downgrade` reconstructs that
+column from memberships rather than restoring the original values.
+
+**After running `0002` on real data, review each project's roster.** The backfill deliberately
+preserves existing access — every user becomes a member of every project, because that is what they
+already had — so it is more permissive than most teams want. Tightening it is a deliberate
+follow-up, not something the migration should silently do.

@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -136,7 +137,7 @@ def _check_production_safety() -> None:
     These settings are convenient locally and dangerous in production, so the
     check fails loudly at boot rather than silently exposing the deployment.
     """
-    if settings.ENVIRONMENT.lower() in ("development", "dev", "test", "testing"):
+    if _is_development():
         return
 
     problems = []
@@ -156,11 +157,54 @@ def _check_production_safety() -> None:
         )
 
 
+def _is_development() -> bool:
+    return settings.ENVIRONMENT.lower() in ("development", "dev", "test", "testing")
+
+
+def _check_migrations_current() -> None:
+    """
+    Refuse to start if the database is not migrated to head.
+
+    Outside development, Alembic owns the schema — the app must never create or
+    alter tables implicitly. A deploy that forgot to run migrations should fail
+    immediately and legibly rather than serving requests against a stale schema
+    (D6 RISK-10).
+    """
+    from alembic.config import Config
+    from alembic.script import ScriptDirectory
+    from alembic.runtime.migration import MigrationContext
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    cfg = Config(os.path.join(root, "alembic.ini"))
+    cfg.set_main_option("script_location", os.path.join(root, "migrations"))
+    script = ScriptDirectory.from_config(cfg)
+
+    with engine.connect() as connection:
+        current = MigrationContext.configure(connection).get_current_revision()
+
+    head = script.get_current_head()
+    if current != head:
+        raise RuntimeError(
+            f"Database schema is at revision {current!r} but the code expects {head!r}.\n"
+            "Run:  alembic upgrade head\n"
+            "If this database predates Alembic, stamp the baseline first:\n"
+            "  alembic stamp 0001_initial_schema && alembic upgrade head"
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     _check_production_safety()
-    Base.metadata.create_all(bind=engine)
+
+    if _is_development():
+        # Local convenience: keep the schema in sync without a migration cycle.
+        # Note this does NOT alter existing tables, so run migrations after any
+        # schema change even locally.
+        Base.metadata.create_all(bind=engine)
+    else:
+        _check_migrations_current()
+
     if settings.SEED_DEMO_DATA:
         seed_initial_data()
     yield

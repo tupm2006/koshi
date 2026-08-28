@@ -20,6 +20,7 @@ these shapes, so changing one without changing every consumer is a defect, not a
 | C4 | IndexedDB persisted shape | keys `koshi_tasks_v2_p{projectId}` / `koshi_tasks_v2_guest` | `taskStore.ts` only |
 | C5 | JWT claims | `security.py` | `get_current_user` |
 | C8 | Authorisation model — `project_members` | `entities.py::ProjectMember` + `security.py` guards | every project-scoped router |
+| C9 | Schema version | `migrations/versions/` (Alembic head) | `main.py::_check_migrations_current` |
 | C6 | AI structured outputs | `app/schemas/ai.py` | AI modals |
 | C7 | Environment variables | `app/config.py` + `docker-compose.yml` | deployment |
 
@@ -59,8 +60,10 @@ prefix outlived the document that introduced it (D7 / DEC-005).
 
 ### 2.3 VIOLATION-03 — `db/schema.sql` is not the schema
 
-Tables are created by `Base.metadata.create_all()` from the ORM. `schema.sql` is never executed by
-the application. It diverges from the ORM in at least four ways:
+**Superseded 2026-08-28.** The schema is now owned by Alembic (`migrations/versions/`), with
+`entities.py` as the ORM description that migrations must match. `db/schema.sql` is a stale legacy
+artefact that predates `project_members` entirely and is never executed; it is retained only as
+historical reference. It diverges from the ORM in at least four ways:
 
 | Aspect | `schema.sql` | ORM (actual) |
 |:--|:--|:--|
@@ -315,7 +318,7 @@ re-read from the database on every request.
 | Variable | Default | Notes |
 |:--|:--|:--|
 | `DATABASE_URL` | `sqlite:///./data/koshi.db` | Directory must exist. |
-| `ENVIRONMENT` | `development` | Anything else triggers the startup safety checks in `main.py`. |
+| `ENVIRONMENT` | `development` | Anything else triggers the startup safety **and migration** checks in `main.py`. |
 | `JWT_SECRET` | dev placeholder | Startup **fails** outside development if left at the default. |
 | `ALLOW_UNVERIFIED_GOOGLE_TOKENS` | `false` | Accepts Google tokens whose signature failed verification. Required by the test suite; blocked outside development. |
 | `CORS_ORIGINS` | `*` | Comma-separated. `*` is rejected outside development, and disables `allow_credentials` when set. |

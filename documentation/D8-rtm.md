@@ -103,7 +103,8 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 | FR-PROJ-05 | Roster with workload | `routers/projects.py::_member_out` | ✅ (shape) | 🟡 display |
 | FR-PROJ-06 | PM-only controls | `taskStore.isProjectManager` (UI) + `require_project_pm` (server) | ✅ server side | 🟡 UI — GAP-09 |
 | FR-PROJ-07 | Delete project | `routers/projects.py::delete_project` | — | ❌ |
-| FR-PROJ-08 | Empty account opens dashboard | `taskStore.init` | — | 🟡 |
+| FR-PROJ-08 | Empty account opens dashboard | `taskStore.onAuthenticated`, `App.vue` empty state | — | 🟡 verified by hand (DEC-012) |
+| FR-PROJ-09 | Account panel + sign-out | `AuthModal.vue`, `taskStore.logout` | — | 🟡 verified by hand (DEC-012) |
 | — | Roles independent across projects | `entities.py::ProjectMember` | ✅ `test_roles_are_independent_across_projects` | ✅ |
 
 ### 2.6 AI workflows
@@ -157,7 +158,7 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | `components/TaskDetailModal.vue` | FR-DOM-06, FR-DOM-09, FR-INT-07 | none | 🟡 |
 | `components/*Modal.vue` (AI) | FR-AI-01…05 | none | 🟢 styling / 🟡 logic |
 | `components/ProjectDashboard.vue` | FR-PROJ-01…08, FR-AUTH-06 | server side only | 🟡 |
-| `components/AuthModal.vue` | FR-AUTH-01, 02 | server side only | 🟡 |
+| `components/AuthModal.vue` | FR-AUTH-01, 02, FR-PROJ-09 | server side only | 🟡 |
 
 ### 3.2 Backend
 
@@ -177,6 +178,8 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | `app/main.py` | seeding, CORS, mounting | `conftest.py` imports it | 🟡 (🔴 for CORS — RISK-05) |
 | `app/config.py` | **contract C7**, NFR-09 | — | 🔴 (secrets) |
 | `app/main.py::_check_production_safety` | NFR-09 | ✅ `test_startup_safety.py` | 🔴 |
+| `app/main.py::_check_migrations_current` | NFR-10 | 🟡 verified by hand | 🔴 |
+| `migrations/versions/*` | NFR-10 · **contract C9** | ✅ `test_migrations.py` | 🔴 **immutable once applied (D6 P12)** |
 | `db/schema.sql` | reference only | — | 🟢 ⚠️ stale — D4 §2.3 |
 
 ### 3.3 Build & deploy
@@ -199,7 +202,7 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | The status cycle order | `taskStore.ts::STATUS_ORDER`, `routers/tasks.py::cycle_task_status`, `KanbanBoard.vue`, D4 §3.1 | `pytest` 🔴 **RED zone** |
 | `types/task.ts` | every component, `services/api.ts`, D4 §5, **bump `koshi_tasks_v1`** | `pnpm run build` 🔴 |
 | A Pydantic schema | matching `services/api.ts` method, D4 §4 | `pytest` + `pnpm run build` 🔴 |
-| An ORM column | `entities.py`, `db/schema.sql`, affected schemas, **migration plan** (RISK-10) | `pytest` 🔴 |
+| An ORM column | `entities.py`, affected schemas, **a new Alembic revision** (never edit an applied one) | `pytest` incl. `test_migrations.py` 🔴 |
 | Critical-path weights | `dagSorter.ts`, D4 §3.2 | **write GAP-01 tests first** |
 | An AI prompt | `ai_service.py` only — **check `_deterministic_fallback` substring routing** (F-10) | `pytest` |
 | A role or permission rule | `security.py` guards, every calling router, `taskStore.isProjectManager`, `ProjectDashboard.vue`, D1 §3.5, D4 §4.3b | `pytest` 🔴 **RED zone** |
@@ -217,12 +220,12 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | Graph (FR-GRAPH) | 5 | 0 | 1 | 4 |
 | Persistence (FR-PERS) | 5 | 0 | 4 | 1 |
 | Auth (FR-AUTH) | 10 | 10 | 0 | 0 |
-| Projects (FR-PROJ) | 9 | 5 | 3 | 1 |
 | AI (FR-AI) | 8 | 6 | 1 | 1 |
-| Non-functional (NFR) | 9 | 2 | 3 | 4 |
-| **Total** | **69** | **30** | **25** | **14** |
+| Projects (FR-PROJ) | 10 | 5 | 4 | 1 |
+| Non-functional (NFR) | 10 | 3 | 3 | 4 |
+| **Total** | **71** | **32** | **26** | **13** |
 
-**Reading.** 43% automated (was 33%), 36% manual-only, 20% unverified. Authorisation is now the
+**Reading.** 45% automated (was 33% at rev 1), 37% manual-only, 18% unverified. Authorisation is now the
 **best-covered area in the repository** — all ten FR-AUTH rows are automated, including every
 negative path, which is the reverse of its position in rev 1.
 

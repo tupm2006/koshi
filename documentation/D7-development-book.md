@@ -347,6 +347,105 @@ startup, a fully safe production config starts, and development is exempt.
 
 ---
 
+### DEC-011 — Alembic owns the schema; the app stops creating it
+**Date:** 2026-08-28 · **Status:** Active · **Zone:** infrastructure · **Requested by the maintainer**
+
+**Context.** RISK-10 had been open since the first audit and became blocking with DEC-009: that
+change added `project_members` and dropped `users.role`, but `Base.metadata.create_all()` never
+alters an existing table. A deployed database would have silently kept the old shape while the code
+assumed the new one — the failure would have surfaced as confusing authorisation errors, not as a
+clear schema error.
+
+**Decision.** Adopt Alembic with two revisions, and make the environment decide who owns the schema.
+
+| Revision | Contents |
+|:--|:--|
+| `0001_initial_schema` | The **pre-DEC-009** schema (global `users.role`, no `project_members`). |
+| `0002_per_project_roles` | Creates `project_members`, backfills it, drops `users.role`. Reversible. |
+
+Starting the baseline at the *old* schema is the point: an already-deployed database can be stamped
+at `0001` and migrated forward, instead of being rebuilt. A baseline describing the current schema
+would have offered no upgrade path at all — only a fresh install.
+
+**Environment decides schema ownership** (D3 §5c):
+- development → `create_all()`, for fast local iteration.
+- otherwise → the app creates nothing and `_check_migrations_current()` refuses to start unless the
+  database revision equals the code's head, printing the exact command to run.
+
+**Backfill policy, and why it is permissive.** Before DEC-009 there was no project-scoped
+authorisation: any authenticated user could touch any task in any project (RISK-03). The faithful
+translation is that **every existing user becomes a member of every existing project** — that is the
+access they already had. Owners and former global PMs become PMs; everyone else becomes MEMBER; an
+ownerless project with no global PM promotes the lowest-id user so it is never left unadministered.
+
+A migration must not silently revoke access people depend on. Tightening a roster is a judgement
+call for whoever runs the upgrade, so it is documented as a required follow-up (D6 §7.2) rather than
+guessed at here.
+
+**Alternatives considered.**
+- *Baseline at the current schema.* Rejected — no upgrade path for existing data, which is the only
+  case that cannot be recovered by deleting the file.
+- *Keep `create_all` everywhere and hand-write ALTERs.* Rejected — unversioned and unreversible.
+- *Backfill only project owners as members.* Rejected — it would lock every other user out of
+  projects they could previously use, turning an upgrade into an outage.
+
+**Implementation note.** `migrations/env.py` takes the URL and metadata from `app.config` /
+`app.database` rather than `alembic.ini`, so migrations always follow the app's configuration. An
+explicitly supplied `sqlalchemy.url` still wins — without that the test-suite could not point a
+migration run at a scratch database, which it does five times.
+
+**Verification.** `test_migrations.py` (5 tests): single head; fresh upgrade produces the current
+schema; a **populated legacy database** upgrades with roles backfilled correctly and nobody losing
+access; an ownerless project still gets a PM; downgrade restores `users.role` from memberships.
+Also exercised by hand end to end, including the boot guard refusing an unmigrated database.
+
+---
+
+### DEC-012 — JWT secret rotated; auth UI corrected
+**Date:** 2026-08-28 · **Status:** Active · **Requested by the maintainer**
+
+**Secret rotation.** The published default
+(`koshi_super_secret_jwt_key_2026_academic_spec`) was replaced with a fresh 256-bit value generated
+via `openssl rand -hex 32`, stored in `source/backend/.env`, which is gitignored. A tracked
+`.env.example` documents every setting without carrying a value. Verified: a token signed with the
+old published secret is now rejected. RISK-02 is closed **for this checkout only** — any other
+deployment must rotate independently, and the runbook is D6 §7.1.
+
+**Three UI defects fixed**, reported by the maintainer after testing DEC-009:
+
+1. **The account panel showed a stranger's email.** `AuthModal` initialised its fields to the seeded
+   demo credentials (`pm@tupm.qzz.io` / `koshi123`), so a user who had just registered saw those
+   instead of their own account. Fields now start empty; the demo shortcuts are reduced to two
+   labelled chips and only rendered under `import.meta.env.DEV`.
+
+2. **The dashboard never opened for a new account.** `taskStore.isDashboardOpen` was set by `init()`,
+   but `App.vue` held its own local `ref` of the same name — two independent pieces of state, so the
+   store's value was never read. The local ref is gone; the store is the single source of truth.
+
+3. **Signing in loaded no projects.** `AuthModal` called `syncWithBackend()` without
+   `loadProjects()`, so `currentProjectId` stayed `null` and the board rendered empty with no route
+   forward. This is the "nothing was usable" report.
+
+**Root cause of 2 and 3 is the same:** the post-authentication sequence existed in two places
+(boot and login) and they drifted. Both now funnel through a single `taskStore.onAuthenticated()`,
+so the sequence cannot diverge again. A matching `logout()` clears session state and restores the
+guest board.
+
+**Also added:** an empty-state panel on the board when signed in with no project selected, and a
+signed-in account panel showing the user, their current project and role, and a sign-out button —
+there was previously no way to sign out at all.
+
+**Verification.** Confirmed in-browser: registered a fresh account, was taken to the dashboard,
+created a project, became its PM, and reopened the account panel to see the correct email. The
+rotation was visible in the same session — the pre-rotation token was rejected and the app fell
+back to the guest board.
+
+**Gap.** These are frontend defects and the frontend still has no automated tests (D5 GAP-01 /
+NFR-08). Nothing would catch a regression of any of the three. That remains the largest gap in the
+project.
+
+---
+
 ## Part II — Findings ledger
 
 Observations that are not yet decisions. Each should become a decision or a work item.
@@ -358,19 +457,24 @@ Observations that are not yet decisions. Each should become a decision or a work
 | F-03 | JWT secret hardcoded in `config.py` and `docker-compose.yml`, both public. | | Critical | ⚠️ Mitigated — DEC-010. **Rotate any deployed secret**; old tokens stay forgeable. |
 | F-04 | No task endpoint verified project membership. Any user could mutate any task. | `routers/tasks.py` | High | ✅ Closed — DEC-009 |
 | F-05 | `dagSorter.ts` — the most intricate logic in the repo — has zero tests. | | High | Open — D5 GAP-01 |
-| F-06 | `db/schema.sql` diverges from the ORM in ≥4 ways and is never executed. | | Medium | Documented — D4 §2.3 |
+| F-06 | `db/schema.sql` diverges from the ORM and is never executed. | | Medium | Superseded — Alembic is now the schema source (DEC-011). The file is stale legacy reference; **candidate for deletion**. |
 | F-07 | `allow_origins=["*"]` with `allow_credentials=True` is spec-invalid. | `main.py` | Medium | ✅ Closed — DEC-010 |
 | F-08 | `complexity_points` validated `ge=1, le=8` on create, unvalidated on update. | `schemas/task.py` | Low | Open |
 | F-09 | `blocking_reason` not required when status is `BLOCKED`, despite FR-DOM-07. | | Low | Open — OQ-02 |
 | F-10 | Tier-3 AI fallback branches on **substring matches in prompt text** (`"cuộc họp"`, `"recommended_user_id"`). Rewording a prompt silently breaks fallback routing. | `ai_service.py` | Medium | Open |
 | F-11 | Tier 1 fires only if `"openai" in AI_API_URL`. Any other OpenAI-compatible vendor silently falls through to Tier 2/3 even with a valid key. | `ai_service.py` | Medium | Open |
 | F-12 | Seed data creates `pm@tupm.qzz.io` / `koshi123` whenever the users table is empty. | `main.py` | High | ✅ Closed — DEC-010 (gated by `SEED_DEMO_DATA`) |
-| F-13 | No migration tooling. `create_all` never alters existing tables, so schema changes silently no-op on a deployed volume. | | High | ⚠️ **Open and now blocking** — RISK-10. DEC-009 added `project_members` and dropped `users.role`; existing databases need a real migration or a rebuild. |
+| F-13 | No migration tooling. `create_all` never alters existing tables, so schema changes silently no-op on a deployed volume. | | High | ✅ Closed — DEC-011 (Alembic, with an upgrade path for pre-existing databases) |
 | F-14 | `source/backend/app/data/koshi.db` (SQLite binary) and `tsconfig.tsbuildinfo` (build cache) are committed. | | Low | Open |
 | F-15 | `svelte.config.js` is dead residue from a Svelte prototype. | | Low | Open — safe to delete |
 | F-16 | `AIDecomposeResponse` uses camelCase (`acceptanceCriteria`) while every other schema uses snake_case. | `schemas/ai.py` | Low | Open |
 | ~~F-17~~ | ~~Tests require `source/backend/data/` to exist before the first run.~~ **Incorrect when written** — `app/database.py` creates the sqlite directory itself. Corrected in D5 §1. | `database.py` | — | Withdrawn |
 | F-18 | Widespread `datetime.utcnow()` — deprecated, 47 warnings per test run. | backend | Low | Open |
+| F-19 | `AuthModal.vue` quick-login buttons were labelled "PM" / "Member", implying global roles. | `AuthModal.vue` | Low | ✅ Closed — DEC-012 (relabelled `pm@` / `dev@`, dev-only) |
+| F-20 | Several UI tooltips and the footer legend still say `c` for create task; the binding is `n` (DEC-005). | `App.vue`, `MobileBottomNav.vue` | Low | Open — cosmetic, but it is the same class of drift as DEC-005 |
+| F-21 | The post-auth sequence was duplicated between boot and login and drifted, leaving a signed-in user with no projects loaded. | `taskStore.ts`, `AuthModal.vue` | High | ✅ Closed — DEC-012 (single `onAuthenticated`) |
+| F-22 | `App.vue` shadowed `taskStore.isDashboardOpen` with a local ref, making the store field dead state. | `App.vue` | Medium | ✅ Closed — DEC-012 |
+| F-23 | Deleting the SQLite file under a running uvicorn leaves it writing to a deleted inode ("attempt to write a readonly database"). Restart the process, do not just replace the file. | operational | Low | Open — documented here |
 
 ## Part III — Timeline
 
@@ -387,5 +491,5 @@ Observations that are not yet decisions. Each should become a decision or a work
 | **2026-08-28** | Legacy SRS/URD/architecture/codebase-map/user-stories/BAO_CAO_KT1 deleted; `README.md` and `CLAUDE.md` rewritten against the code (DEC-008). |
 | **2026-08-28** | Roles moved from `User` to `ProjectMember`; personal dashboard added; RISK-03 closed (DEC-009). |
 | **2026-08-28** | Insecure defaults gated and made boot-blocking; RISK-01/05/11/14 closed, RISK-02 mitigated (DEC-010). Suite 6 → 29. |
-| F-19 | `AuthModal.vue` quick-login buttons are still labelled "PM" / "Member". They log in as the two seeded accounts, whose roles are project-scoped; the labels describe their role in the seeded demo project only. | `AuthModal.vue` | Low | Open — cosmetic |
-| F-20 | Several UI tooltips and the footer legend still say `c` for create task; the binding is `n` (DEC-005). | `App.vue`, `MobileBottomNav.vue` | Low | Open — cosmetic, but it is the same class of drift as DEC-005 |
+| **2026-08-28** | Alembic adopted with an upgrade path for pre-existing databases; RISK-10 closed (DEC-011). |
+| **2026-08-28** | JWT secret rotated; three auth-UI defects fixed; RISK-02 closed for this checkout (DEC-012). Suite → 34. |

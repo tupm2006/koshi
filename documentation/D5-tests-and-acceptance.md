@@ -1,7 +1,7 @@
 # D5 — Tests & Acceptance Criteria
 
 **Purpose:** define what "correct" means, and record honestly what is currently verified.
-**Last verified by execution:** 2026-08-28 — `29 passed` in 20.5s (`source/backend`, Python 3.11).
+**Last verified by execution:** 2026-08-28 — `34 passed` in 21.7s (`source/backend`, Python 3.11).
 
 ---
 
@@ -15,7 +15,22 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pytest -q
 ```
-Expected: **29 passed**. (`app/database.py` creates the sqlite directory itself, so no `mkdir` is needed.) Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
+Expected: **34 passed**. (`app/database.py` creates the sqlite directory itself, so no `mkdir` is needed.) Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
+
+### Database migrations
+
+```bash
+cd source/backend
+alembic upgrade head          # build or update the schema
+alembic current               # what revision is this database at?
+alembic history --verbose     # the full chain
+
+# An existing database created before Alembic existed:
+alembic stamp 0001_initial_schema && alembic upgrade head
+```
+
+In development the app still calls `create_all` on boot for convenience. Outside development it
+creates nothing and **refuses to start** unless the database is at head (D3 §5c).
 
 ### Frontend
 
@@ -50,6 +65,7 @@ means the types agree, nothing more. Treat every frontend acceptance criterion b
 | AI endpoints A–D respond with valid schemas | ✅ `test_ai_and_stats.py` | Shape only — never asserts semantic quality |
 | Workload & delayed-task stats | ✅ `test_ai_and_stats.py` | Smoke-level |
 | Production boot guard (all four insecure defaults) | ✅ `test_startup_safety.py` | Good — closes GAP-08 |
+| Migrations: fresh upgrade, legacy upgrade + backfill, downgrade | ✅ `test_migrations.py` | Good — covers the un-recoverable case |
 | `dagSorter.ts` — topological sort, cycles, critical path | ❌ **none** | **Highest-risk gap.** Most intricate logic in the repo, zero tests. |
 | `gitParser.ts` — diff parsing, secret detection | ❌ **none** | The retired SRS claimed a `gitParser.test.ts`; it never existed. |
 | `keyboard.ts` — 24 bindings, input guards | ❌ **none** | Manual only |
@@ -158,7 +174,8 @@ Legend: **A** = automated · **M** = manual · **✗** = unverified
 | NFR-03 | Idle heap < 15 MB. | ✗ **Claim currently unsupported** |
 | NFR-04 | Contrast ≥ 4.5:1, including `DONE` rows (`line-through text-slate-500`). | ✗ |
 | NFR-05 | Hard reload in dark mode produces no light flash. | M |
-| NFR-07 | `pytest` is green on a clean checkout. | **A** ✅ 29/29 |
+| NFR-07 | `pytest` is green on a clean checkout. | **A** ✅ 34/34 |
+| NFR-10 | `alembic upgrade head` builds the current schema from empty; a populated pre-roles DB upgrades with roles backfilled and no user losing access; downgrade restores the old shape. | **A** `test_migrations.py` |
 | NFR-09 | Startup aborts with dev defaults when `ENVIRONMENT` is not development; development is exempt. | **A** `test_startup_safety.py` |
 
 ---

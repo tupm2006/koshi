@@ -233,6 +233,44 @@ export const useTaskStore = defineStore('taskStore', {
   },
 
   actions: {
+    /**
+     * Single entry point for "a user just became authenticated".
+     *
+     * Login, registration and boot all funnel through here so the post-auth
+     * sequence cannot drift between them — that drift was exactly the bug where
+     * signing in left the board empty with no projects loaded.
+     */
+    async onAuthenticated(user: UserProfile) {
+      this.currentUser = user;
+      this.isBackendConnected = true;
+
+      const projects = await this.loadProjects();
+      if (this.currentProjectId !== null) {
+        await this.selectProject(this.currentProjectId);
+      } else {
+        // Brand-new account: nothing to show on the board, so send them
+        // straight to the dashboard to create their first project.
+        this.tasks = [];
+        this.isDashboardOpen = true;
+      }
+      return projects;
+    },
+
+    async logout() {
+      api.logout();
+      this.currentUser = null;
+      this.projects = [];
+      this.currentProjectId = null;
+      this.tasks = [];
+      this.isDashboardOpen = false;
+      this.selectedIndex = 0;
+      this.kanbanColIndex = 0;
+      this.kanbanRowIndex = 0;
+      // Restore the guest sample board so the app stays usable when signed out.
+      const stored = await get<Task[]>(GUEST_DB_KEY);
+      this.tasks = stored && Array.isArray(stored) && stored.length > 0 ? stored : INITIAL_TASKS;
+    },
+
     async loadProjects() {
       try {
         const projects = await api.listProjects();
@@ -278,17 +316,7 @@ export const useTaskStore = defineStore('taskStore', {
         if (api.getToken()) {
           try {
             const user = await api.getMe();
-            this.currentUser = user;
-            await this.loadProjects();
-            if (this.currentProjectId !== null) {
-              await this.syncWithBackend(this.currentProjectId);
-            } else {
-              // Authenticated but with no projects yet: show the dashboard so
-              // the user can create their first one.
-              this.tasks = [];
-              this.isDashboardOpen = true;
-            }
-            this.isBackendConnected = true;
+            await this.onAuthenticated(user);
             this.isLoaded = true;
             return;
           } catch (e) {

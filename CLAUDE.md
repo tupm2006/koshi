@@ -19,7 +19,7 @@ Guidance for AI agents working in this repository. **Read `documentation/` befor
 
 ```bash
 # Backend — must stay green
-cd source/backend && pytest -q          # expect: 29 passed
+cd source/backend && pytest -q          # expect: 34 passed
 
 # Frontend — the only automated gate that exists
 pnpm run build                          # vue-tsc -b && vite build
@@ -63,6 +63,10 @@ updating `ShortcutsHelpModal.vue`, `README.md`, and D1 §3.1.
 **`types/task.ts` is a contract.** Any breaking change to `Task` requires bumping the IndexedDB key
 version (`koshi_tasks_v2_p{projectId}`) — there is no migration code and stale values are read back
 unvalidated.
+
+**Alembic owns the schema.** Any ORM change needs a new migration — never edit an applied
+revision, and never reintroduce `create_all` outside development. Outside development the app
+refuses to start unless the database is at head.
 
 **Roles are per-project, never global.** `User` has no `role` column; authority lives on
 `ProjectMember`. Every project-scoped route must call `require_member` or `require_project_pm` —

@@ -227,6 +227,28 @@ controls. It is **not** a security boundary: the server re-checks every request 
 the tests in `test_projects_and_roles.py` assert the server refuses even when the UI would not have
 offered the action.
 
+## 5c. Schema ownership
+
+Alembic owns the schema; the ORM describes it. The two must agree, and the app enforces that
+differently per environment:
+
+```
+development           →  Base.metadata.create_all()   (fast local iteration)
+anything else         →  _check_migrations_current()  (refuse to start unless at head)
+```
+
+`create_all` never alters an existing table, so it silently no-ops on a changed column — which is
+precisely how a schema change can appear to work locally and corrupt a deployment. Outside
+development the app therefore creates nothing and instead compares the database's Alembic revision
+against the code's head, failing loudly with the exact command to run.
+
+Existing databases that predate Alembic are onboarded by stamping the baseline:
+
+```
+alembic stamp 0001_initial_schema   # assert "my schema matches the pre-roles baseline"
+alembic upgrade head                # then migrate forward normally
+```
+
 ## 6. Deployment architecture
 
 ```

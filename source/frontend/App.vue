@@ -46,7 +46,6 @@ const isWeeklySummaryOpen = ref(false);
 const isMeetingMinutesOpen = ref(false);
 const isWorkloadAssignOpen = ref(false);
 const isAuthModalOpen = ref(false);
-const isDashboardOpen = ref(false);
 const isGitDiffOpen = ref(false);
 const isDAGOpen = ref(false);
 const isShortcutsHelpOpen = ref(false);
@@ -80,7 +79,7 @@ function closeAllModals() {
     isMeetingMinutesOpen.value ||
     isWorkloadAssignOpen.value ||
     isAuthModalOpen.value ||
-    isDashboardOpen.value ||
+    taskStore.isDashboardOpen ||
     isGitDiffOpen.value ||
     isDAGOpen.value ||
     isShortcutsHelpOpen.value ||
@@ -94,7 +93,7 @@ function closeAllModals() {
   isMeetingMinutesOpen.value = false;
   isWorkloadAssignOpen.value = false;
   isAuthModalOpen.value = false;
-  isDashboardOpen.value = false;
+  taskStore.isDashboardOpen = false;
   isGitDiffOpen.value = false;
   isDAGOpen.value = false;
   isShortcutsHelpOpen.value = false;
@@ -201,7 +200,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             type="button"
             class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md border text-xs font-mono cursor-pointer shadow-2xs bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 max-w-[220px]"
             title="My dashboard: projects and per-project roles"
-            @click="isDashboardOpen = true"
+            @click="taskStore.isDashboardOpen = true"
           >
             <FolderKanban class="w-3.5 h-3.5 shrink-0" />
             <span class="truncate">{{ taskStore.currentProject?.name ?? 'No project' }}</span>
@@ -215,7 +214,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             @click="isAuthModalOpen = true"
           >
             <Shield class="w-3.5 h-3.5" />
-            <span>{{ taskStore.currentUser ? `${taskStore.myRole ?? 'NO PROJECT'}: ${taskStore.currentUser.full_name}` : 'Guest / Sign In' }}</span>
+            <span>{{ taskStore.currentUser ? `${taskStore.myRole ?? '—'}: ${taskStore.currentUser.full_name}` : 'Guest / Sign In' }}</span>
           </button>
         </div>
 
@@ -392,8 +391,35 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 
     <!-- Workspace Body (Full-Viewport Docked Layout) -->
     <div class="flex-1 min-h-0 w-full max-w-[1720px] mx-auto p-4 flex flex-col overflow-hidden">
+      <!-- No project selected: a signed-in account with no membership yet has
+           nothing to show on the board, so point it at the dashboard rather
+           than rendering an empty grid with no way forward. -->
+      <div
+        v-if="taskStore.currentUser && taskStore.currentProjectId === null"
+        class="flex-1 min-h-0 flex items-center justify-center"
+      >
+        <div class="max-w-md text-center p-8 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
+          <div class="mx-auto w-11 h-11 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+            <FolderKanban class="w-5 h-5" />
+          </div>
+          <h2 class="mt-3 text-sm font-semibold font-sans">No projects yet</h2>
+          <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Create your first project and you will be its Project Manager — or ask a
+            PM to add you to theirs. Roles are set per project.
+          </p>
+          <button
+            type="button"
+            class="mt-4 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs inline-flex items-center gap-1.5 cursor-pointer"
+            @click="taskStore.isDashboardOpen = true"
+          >
+            <FolderKanban class="w-3.5 h-3.5" />
+            <span>Open dashboard</span>
+          </button>
+        </div>
+      </div>
+
       <!-- Table View: Docked full-height table card -->
-      <div v-if="taskStore.viewMode === 'TABLE'" class="flex-1 min-h-0 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg shadow-xs overflow-y-auto">
+      <div v-else-if="taskStore.viewMode === 'TABLE'" class="flex-1 min-h-0 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg shadow-xs overflow-y-auto">
         <TaskTable :on-open-create="() => (isCreateModalOpen = true)" />
       </div>
 
@@ -457,7 +483,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
     <MeetingMinutesModal v-if="isMeetingMinutesOpen" :on-close="() => (isMeetingMinutesOpen = false)" />
     <WorkloadAssignModal v-if="isWorkloadAssignOpen" :on-close="() => (isWorkloadAssignOpen = false)" />
     <AuthModal v-if="isAuthModalOpen" @close="isAuthModalOpen = false" />
-    <ProjectDashboard v-if="isDashboardOpen" @close="isDashboardOpen = false" />
+    <ProjectDashboard v-if="taskStore.isDashboardOpen" @close="taskStore.isDashboardOpen = false" />
     <AIDecomposerModal v-if="isAIDecomposerOpen" @close="isAIDecomposerOpen = false" />
     <GitDiffModal v-if="isGitDiffOpen" @close="isGitDiffOpen = false" />
     <DAGVisualizerModal v-if="isDAGOpen" @close="isDAGOpen = false" />

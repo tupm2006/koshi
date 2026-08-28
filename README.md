@@ -40,10 +40,12 @@ pnpm run build          # vue-tsc -b && vite build → dist/
 **Backend**
 ```bash
 cd source/backend
+cp .env.example .env               # then set JWT_SECRET (openssl rand -hex 32)
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
-pytest -q                          # 29 tests
+alembic upgrade head               # build/update the schema
+pytest -q                          # 34 tests
 ```
 
 On first run with an empty database the app seeds two accounts (`pm@tupm.qzz.io` and
@@ -129,9 +131,9 @@ Tier 3 output is currently indistinguishable from real model output to the calle
 
 ## Project status
 
-The backend is covered end to end (29/29 passing), with authorisation the best-tested area —
+The backend is covered end to end (34/34 passing), with authorisation the best-tested area —
 every negative path is asserted. **The frontend has no automated tests**, including the DAG engine,
-the most intricate logic in the repository. Overall: 43% of requirements automated, 20% unverified.
+the most intricate logic in the repository. Overall: 45% of requirements automated, 18% unverified.
 Full breakdown in [D8 §5](./documentation/D8-rtm.md).
 
 Known defects are catalogued in [D7 Part II](./documentation/D7-development-book.md) and risk-rated
@@ -140,11 +142,11 @@ in [D6 §4](./documentation/D6-risks-delegation-policies.md). Still open and wor
 - **Task identity is inconsistent across layers** — the ORM uses integer ids, the frontend uses
   `TSK-n` strings, and `dependencies` is `List[str]`, so the server-side dependency graph cannot
   resolve. [D4 VIOLATION-01](./documentation/D4-api-and-data-contracts.md).
-- **No migration tooling.** `create_all` never alters an existing table, so schema changes silently
-  no-op on a deployed volume. Newly blocking, since roles moved to a new table.
-- **Rotate `JWT_SECRET` on any existing deployment.** The old default was published in this repo;
-  tokens signed with it remain forgeable.
-- **`lib/dagSorter.ts` has no tests** — the highest-value gap in the codebase.
+- **Rotate `JWT_SECRET` on any deployment that predates 2026-08-28.** The old default was published
+  in this repo; tokens signed with it remain forgeable. Runbook:
+  [D6 §7.1](./documentation/D6-risks-delegation-policies.md).
+- **`lib/dagSorter.ts` has no tests** — the highest-value gap in the codebase. The frontend has no
+  automated tests at all.
 
 ## Contributors
 

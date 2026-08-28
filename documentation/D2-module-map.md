@@ -30,7 +30,10 @@ koshi/
 │       │   ├── schemas/         ← Pydantic request/response contracts
 │       │   ├── routers/         ← HTTP endpoints, one module per resource
 │       │   └── services/        ← AI cascade
-│       ├── db/schema.sql        ← Reference DDL (⚠ not the source of truth — see D4 §2.3)
+│       ├── migrations/         ← Alembic: env.py + versions/ (schema source of truth)
+│       ├── alembic.ini          ← Alembic config (URL comes from app.config)
+│       ├── .env.example         ← Required/optional env vars; copy to .env
+│       ├── db/schema.sql        ← Legacy reference DDL (⚠ superseded — see D4 §2.3)
 │       ├── tests/               ← pytest suite
 │       ├── init_db.py           ← Standalone DB bootstrap
 │       └── requirements.txt
@@ -93,7 +96,7 @@ The frontend's contract surface: `TaskStatus`, `TaskPriority`, `Complexity`, `Ta
 | `WeeklySummaryModal.vue` | AI menu | FR-AI-01. |
 | `MeetingMinutesModal.vue` | AI menu | FR-AI-02. |
 | `WorkloadAssignModal.vue` | AI menu | FR-AI-03 / FR-AI-07. |
-| `AuthModal.vue` | unauthenticated | Login / register / Google. Registration collects **no role**. |
+| `AuthModal.vue` | auth pill | Three states: login, register (**no role**), and signed-in account panel with current project, role, and sign-out. Fields start empty — it previously pre-filled the seeded demo credentials. |
 | `ProjectDashboard.vue` | project pill in header | Personal dashboard: project list with the caller's role in each, project creation, member roster, add-member, per-project role assignment. PM-only controls hidden for members. |
 | `ShortcutsHelpModal.vue` | `?` | Key reference. |
 | `MobileBottomNav.vue` | narrow viewport | FR-INT-14. |
@@ -118,6 +121,7 @@ The frontend's contract surface: `TaskStatus`, `TaskPriority`, `Complexity`, `Ta
 | File | Responsibility | Key detail |
 |:--|:--|:--|
 | `main.py` | Lifespan hook runs `_check_production_safety()`, `create_all`, then `seed_initial_data()` when `SEED_DEMO_DATA`; mounts routers; CORS from config. | Seeds 2 users, 1 project **with two memberships (PM + MEMBER)**, 1 sprint, 5 tasks — only when the users table is empty. Refuses to boot with dev defaults outside development. |
+| `migrations/env.py` | Alembic environment. Takes the URL and metadata from the app, so migrations always target the configured database. An explicit `sqlalchemy.url` wins, which is how the tests point it at a scratch DB. | Sets `render_as_batch` on SQLite so `DROP COLUMN` works via table rebuild. |
 | `config.py` | `Settings` from env / `.env`. | Adds `ENVIRONMENT`, `ALLOW_UNVERIFIED_GOOGLE_TOKENS`, `CORS_ORIGINS`, `SEED_DEMO_DATA`. The `JWT_SECRET` dev default is rejected outside development. |
 | `security.py` | `verify_password`, `get_password_hash` (bcrypt, 72-byte truncation), `create_access_token`, `get_current_user`, plus the project-scoped guards `get_membership`, `require_member`, `require_project_pm`. | The guards take `(db, project_id, user)` and are **called inside endpoints**, not used as bare `Depends()` — the project id arrives as a path param, a query param, or a body field depending on the route. |
 | `models/entities.py` | `User`, `Project`, **`ProjectMember`**, `Sprint`, `Task`, `Comment` + `ProjectRoleEnum`, `TaskStatusEnum`, `TaskPriorityEnum`. `User` has **no** `role` column. | `Task.dependencies` / `.acceptance_criteria` are **Python properties** over `*_json` TEXT columns — not real relations, so they are not queryable in SQL. |
@@ -146,6 +150,8 @@ routers/ai.py  ──calls──▶  AIService.<feature>()  ──calls──▶
 | an AI prompt | `app/services/ai_service.py` only |
 | a role or permission rule | `app/security.py` guards + the calling router; mirrored in the UI by `taskStore.isProjectManager` |
 | project / membership behaviour | `app/routers/projects.py` (server), `components/ProjectDashboard.vue` (client) |
+| the database schema | **a new Alembic revision** — never edit an applied one; `entities.py` must match |
+| sign-in / account UI | `components/AuthModal.vue`; auth transitions go through `taskStore.onAuthenticated` / `logout` |
 | offline behaviour | `taskStore.ts` IndexedDB block |
 | build paths | `vite.config.ts`, `tsconfig.json`, `Dockerfile`, `docker-compose.yml` |
 

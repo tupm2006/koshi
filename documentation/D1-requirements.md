@@ -27,7 +27,7 @@ deterministic fallback.
 **Out of scope (v1).** Organisation/tenant objects above the project; real-time multi-user
 collaboration or conflict resolution;
 file attachments; time tracking / billing; notification delivery (email, Slack); mobile native apps;
-migrations tooling (schema is created via `Base.metadata.create_all`).
+cross-project reporting.
 
 ## 3. Requirement register
 
@@ -124,7 +124,8 @@ project it belongs to, and may be `PM` of one project while being `MEMBER` of an
 | FR-PROJ-05 | The member roster shows each member's role and their in-project workload (active tasks, WIP points). | Should | Implemented |
 | FR-PROJ-06 | Role-changing controls are hidden from non-PMs, and independently refused by the server. | Must | Implemented |
 | FR-PROJ-07 | A PM may delete a project they administer. | Could | Implemented |
-| FR-PROJ-08 | An account with no projects is shown the dashboard on load so it can create its first one. | Should | Implemented |
+| FR-PROJ-08 | An account with no projects is shown the dashboard on load so it can create its first one, rather than an empty board. | Should | Implemented |
+| FR-PROJ-09 | The account panel shows the signed-in user, their current project and role, and offers sign-out. | Must | Implemented |
 
 ### 3.7 Functional — AI workflows (FR-AI)
 
@@ -155,6 +156,7 @@ generator. No endpoint may return free-form text where a schema is declared.
 | NFR-07 | Backend test suite passes on a clean checkout. | 100% | Implemented (29/29) — was broken until D7 / DEC-004 |
 | NFR-08 | Frontend has automated tests. | — | **Not met** — zero frontend tests exist. See D5 §6. |
 | NFR-09 | The service refuses to start in a non-development environment while any insecure default is in force. | — | Implemented & tested — `main.py::_check_production_safety` |
+| NFR-10 | Schema changes are delivered by versioned, reversible migrations; outside development the app refuses to start against a database that is not at head. | — | Implemented & tested — Alembic + `main.py::_check_migrations_current` |
 
 ## 4. Explicit non-goals
 
