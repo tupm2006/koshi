@@ -1,33 +1,38 @@
-/**
- * Koshi Frontend API Client
- * Connects Vue 3 frontend with FastAPI backend using JWT Bearer authentication.
- */
-
 const API_BASE = '/api';
 
-/**
- * UTF-8 Safe Base64URL encoder.
- * Handles multi-byte Unicode strings (e.g. Vietnamese diacritics) without InvalidCharacterError.
- */
-export function base64UrlEncode(str: string): string {
+export function decodeJwtPayload<T = any>(token: string): T | null {
+  try {
+    const parts = token.split('.');
+    if (parts.length < 2) return null;
+    let base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4 !== 0) {
+      base64 += '=';
+    }
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return JSON.parse(new TextDecoder('utf-8').decode(bytes)) as T;
+  } catch (err) {
+    console.error('[Auth] Failed to decode token:', err);
+    return null;
+  }
+}
+
+export const parseJwt = decodeJwtPayload;
+
+export function encodeBase64Url(str: string): string {
   const bytes = new TextEncoder().encode(str);
   let binary = '';
   for (let i = 0; i < bytes.length; i++) {
     binary += String.fromCharCode(bytes[i]);
   }
-  return btoa(binary)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-export const encodeBase64Url = base64UrlEncode;
-
-/**
- * UTF-8 Safe Base64URL decoder.
- * Handles multi-byte Unicode strings (e.g. Vietnamese diacritics) without InvalidCharacterError.
- */
-export function base64UrlDecode(str: string): string {
+export const base64UrlEncode = encodeBase64Url;
+export const base64UrlDecode = (str: string): string => {
   let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
   while (base64.length % 4 !== 0) {
     base64 += '=';
@@ -38,24 +43,7 @@ export function base64UrlDecode(str: string): string {
     bytes[i] = binary.charCodeAt(i);
   }
   return new TextDecoder('utf-8').decode(bytes);
-}
-
-/**
- * Parses JWT payload safely supporting UTF-8 and base64url encoding.
- */
-export function parseJwt<T = any>(token: string): T | null {
-  try {
-    const parts = token.split('.');
-    if (parts.length < 2) return null;
-    const jsonStr = base64UrlDecode(parts[1]);
-    return JSON.parse(jsonStr) as T;
-  } catch (err) {
-    console.error('[Auth] Failed to decode token:', err);
-    return null;
-  }
-}
-
-export const decodeJwtPayload = parseJwt;
+};
 
 export interface UserProfile {
   id: number;
@@ -82,7 +70,7 @@ export interface AuthResponse {
   user: UserProfile;
 }
 
-export class ApiClient {
+export class ApiService {
   private token: string | null = null;
 
   constructor() {
@@ -106,7 +94,7 @@ export class ApiClient {
     return this.token;
   }
 
-  async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  async request<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const headers = new Headers(options.headers || {});
     headers.set('Content-Type', 'application/json');
 
@@ -116,18 +104,19 @@ export class ApiClient {
 
     const res = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
-      headers,
+      headers
     });
 
     if (res.status === 401) {
+      // Evict invalid/expired/stale token from localStorage immediately
       this.setToken(null);
-      const errBody = await res.json().catch(() => ({ detail: 'Session expired or invalid credentials' }));
-      throw new Error(errBody.detail || 'Session expired. Please log in again.');
+      const errorData = await res.json().catch(() => ({ detail: 'Unauthorized' }));
+      throw new Error(errorData.detail || 'Session expired or invalid credentials');
     }
 
     if (!res.ok) {
-      const errBody = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(errBody.detail || `HTTP Error ${res.status}`);
+      const errorData = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(errorData.detail || `HTTP Error ${res.status}`);
     }
 
     if (res.status === 204) {
@@ -137,43 +126,42 @@ export class ApiClient {
     return res.json();
   }
 
-  // Auth Endpoints
-  async register(email: string, password: string, full_name: string): Promise<AuthResponse> {
-    const data = await this.request<AuthResponse>('/auth/register', {
+  async register(email: string, password: string, fullName: string) {
+    const res = await this.request<AuthResponse>('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password, full_name }),
+      body: JSON.stringify({ email, password, full_name: fullName })
     });
-    this.setToken(data.access_token);
-    return data;
+    this.setToken(res.access_token);
+    return res;
   }
 
-  async login(email: string, password: string): Promise<AuthResponse> {
-    const data = await this.request<AuthResponse>('/auth/login', {
+  async login(email: string, password: string) {
+    const res = await this.request<AuthResponse>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password })
     });
-    this.setToken(data.access_token);
-    return data;
+    this.setToken(res.access_token);
+    return res;
   }
 
-  async loginWithGoogle(credential: string): Promise<AuthResponse> {
-    const data = await this.request<AuthResponse>('/auth/google', {
+  async loginWithGoogle(credential: string) {
+    const res = await this.request<AuthResponse>('/auth/google', {
       method: 'POST',
-      body: JSON.stringify({ credential }),
+      body: JSON.stringify({ credential })
     });
-    this.setToken(data.access_token);
-    return data;
+    this.setToken(res.access_token);
+    return res;
   }
 
-  async getMe(): Promise<UserProfile> {
+  async getMe() {
     return this.request<UserProfile>('/auth/me');
   }
 
-  async getUsers(): Promise<any[]> {
+  async getUsers() {
     return this.request<any[]>('/users');
   }
 
-  async searchUsers(query: string): Promise<UserProfile[]> {
+  async searchUsers(query: string) {
     return this.request<UserProfile[]>(`/users/search?q=${encodeURIComponent(query)}`);
   }
 
@@ -181,115 +169,116 @@ export class ApiClient {
     this.setToken(null);
   }
 
-  // Project Members Endpoints
-  async getProjectMembers(projectId: number = 1): Promise<ProjectMember[]> {
+  async getProjectMembers(projectId = 1) {
     return this.request<ProjectMember[]>(`/projects/${projectId}/members`);
   }
 
-  async addProjectMember(projectId: number, userId: number, role: string = 'MEMBER'): Promise<ProjectMember> {
+  async addProjectMember(projectId: number, userId: number, role = 'MEMBER') {
     return this.request<ProjectMember>(`/projects/${projectId}/members`, {
       method: 'POST',
-      body: JSON.stringify({ user_id: userId, role }),
+      body: JSON.stringify({ user_id: userId, role })
     });
   }
 
-  async updateProjectMemberRole(projectId: number, userId: number, role: string): Promise<ProjectMember> {
+  async updateProjectMemberRole(projectId: number, userId: number, role: string) {
     return this.request<ProjectMember>(`/projects/${projectId}/members/${userId}`, {
       method: 'PATCH',
-      body: JSON.stringify({ role }),
+      body: JSON.stringify({ role })
     });
   }
 
-  async removeProjectMember(projectId: number, userId: number): Promise<void> {
+  async removeProjectMember(projectId: number, userId: number) {
     return this.request<void>(`/projects/${projectId}/members/${userId}`, {
-      method: 'DELETE',
+      method: 'DELETE'
     });
   }
 
-  // Task Endpoints
-  async getTasks(projectId: number = 1): Promise<any[]> {
+  async getTasks(projectId = 1) {
     return this.request<any[]>(`/tasks?project_id=${projectId}`);
   }
 
-  async createTask(taskData: any): Promise<any> {
+  async createTask(task: any) {
     return this.request<any>('/tasks', {
       method: 'POST',
-      body: JSON.stringify(taskData),
+      body: JSON.stringify(task)
     });
   }
 
-  async updateTask(taskId: number | string, taskData: any): Promise<any> {
-    const cleanId = typeof taskId === 'string' ? taskId.replace(/\D/g, '') : taskId;
+  async updateTask(id: string | number, updates: any) {
+    const cleanId = typeof id === 'string' ? id.replace(/\D/g, '') : id;
     return this.request<any>(`/tasks/${cleanId}`, {
       method: 'PATCH',
-      body: JSON.stringify(taskData),
+      body: JSON.stringify(updates)
     });
   }
 
-  async deleteTask(taskId: number | string): Promise<void> {
-    const cleanId = typeof taskId === 'string' ? taskId.replace(/\D/g, '') : taskId;
+  async deleteTask(id: string | number) {
+    const cleanId = typeof id === 'string' ? id.replace(/\D/g, '') : id;
     return this.request<void>(`/tasks/${cleanId}`, {
-      method: 'DELETE',
+      method: 'DELETE'
     });
   }
 
-  async cycleTaskStatus(taskId: number | string): Promise<any> {
-    const cleanId = typeof taskId === 'string' ? taskId.replace(/\D/g, '') : taskId;
+  async cycleTaskStatus(id: string | number) {
+    const cleanId = typeof id === 'string' ? id.replace(/\D/g, '') : id;
     return this.request<any>(`/tasks/${cleanId}/cycle-status`, {
-      method: 'POST',
+      method: 'POST'
     });
   }
 
-  // AI Mandated Features
-  async getWeeklySummary(projectId: number = 1): Promise<{ status: string; summary: string }> {
+  async getWeeklySummary(projectId = 1) {
     return this.request<{ status: string; summary: string }>(`/ai/weekly-summary?project_id=${projectId}`, {
-      method: 'POST',
+      method: 'POST'
     });
   }
 
-  async extractMeetingMinutes(notes: string): Promise<any> {
+  async extractMeetingMinutes(notes: string) {
     return this.request<any>('/ai/meeting-minutes', {
       method: 'POST',
-      body: JSON.stringify({ notes }),
+      body: JSON.stringify({ notes })
     });
   }
 
-  async recommendAssignment(title: string, description: string, projectId: number = 1): Promise<any> {
+  async recommendAssignment(title: string, description: string, projectId = 1) {
     return this.request<any>(`/ai/recommend-assignment?project_id=${projectId}`, {
       method: 'POST',
-      body: JSON.stringify({ title, description }),
+      body: JSON.stringify({ title, description })
     });
   }
 
-  async decomposeGoal(goal: string): Promise<any> {
+  async decomposeGoal(goal: string) {
     return this.request<any>('/ai/decompose', {
       method: 'POST',
-      body: JSON.stringify({ goal }),
+      body: JSON.stringify({ goal })
     });
   }
 
-  async analyzeGitDiff(diffText: string, currentTasks: any[]): Promise<any> {
-    const lines = diffText.split('\n');
-    const changedFiles = lines.filter((l) => l.startsWith('+++ b/')).map((l) => l.replace('+++ b/', ''));
-    const resolved = currentTasks.slice(0, 1).map((t) => t.id);
+  async analyzeGitDiff(diffText: string, currentTasks: any[]) {
+    const touchedFiles = diffText
+      .split('\n')
+      .filter((l) => l.startsWith('+++ b/'))
+      .map((l) => l.replace('+++ b/', ''));
+
+    const candidateDoneIds = currentTasks.slice(0, 1).map((t) => t.id);
 
     return {
-      prTitle: `Commit / Diff Analysis (${changedFiles.length || 1} files touched)`,
-      summary: `Analyzed unified diff. Detected module migrations and refactors across ${changedFiles.join(', ') || 'core repository'}.`,
-      resolvedTaskIds: resolved,
+      prTitle: `Commit / Diff Analysis (${touchedFiles.length || 1} files touched)`,
+      summary: `Analyzed unified diff. Detected module modifications across ${touchedFiles.join(', ') || 'core files'}.`,
+      resolvedTaskIds: candidateDoneIds,
       blockedTaskIds: [],
+      architecturalConcerns: []
     };
+
   }
 
-  // Workload & Delayed Tasks
-  async getWorkloads(): Promise<any[]> {
+  async getWorkloads() {
     return this.request<any[]>('/stats/workload');
   }
 
-  async getDelayedTasks(projectId: number = 1): Promise<any[]> {
+  async getDelayedTasks(projectId = 1) {
     return this.request<any[]>(`/stats/delayed-tasks?project_id=${projectId}`);
   }
 }
 
-export const api = new ApiClient();
-export const ApiService = ApiClient;
+export const api = new ApiService();
+export const ApiClient = ApiService;
