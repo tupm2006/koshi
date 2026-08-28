@@ -6,6 +6,7 @@ from app.database import get_db
 from app.models.entities import User, Task, ProjectMember, TaskStatusEnum
 from app.schemas.stats import MemberWorkloadOut, DelayedTaskOut
 from app.security import get_current_user, require_member
+from app.utils.time import utcnow
 
 router = APIRouter(prefix="/stats", tags=["Statistics & Workload"])
 
@@ -48,7 +49,7 @@ def get_member_workloads(project_id: int, db: Session = Depends(get_db), current
 @router.get("/delayed-tasks", response_model=List[DelayedTaskOut])
 def get_delayed_tasks(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     require_member(db, project_id, current_user)
-    now = datetime.utcnow()
+    now = utcnow()
     tasks = db.query(Task).filter(
         Task.project_id == project_id,
         Task.status != TaskStatusEnum.DONE,

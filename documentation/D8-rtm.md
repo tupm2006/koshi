@@ -43,6 +43,16 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 | FR-INT-13 | Help modal | `lib/keyboard.ts` (`?`), `ShortcutsHelpModal.vue` | manual | 🟡 |
 | FR-INT-14 | Mobile nav | `MobileBottomNav.vue`, `TaskTable.vue` swipe handlers | manual | 🟡 |
 
+### 2.1b Navigation & entry
+
+| Req | Work item | Implementation | Verification | St |
+|:--|:--|:--|:--|:--:|
+| FR-NAV-01 | Landing page | `components/LandingPage.vue`, `taskStore.appView` | — | 🟡 |
+| FR-NAV-02 | Logout → landing | `taskStore.logout` | — | 🟡 |
+| FR-NAV-03 | Guest mode | `taskStore.continueAsGuest` | — | 🟡 |
+| FR-NAV-04 | Auth → board / dashboard | `taskStore.onAuthenticated` | — | 🟡 |
+| FR-NAV-05 | Profile navigation | `App.vue` header pill, `taskStore.showProfile` / `showBoard` | — | 🟡 |
+
 ### 2.2 Domain model
 
 | Req | Work item | Implementation | Verification | St |
@@ -51,7 +61,8 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 | FR-DOM-02 | Cycle invariant | `taskStore.ts::STATUS_ORDER` **and** `routers/tasks.py::cycle_task_status` | ✅ `test_task_lifecycle_and_comments` | ⚠️✅ duplicated logic — RISK-04 |
 | FR-DOM-03 | Priority enum | `types/task.ts`, `entities.py::TaskPriorityEnum` | ✅ `test_tasks.py` | ✅ |
 | FR-DOM-04 | Complexity | `entities.py::complexity_points`, `schemas/task.py` (`ge=1,le=8`) | ✅ create path | ⚠️✅ no bound on update — F-08 |
-| FR-DOM-05 | Dependencies | `entities.py::dependencies` property over `dependencies_json`, `types/task.ts::dependencies` | ✅ round-trip only | ⚠️❌ unresolvable server-side — F-01 |
+| FR-DOM-05 | Dependencies | `entities.py::dependencies` (int ids), `types/task.ts`, `api.ts::taskKeyOf`/`serverIdOf` | ✅ `test_tasks.py` round-trip + resolution | ✅ |
+| FR-DOM-10 | Dependency validation | `routers/tasks.py::_validate_dependencies` | ✅ unknown / self / cross-project | ✅ |
 | FR-DOM-06 | Acceptance criteria | `entities.py::acceptance_criteria`, `TaskDetailModal.vue` | ✅ round-trip | ✅ |
 | FR-DOM-07 | Blocking reason | `entities.py::blocking_reason` | — | ⚠️❌ not enforced — F-09 |
 | FR-DOM-08 | Project/sprint/assignee | `entities.py` relationships, `routers/projects.py`, `routers/sprints.py` | ✅ `test_tasks.py` | ✅ |
@@ -104,7 +115,9 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 | FR-PROJ-06 | PM-only controls | `taskStore.isProjectManager` (UI) + `require_project_pm` (server) | ✅ server side | 🟡 UI — GAP-09 |
 | FR-PROJ-07 | Delete project | `routers/projects.py::delete_project` | — | ❌ |
 | FR-PROJ-08 | Empty account opens dashboard | `taskStore.onAuthenticated`, `App.vue` empty state | — | 🟡 verified by hand (DEC-012) |
-| FR-PROJ-09 | Account panel + sign-out | `AuthModal.vue`, `taskStore.logout` | — | 🟡 verified by hand (DEC-012) |
+| FR-PROJ-09 | Profile page | `components/ProfilePage.vue` | — | 🟡 |
+| FR-PROJ-10 | Edit name / skills | `ProfilePage.vue`, `taskStore.updateProfile`, `PATCH /users/{id}` | server side ✅ | 🟡 |
+| FR-PROJ-11 | Membership list | `ProfilePage.vue`, `routers/projects.py::list_my_projects` | server side ✅ | 🟡 |
 | — | Roles independent across projects | `entities.py::ProjectMember` | ✅ `test_roles_are_independent_across_projects` | ✅ |
 
 ### 2.6 AI workflows
@@ -115,7 +128,7 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 | FR-AI-02 | Meeting minutes | `routers/ai.py::extract_meeting_minutes`, `ai_service.py::extract_meeting_minutes`, `MeetingMinutesModal.vue` | ✅ same | ✅ shape only |
 | FR-AI-03 | Assignment recommendation | `routers/ai.py::recommend_assignment`, `ai_service.py::recommend_task_assignment`, `WorkloadAssignModal.vue` | ✅ same | ✅ shape only |
 | FR-AI-04 | Goal decomposition | `routers/ai.py::decompose_goal` (hardcoded), `lib/aiDecomposer.ts`, `AIDecomposerModal.vue` | ✅ asserts `len == 3` | ⚠️✅ **test pins the stub** — D5 §5, DEC-003 |
-| FR-AI-05 | Git diff analysis | `lib/gitParser.ts` (real, orphaned) vs `services/api.ts::analyzeGitDiff` (stub, live), `GitDiffModal.vue` | — | ⚠️❌ **DEC-006**; SRS claims a test that does not exist |
+| FR-AI-05 | Git diff analysis | `lib/gitParser.ts::parseGitDiff` called directly by `GitDiffModal.vue` | — | ❌ GAP-03 |
 | FR-AI-06 | 3-tier cascade | `ai_service.py::_call_llm`, `_deterministic_fallback` | ✅ implicitly — CI runs with no key and no Ollama | ✅ |
 | FR-AI-07 | Workload stats | `routers/stats.py::get_member_workloads` | ✅ `test_workload_and_delayed_tasks_stats` | ✅ |
 | FR-AI-08 | Delayed tasks | `routers/stats.py::get_delayed_tasks` | ✅ same | 🟡 no overdue fixture |
@@ -145,7 +158,7 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 |:--|:--|:--|:--:|
 | `lib/keyboard.ts` | FR-INT-01…13 | none | 🟡 |
 | `lib/dagSorter.ts` | FR-GRAPH-01…04 | ✅ `dagSorter.test.ts` (28, mutation-verified) | 🟡 |
-| `lib/gitParser.ts` | FR-AI-05 | **none** | 🟡 |
+| `lib/gitParser.ts` | FR-AI-05 (now actually wired up) | **none** | 🟡 GAP-03 |
 | `lib/aiDecomposer.ts` | FR-AI-04 (tier 1) | none | 🟡 |
 | `stores/taskStore.ts` | FR-INT-02…09, FR-DOM-02, FR-PERS-01…03, FR-PERS-05, FR-PROJ-01…03, FR-PROJ-08 | **none** | 🟡 **widest blast radius — now the top gap (GAP-05)** |
 | `stores/themeStore.ts` | FR-INT-12, NFR-02, NFR-05 | none | 🟢 |
@@ -158,7 +171,8 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | `components/TaskDetailModal.vue` | FR-DOM-06, FR-DOM-09, FR-INT-07 | none | 🟡 |
 | `components/*Modal.vue` (AI) | FR-AI-01…05 | none | 🟢 styling / 🟡 logic |
 | `components/ProjectDashboard.vue` | FR-PROJ-01…08, FR-AUTH-06 | server side only | 🟡 |
-| `components/AuthModal.vue` | FR-AUTH-01, 02, FR-PROJ-09 | server side only | 🟡 |
+| `components/LandingPage.vue` | FR-NAV-01…04, FR-AUTH-01, 02 | server side only | 🟡 GAP-10 |
+| `components/ProfilePage.vue` | FR-NAV-05, FR-PROJ-09…11 | server side only | 🟡 GAP-10 |
 
 ### 3.2 Backend
 
@@ -203,6 +217,8 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | `types/task.ts` | every component, `services/api.ts`, D4 §5, **bump `koshi_tasks_v1`** | `pnpm run build` 🔴 |
 | A Pydantic schema | matching `services/api.ts` method, D4 §4 | `pytest` + `pnpm run build` 🔴 |
 | An ORM column | `entities.py`, affected schemas, **a new Alembic revision** (never edit an applied one) | `pytest` incl. `test_migrations.py` 🔴 |
+| Task id representation | `entities.py`, `schemas/task.py`, `api.ts::taskKeyOf`/`serverIdOf`, `taskStore.ts`, D4 INV-14 | `pytest` + `pnpm test` 🔴 |
+| Which screen is shown | `taskStore.appView` + `App.vue`; every transition action (`logout`, `onAuthenticated`, `continueAsGuest`, `showProfile`, `showBoard`) | manual |
 | Critical-path weights | `dagSorter.ts`, D4 §3.2 | `pnpm test` — the CPM scale is pinned by a test that fails if it is swapped for the storage scale |
 | An AI prompt | `ai_service.py` only — **check `_deterministic_fallback` substring routing** (F-10) | `pytest` |
 | A role or permission rule | `security.py` guards, every calling router, `taskStore.isProjectManager`, `ProjectDashboard.vue`, D1 §3.5, D4 §4.3b | `pytest` 🔴 **RED zone** |
@@ -215,18 +231,21 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 
 | Area | Requirements | ✅ | 🟡 | ❌ |
 |:--|:--:|:--:|:--:|:--:|
+| Navigation (FR-NAV) | 5 | 0 | 5 | 0 |
 | Interaction (FR-INT) | 14 | 0 | 13 | 1 |
-| Domain (FR-DOM) | 9 | 7 | 0 | 2 |
+| Domain (FR-DOM) | 10 | 9 | 0 | 1 |
 | Graph (FR-GRAPH) | 5 | 4 | 1 | 0 |
 | Persistence (FR-PERS) | 5 | 0 | 4 | 1 |
 | Auth (FR-AUTH) | 10 | 10 | 0 | 0 |
 | AI (FR-AI) | 8 | 6 | 1 | 1 |
-| Projects (FR-PROJ) | 10 | 5 | 4 | 1 |
+| Projects (FR-PROJ) | 12 | 5 | 6 | 1 |
 | Non-functional (NFR) | 10 | 3 | 3 | 4 |
-| **Total** | **71** | **36** | **26** | **9** |
+| **Total** | **79** | **38** | **34** | **7** |
 
-**Reading.** 51% automated (was 33% at rev 1), 37% manual-only, 13% unverified. The graph engine
-moved from the least-verified area to fully covered. Authorisation is now the
+**Reading.** 48% automated, 43% manual-only, 9% unverified. The absolute automated count rose
+(36 → 38) but the share dipped, because the landing and profile pages added eight requirements that
+are manual-only. Unverified fell from 13% to 9%: almost nothing is now completely unchecked, but a
+lot rests on manual verification. Authorisation is now the
 **best-covered area in the repository** — all ten FR-AUTH rows are automated, including every
 negative path, which is the reverse of its position in rev 1.
 
@@ -234,7 +253,8 @@ The imbalance is unchanged in shape though: automation is still almost entirely 
 frontend carries the product's distinguishing logic (graph engine, keyboard model, local-first
 store, and now the dashboard) with **no automated verification at all**.
 
-**Highest-leverage next work item:** D5 GAP-05 — `stores/taskStore.ts`. With the graph engine
-covered, the store is the largest untested surface, has the widest blast radius in the repo, and is
-where all three DEC-012 auth defects lived. The Vitest runner now exists, so the remaining cost is
-faking `idb-keyval` and the API client.
+**Highest-leverage next work item:** D5 GAP-05 — `stores/taskStore.ts`. It is the largest untested
+surface, has the widest blast radius in the repo, is where all three DEC-012 auth defects lived, and
+now additionally owns `appView`, guest mode and profile updates. The Vitest runner exists, so the
+remaining cost is faking `idb-keyval` and the API client. GAP-10 (landing/profile components) is a
+close second — both are auth-adjacent and manual-only.

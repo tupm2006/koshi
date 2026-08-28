@@ -6,6 +6,7 @@ from app.database import get_db
 from app.models.entities import Sprint, Task, TaskStatusEnum, User
 from app.schemas.sprint import SprintCreate, SprintOut, SprintStatsOut
 from app.security import get_current_user, require_member, require_project_pm
+from app.utils.time import utcnow
 
 router = APIRouter(prefix="/sprints", tags=["Sprints"])
 
@@ -45,7 +46,7 @@ def get_sprint_stats(sprint_id: int, db: Session = Depends(get_db), current_user
     blocked = len([t for t in tasks if t.status == TaskStatusEnum.BLOCKED])
     todo = len([t for t in tasks if t.status == TaskStatusEnum.TODO])
     
-    now = datetime.utcnow()
+    now = utcnow()
     delayed = len([
         t for t in tasks 
         if t.status != TaskStatusEnum.DONE and t.due_date and t.due_date < now

@@ -132,24 +132,24 @@ async def decompose_goal(
             description="Lập tài liệu đặc tả và thiết kế schema dữ liệu tương ứng.",
             priority="HIGH",
             complexity="M",
-            acceptanceCriteria=["Có tài liệu SRS/URD", "Được phê duyệt bởi PM"],
-            dependsOnTitles=[]
+            acceptance_criteria=["Có tài liệu SRS/URD", "Được phê duyệt bởi PM"],
+            depends_on_titles=[]
         ),
         DecomposedSubtask(
             title=f"Phát triển backend & API endpoints: {goal[:30]}",
             description="Hiện thực hóa các REST endpoint và xử lý logic nghiệp vụ.",
             priority="CRITICAL",
             complexity="L",
-            acceptanceCriteria=["Unit test pass > 90%", "Tích hợp database đầy đủ"],
-            dependsOnTitles=[f"Phân tích yêu cầu & thiết kế kiến trúc: {goal[:30]}"]
+            acceptance_criteria=["Unit test pass > 90%", "Tích hợp database đầy đủ"],
+            depends_on_titles=[f"Phân tích yêu cầu & thiết kế kiến trúc: {goal[:30]}"]
         ),
         DecomposedSubtask(
             title=f"Xây dựng giao diện người dùng & tích hợp: {goal[:30]}",
             description="Kết nối giao diện với API backend, xử lý trạng thái tải và lỗi.",
             priority="HIGH",
             complexity="M",
-            acceptanceCriteria=["Giao diện phản hồi <50ms", "Tương thích responsive mobile/desktop"],
-            dependsOnTitles=[f"Phát triển backend & API endpoints: {goal[:30]}"]
+            acceptance_criteria=["Giao diện phản hồi <50ms", "Tương thích responsive mobile/desktop"],
+            depends_on_titles=[f"Phát triển backend & API endpoints: {goal[:30]}"]
         )
     ]
     return AIDecomposeResponse(

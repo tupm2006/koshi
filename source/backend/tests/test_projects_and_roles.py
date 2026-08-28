@@ -6,6 +6,7 @@ and D6 RISK-03 (cross-project access).
 """
 import pytest
 from fastapi.testclient import TestClient
+from app.utils.time import utcnow
 
 
 # ---------------------------------------------------------------------------
@@ -115,7 +116,7 @@ def test_member_cannot_add_or_remove_members(client: TestClient, member_auth_hea
 def test_member_cannot_create_sprints(client: TestClient, member_auth_headers: dict, project_with_member):
     from datetime import datetime, timedelta
     project_id, _ = project_with_member
-    now = datetime.utcnow()
+    now = utcnow()
 
     res = client.post("/api/sprints", json={
         "project_id": project_id,

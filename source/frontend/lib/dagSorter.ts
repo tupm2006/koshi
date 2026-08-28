@@ -84,26 +84,43 @@ export function computeCriticalPath(tasks: Task[]): Set<string> {
   const complexityWeight: Record<string, number> = { XL: 8, L: 5, M: 3, S: 1 };
   const priorityWeight: Record<string, number> = { CRITICAL: 10, HIGH: 5, MEDIUM: 2, LOW: 1 };
 
-  // Longest path dynamic programming
+  // Longest path dynamic programming.
+  //
+  // The memo is only safe for results that were computed without truncation.
+  // When a walk stops early at an already-visited node (i.e. a cycle), the value
+  // depends on *how we got there*, not just on the node — caching it would let a
+  // truncated result leak into an unrelated traversal and make the critical path
+  // depend on array order. Such results are returned but never cached (F-24).
   const memo = new Map<string, { weight: number; path: string[] }>();
 
-  function getPathWeight(taskId: string, visited = new Set<string>()): { weight: number; path: string[] } {
-    if (visited.has(taskId)) return { weight: 0, path: [] };
-    if (memo.has(taskId)) return memo.get(taskId)!;
+  interface PathResult {
+    weight: number;
+    path: string[];
+    /** True when a cycle cut this walk short, making the result context-specific. */
+    truncated: boolean;
+  }
+
+  function getPathWeight(taskId: string, visited = new Set<string>()): PathResult {
+    if (visited.has(taskId)) return { weight: 0, path: [], truncated: true };
+
+    const cached = memo.get(taskId);
+    if (cached) return { ...cached, truncated: false };
 
     const task = taskMap.get(taskId);
-    if (!task) return { weight: 0, path: [] };
+    if (!task) return { weight: 0, path: [], truncated: false };
 
     visited.add(taskId);
     const selfWeight = (priorityWeight[task.priority] || 1) * (complexityWeight[task.complexity || 'M'] || 3);
 
     let maxDepWeight = 0;
     let bestDepPath: string[] = [];
+    let sawTruncation = false;
 
     const deps = task.dependencies || [];
     for (const depId of deps) {
       if (taskMap.has(depId)) {
         const sub = getPathWeight(depId, new Set(visited));
+        if (sub.truncated) sawTruncation = true;
         if (sub.weight > maxDepWeight) {
           maxDepWeight = sub.weight;
           bestDepPath = sub.path;
@@ -111,11 +128,9 @@ export function computeCriticalPath(tasks: Task[]): Set<string> {
       }
     }
 
-    const totalWeight = selfWeight + maxDepWeight;
-    const path = [...bestDepPath, taskId];
-    const res = { weight: totalWeight, path };
-    memo.set(taskId, res);
-    return res;
+    const res = { weight: selfWeight + maxDepWeight, path: [...bestDepPath, taskId] };
+    if (!sawTruncation) memo.set(taskId, res);
+    return { ...res, truncated: sawTruncation };
   }
 
   let maxChainWeight = -1;

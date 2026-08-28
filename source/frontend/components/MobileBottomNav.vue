@@ -40,7 +40,7 @@ defineProps<{
           type="button"
           class="w-10 h-10 rounded-lg bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-950 flex items-center justify-center font-bold cursor-pointer shadow-sm"
           @click="onOpenCreate"
-          title="Create Task (c)"
+          title="Create Task (n)"
         >
           <Plus class="w-5 h-5 stroke-[2.5]" />
         </button>

@@ -28,7 +28,9 @@ class TaskBase(BaseModel):
     complexity_points: Optional[int] = Field(default=2, ge=1, le=8)
     due_date: Optional[datetime] = None
     blocking_reason: Optional[str] = None
-    dependencies: Optional[List[str]] = []
+    # Integer task ids, matching Task.id. Previously List[str], which could
+    # never match an int primary key — the server-side graph was unresolvable.
+    dependencies: Optional[List[int]] = []
     acceptance_criteria: Optional[List[str]] = []
 
 class TaskCreate(TaskBase):
@@ -41,16 +43,21 @@ class TaskUpdate(BaseModel):
     description: Optional[str] = None
     status: Optional[TaskStatusEnum] = None
     priority: Optional[TaskPriorityEnum] = None
-    complexity_points: Optional[int] = None
+    # F-08: the same bounds as TaskCreate. Previously unbounded on update, so a
+    # value rejected at creation could be introduced by a subsequent PATCH.
+    complexity_points: Optional[int] = Field(default=None, ge=1, le=8)
     due_date: Optional[datetime] = None
     blocking_reason: Optional[str] = None
     sprint_id: Optional[int] = None
     assignee_id: Optional[int] = None
-    dependencies: Optional[List[str]] = None
+    dependencies: Optional[List[int]] = None
     acceptance_criteria: Optional[List[str]] = None
 
 class TaskOut(BaseModel):
     id: int
+    # Human-facing label. The canonical identifier is `id`; this exists so
+    # clients never have to synthesise "TSK-n" themselves and drift from us.
+    key: str = ""
     project_id: int
     sprint_id: Optional[int] = None
     assignee_id: Optional[int] = None
@@ -62,7 +69,7 @@ class TaskOut(BaseModel):
     complexity_points: int
     due_date: Optional[datetime] = None
     blocking_reason: Optional[str] = None
-    dependencies: List[str]
+    dependencies: List[int]
     acceptance_criteria: List[str]
     created_at: datetime
     updated_at: datetime

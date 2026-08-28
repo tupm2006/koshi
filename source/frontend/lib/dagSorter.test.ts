@@ -305,17 +305,13 @@ describe('computeCriticalPath', () => {
     expect(result.size).toBeLessThanOrEqual(2);
   });
 
-  it('KNOWN LIMITATION: on cyclic graphs the result depends on input order', () => {
-    // `getPathWeight` memoises by task id alone, but its result also depends on
-    // the `visited` set that truncated the walk. In a cyclic graph a node can be
-    // memoised from a partially-truncated traversal and then reused where the
-    // truncation would not have applied, so the same graph yields different
-    // answers depending on the order tasks happen to arrive in.
-    //
-    // Acyclic graphs are unaffected: nothing truncates, so the memo is sound.
-    // This is asserted rather than fixed so the defect is visible and pinned —
-    // if someone repairs it, this test fails loudly and the docs get updated.
-    // Tracked as D7 / F-24.
+  it('gives the same answer for a cyclic graph regardless of input order', () => {
+    // Regression test for F-24. `getPathWeight` memoised by task id, but its
+    // value also depends on the `visited` set that truncated the walk, so a
+    // truncated result could leak into an unrelated traversal:
+    //   computeCriticalPath([B, C, E]) -> {B, C}
+    //   computeCriticalPath([E, B, C]) -> {B, C, E}
+    // Truncated results are now returned but never cached, so both agree.
     const b = withWeight('B', 'HIGH', 'M', { dependencies: ['C'] });
     const c = withWeight('C', 'HIGH', 'M', { dependencies: ['B'] }); // B <-> C
     const e = withWeight('E', 'HIGH', 'M', { dependencies: ['C'] }); // hangs off it
@@ -323,9 +319,8 @@ describe('computeCriticalPath', () => {
     const cycleFirst = computeCriticalPath([b, c, e]);
     const dependentFirst = computeCriticalPath([e, b, c]);
 
-    expect(cycleFirst).toEqual(new Set(['B', 'C']));
-    expect(dependentFirst).toEqual(new Set(['B', 'C', 'E']));
-    expect(cycleFirst).not.toEqual(dependentFirst);
+    expect(cycleFirst).toEqual(dependentFirst);
+    expect(cycleFirst).toEqual(new Set(['B', 'C', 'E']));
   });
 
   it('excludes a fully completed board from the critical path', () => {

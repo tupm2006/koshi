@@ -3,7 +3,7 @@ import { nextTick } from 'vue';
 import { get, set } from 'idb-keyval';
 import type { Task, TaskStatus, TaskPriority, TaskFilter, FilterStatus, FilterPriority, Complexity } from '../types/task';
 import { topologicalSort, computeCriticalPath } from '../lib/dagSorter';
-import { api, type UserProfile, type Project, type ProjectRole } from '../services/api';
+import { api, taskKeyOf, serverIdOf, type UserProfile, type Project, type ProjectRole } from '../services/api';
 
 /**
  * IndexedDB keys are partitioned per project.
@@ -118,6 +118,17 @@ export const useTaskStore = defineStore('taskStore', {
     projects: [] as Project[],
     currentProjectId: null as number | null,
     isDashboardOpen: false,
+    /**
+     * Which top-level screen is showing.
+     *
+     * LANDING is what an unauthenticated visitor gets; BOARD is the working
+     * app; PROFILE is the account page. A tiny state machine rather than a
+     * router — there are three screens and no URLs to preserve, so a dependency
+     * would buy nothing.
+     */
+    appView: 'LANDING' as 'LANDING' | 'BOARD' | 'PROFILE',
+    /** True once a signed-out visitor has chosen to use the local demo board. */
+    isGuestMode: false,
     filter: {
       searchQuery: '',
       status: 'ALL',
@@ -243,6 +254,8 @@ export const useTaskStore = defineStore('taskStore', {
     async onAuthenticated(user: UserProfile) {
       this.currentUser = user;
       this.isBackendConnected = true;
+      this.isGuestMode = false;
+      this.appView = 'BOARD';
 
       const projects = await this.loadProjects();
       if (this.currentProjectId !== null) {
@@ -263,12 +276,42 @@ export const useTaskStore = defineStore('taskStore', {
       this.currentProjectId = null;
       this.tasks = [];
       this.isDashboardOpen = false;
+      this.isGuestMode = false;
       this.selectedIndex = 0;
       this.kanbanColIndex = 0;
       this.kanbanRowIndex = 0;
-      // Restore the guest sample board so the app stays usable when signed out.
+      // Signing out returns to the landing page, not to a board the user can no
+      // longer act on.
+      this.appView = 'LANDING';
+    },
+
+    /** Let a signed-out visitor use the local-only demo board (FR-PERS-02). */
+    async continueAsGuest() {
+      this.isGuestMode = true;
+      this.appView = 'BOARD';
       const stored = await get<Task[]>(GUEST_DB_KEY);
-      this.tasks = stored && Array.isArray(stored) && stored.length > 0 ? stored : INITIAL_TASKS;
+      if (stored && Array.isArray(stored) && stored.length > 0) {
+        this.tasks = stored;
+      } else {
+        this.tasks = INITIAL_TASKS;
+        await set(GUEST_DB_KEY, INITIAL_TASKS);
+      }
+    },
+
+    showProfile() {
+      this.appView = 'PROFILE';
+    },
+
+    showBoard() {
+      this.appView = 'BOARD';
+    },
+
+    /** Push edited profile fields to the server and update local state. */
+    async updateProfile(changes: { full_name?: string; skills?: string }) {
+      if (!this.currentUser) throw new Error('Not signed in');
+      const updated = await api.updateProfile(this.currentUser.id, changes);
+      this.currentUser = updated;
+      return updated;
     },
 
     async loadProjects() {
@@ -324,14 +367,11 @@ export const useTaskStore = defineStore('taskStore', {
           }
         }
 
-        // Unauthenticated / offline: fall back to the guest sample board.
+        // No usable session: show the landing page. The sample board is still
+        // loaded behind it so "continue as guest" is instant.
+        this.appView = 'LANDING';
         const stored = await get<Task[]>(GUEST_DB_KEY);
-        if (stored && Array.isArray(stored) && stored.length > 0) {
-          this.tasks = stored;
-        } else {
-          this.tasks = INITIAL_TASKS;
-          await set(GUEST_DB_KEY, INITIAL_TASKS);
-        }
+        this.tasks = stored && Array.isArray(stored) && stored.length > 0 ? stored : INITIAL_TASKS;
       } catch (err) {
         console.error('Failed to initialize taskStore:', err);
         this.tasks = INITIAL_TASKS;
@@ -349,7 +389,7 @@ export const useTaskStore = defineStore('taskStore', {
         const backendTasks = await api.getTasks(pid);
         if (backendTasks && Array.isArray(backendTasks)) {
           const mapped: Task[] = backendTasks.map((t) => ({
-            id: `TSK-${t.id}`,
+            id: t.key || taskKeyOf(t.id),
             title: t.title,
             description: t.description || '',
             status: t.status as TaskStatus,
@@ -357,7 +397,8 @@ export const useTaskStore = defineStore('taskStore', {
             complexity: t.complexity_points === 1 ? 'S' : t.complexity_points === 2 ? 'M' : t.complexity_points === 3 ? 'L' : 'XL',
             dueDate: t.due_date,
             blockingReason: t.blocking_reason,
-            dependencies: t.dependencies || [],
+            // Server sends integer ids; the board works in display keys.
+            dependencies: (t.dependencies || []).map((d: number) => taskKeyOf(d)),
             acceptanceCriteria: t.acceptance_criteria || [],
             createdAt: new Date(t.created_at).getTime(),
             updatedAt: new Date(t.updated_at).getTime(),
@@ -513,9 +554,16 @@ export const useTaskStore = defineStore('taskStore', {
       });
       this.persist();
 
-      const numId = parseInt(id.replace(/\D/g, ''), 10);
-      if (this.isBackendConnected && !isNaN(numId)) {
-        api.updateTask(numId, updates).catch(() => {});
+      const numId = serverIdOf(id);
+      if (this.isBackendConnected && numId !== null) {
+        // Translate any dependency keys back to the server's integer ids.
+        const payload: Record<string, unknown> = { ...updates };
+        if (Array.isArray(updates.dependencies)) {
+          payload.dependencies = updates.dependencies
+            .map((d) => serverIdOf(d))
+            .filter((d): d is number => d !== null);
+        }
+        api.updateTask(numId, payload).catch(() => {});
       }
     },
 
@@ -529,8 +577,8 @@ export const useTaskStore = defineStore('taskStore', {
       });
       this.persist();
 
-      const numId = parseInt(id.replace(/\D/g, ''), 10);
-      if (this.isBackendConnected && !isNaN(numId)) {
+      const numId = serverIdOf(id);
+      if (this.isBackendConnected && numId !== null) {
         api.deleteTask(numId).catch(() => {});
       }
     },

@@ -3,13 +3,16 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies
-COPY package.json ./
-RUN npm install
+# Install dependencies with the lockfile, so the image resolves exactly the
+# tree that was tested. Previously this copied only package.json and ran
+# `npm install`, ignoring both lockfiles entirely (F-26).
+RUN corepack enable
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 
 # Copy source and build
 COPY . .
-RUN npm run build
+RUN pnpm run build
 
 # Production serve stage
 FROM nginx:alpine

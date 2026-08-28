@@ -33,7 +33,6 @@ koshi/
 │       ├── migrations/         ← Alembic: env.py + versions/ (schema source of truth)
 │       ├── alembic.ini          ← Alembic config (URL comes from app.config)
 │       ├── .env.example         ← Required/optional env vars; copy to .env
-│       ├── db/schema.sql        ← Legacy reference DDL (⚠ superseded — see D4 §2.3)
 │       ├── tests/               ← pytest suite
 │       ├── init_db.py           ← Standalone DB bootstrap
 │       └── requirements.txt
@@ -96,7 +95,8 @@ The frontend's contract surface: `TaskStatus`, `TaskPriority`, `Complexity`, `Ta
 | `WeeklySummaryModal.vue` | AI menu | FR-AI-01. |
 | `MeetingMinutesModal.vue` | AI menu | FR-AI-02. |
 | `WorkloadAssignModal.vue` | AI menu | FR-AI-03 / FR-AI-07. |
-| `AuthModal.vue` | auth pill | Three states: login, register (**no role**), and signed-in account panel with current project, role, and sign-out. Fields start empty — it previously pre-filled the seeded demo credentials. |
+| `LandingPage.vue` | `appView === 'LANDING'` | Full-screen entry point: product pitch, sign-in / create-account, guest escape hatch. Replaced `AuthModal.vue`. |
+| `ProfilePage.vue` | `appView === 'PROFILE'` | Full-page account view: identity, stat tiles, editable name/skills, project memberships with role, sign-out. |
 | `ProjectDashboard.vue` | project pill in header | Personal dashboard: project list with the caller's role in each, project creation, member roster, add-member, per-project role assignment. PM-only controls hidden for members. |
 | `ShortcutsHelpModal.vue` | `?` | Key reference. |
 | `MobileBottomNav.vue` | narrow viewport | FR-INT-14. |
@@ -159,9 +159,6 @@ routers/ai.py  ──calls──▶  AIService.<feature>()  ──calls──▶
 
 | File | Reality |
 |:--|:--|
-| `svelte.config.js` | Dead. Koshi is Vue 3; this is residue from a Svelte prototype. Nothing imports it. |
-| `source/backend/db/schema.sql` | Reference documentation only. Tables are created from the ORM, and the two disagree (D4 §2.3). It predates `project_members` entirely. |
 | `source/backend/app/data/koshi.db` | A committed SQLite binary. Not used by tests (they write `data/test_koshi.db`). |
 | `submission/` | A frozen duplicate of the whole project for coursework. Editing it has no effect on the app. |
-| `tsconfig.tsbuildinfo` | Build cache, committed by accident. |
-| `pnpm-lock.yaml` + `package-lock.json` | Both present. Ambiguous package manager — D7 / DEC-007. |
+| `tsconfig.tsbuildinfo` | Build cache; untracked as of F-14. |

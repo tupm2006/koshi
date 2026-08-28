@@ -1,7 +1,7 @@
 # D5 — Tests & Acceptance Criteria
 
 **Purpose:** define what "correct" means, and record honestly what is currently verified.
-**Last verified by execution:** 2026-08-28 — backend `34 passed`, frontend `28 passed`.
+**Last verified by execution:** 2026-08-28 — backend `38 passed`, frontend `28 passed`.
 
 ---
 
@@ -15,7 +15,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pytest -q
 ```
-Expected: **34 passed**. (`app/database.py` creates the sqlite directory itself, so no `mkdir` is needed.) Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
+Expected: **38 passed**. (`app/database.py` creates the sqlite directory itself, so no `mkdir` is needed.) Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
 
 ### Database migrations
 
@@ -64,6 +64,8 @@ acceptance criteria below accordingly unless a test is named.
 | Same user holding different roles in different projects | ✅ `test_projects_and_roles.py` | Good |
 | Profile edit is self-only | ✅ `test_projects_and_roles.py` | Good |
 | Task lifecycle, cycle-status, comments, sprint stats | ✅ `test_tasks.py` | Good |
+| Dependency validation: resolves in-project, rejects unknown / self / cross-project | ✅ `test_tasks.py` | Good — closes F-01 |
+| `complexity_points` bounds on update | ✅ `test_tasks.py` | Good — closes F-08 |
 | AI endpoints A–D respond with valid schemas | ✅ `test_ai_and_stats.py` | Shape only — never asserts semantic quality |
 | Workload & delayed-task stats | ✅ `test_ai_and_stats.py` | Smoke-level |
 | Production boot guard (all four insecure defaults) | ✅ `test_startup_safety.py` | Good — closes GAP-08 |
@@ -91,6 +93,24 @@ where the product's differentiating logic lives — still has **zero** automated
 ## 3. Acceptance criteria by requirement
 
 Legend: **A** = automated · **M** = manual · **✗** = unverified
+
+### 3.0b Navigation (FR-NAV)
+
+| Req | Acceptance criteria | Method |
+|:--|:--|:--|
+| FR-NAV-01 | Visiting with no session shows the landing page, not a board. | M |
+| FR-NAV-02 | Sign out from the profile page returns to the landing page and clears the session. | M |
+| FR-NAV-03 | "Explore the demo board" enters guest mode with the local sample board. | M |
+| FR-NAV-04 | Signing in moves to the board; an account with no projects opens the dashboard. | M |
+| FR-NAV-05 | The header pill opens the profile page; "Back to board" returns. | M |
+
+### 3.0c Profile (FR-PROJ-09..11)
+
+| Req | Acceptance criteria | Method |
+|:--|:--|:--|
+| FR-PROJ-09 | Profile shows name, email, member-since, and project/managing/open-task counts. | M |
+| FR-PROJ-10 | Editing name or skills enables Save; saving persists and survives reload. | M |
+| FR-PROJ-11 | Memberships list every project with the caller's role; selecting one opens its board. | M |
 
 ### 3.1 Interaction (FR-INT)
 
@@ -177,7 +197,7 @@ Legend: **A** = automated · **M** = manual · **✗** = unverified
 | NFR-03 | Idle heap < 15 MB. | ✗ **Claim currently unsupported** |
 | NFR-04 | Contrast ≥ 4.5:1, including `DONE` rows (`line-through text-slate-500`). | ✗ |
 | NFR-05 | Hard reload in dark mode produces no light flash. | M |
-| NFR-07 | `pytest` is green on a clean checkout. | **A** ✅ 34/34 |
+| NFR-07 | `pytest` is green on a clean checkout. | **A** ✅ 38/38 |
 | NFR-10 | `alembic upgrade head` builds the current schema from empty; a populated pre-roles DB upgrades with roles backfilled and no user losing access; downgrade restores the old shape. | **A** `test_migrations.py` |
 | NFR-09 | Startup aborts with dev defaults when `ENVIRONMENT` is not development; development is exempt. | **A** `test_startup_safety.py` |
 
@@ -212,7 +232,8 @@ loosening the assertion without reading D7 / DEC-003.
 | ~~GAP-02~~ | ~~No negative authorisation tests~~ | — | ✅ **Closed 2026-08-28.** `test_projects_and_roles.py` covers MEMBER→403 on every PM action and non-member→404 across project, task, AI and stats routes. |
 | GAP-03 | `gitParser.ts` untested | **High** | Add `gitParser.test.ts` — secret detection and close-keyword regexes are security-adjacent. |
 | GAP-04 | No test distinguishes real LLM output from Tier-3 fallback | **Medium** | Assert cascade behaviour by mocking tiers, not just response shape. |
-| GAP-05 | `taskStore` mutations and filters untested — now the largest gap, and where the DEC-012 auth defects lived | **High** | Vitest with a fake `idb-keyval`. The runner now exists, so this is unblocked. |
+| GAP-05 | `taskStore` mutations and filters untested — the largest gap. Now also owns `appView`, guest mode and profile updates, all unverified. | **High** | Vitest with a fake `idb-keyval`. The runner exists, so this is unblocked. |
+| GAP-10 | `LandingPage.vue` and `ProfilePage.vue` have no tests; both are auth-adjacent and manually verified only. | **Medium** | Component tests once a DOM environment is configured. |
 | GAP-06 | No E2E keyboard coverage | **Medium** | Playwright over FR-INT-01…11. |
 | ~~GAP-08~~ | ~~`_check_production_safety` untested~~ | — | ✅ **Closed 2026-08-28.** `test_startup_safety.py` parametrises all four insecure defaults plus the safe and development cases. |
 | GAP-09 | No frontend test asserts that PM-only controls are hidden from a MEMBER | **Low** | Component test once a runner exists; the server-side refusal is already covered. |

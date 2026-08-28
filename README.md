@@ -46,7 +46,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 alembic upgrade head               # build/update the schema
-pytest -q                          # 34 tests
+pytest -q                          # 38 tests
 ```
 
 On first run with an empty database the app seeds two accounts (`pm@tupm.qzz.io` and
@@ -80,6 +80,13 @@ documents. Read them in order; each answers one question.
 | [D8](./documentation/D8-rtm.md) | RTM | requirement → code → test |
 
 **This README is a summary, not a specification.** Where it differs from D1–D8, D1–D8 are correct.
+
+## Screens
+
+An unauthenticated visitor gets a **landing page** (sign in / create account, plus an explicit
+"explore the demo board" option that keeps the local-first promise). Signing in opens the **board**;
+signing out returns to the landing page. A dedicated **profile page** owns account details, project
+memberships and sign-out.
 
 ## Accounts, projects and roles
 
@@ -132,10 +139,10 @@ Tier 3 output is currently indistinguishable from real model output to the calle
 
 ## Project status
 
-The backend is covered end to end (34/34), with authorisation the best-tested area — every
+The backend is covered end to end (38/38), with authorisation the best-tested area — every
 negative path is asserted. The frontend has Vitest covering the DAG engine (28/28, mutation-verified)
 but **nothing else**: the Pinia store, the keyboard dispatcher and every component are untested.
-Overall: 51% of requirements automated, 13% unverified. Full breakdown in
+Overall: 48% of requirements automated, 9% unverified. Full breakdown in
 [D8 §5](./documentation/D8-rtm.md).
 
 Known defects are catalogued in [D7 Part II](./documentation/D7-development-book.md) and risk-rated
@@ -147,10 +154,9 @@ in [D6 §4](./documentation/D6-risks-delegation-policies.md). Still open and wor
 - **Rotate `JWT_SECRET` on any deployment that predates 2026-08-28.** The old default was published
   in this repo; tokens signed with it remain forgeable. Runbook:
   [D6 §7.1](./documentation/D6-risks-delegation-policies.md).
-- **`stores/taskStore.ts` has no tests** — now the highest-value gap: widest blast radius in the
-  repo, and where the last round of auth bugs lived.
-- **`computeCriticalPath` is order-dependent on cyclic graphs** (D7 F-24). Pinned by a test;
-  acyclic graphs are unaffected.
+- **`stores/taskStore.ts` has no tests** — the highest-value gap: widest blast radius in the repo,
+  where the last round of auth bugs lived, and now owner of the screen state too.
+- **The landing and profile pages are manual-only** (D5 GAP-10), despite being auth-adjacent.
 
 ## Contributors
 

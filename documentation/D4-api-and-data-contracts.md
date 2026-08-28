@@ -28,9 +28,19 @@ these shapes, so changing one without changing every consumer is a defect, not a
 
 ## 2. ⚠️ Known contract violations (read before touching anything)
 
-### 2.1 VIOLATION-01 — Task identity is inconsistent across three layers
+### 2.1 ~~VIOLATION-01~~ — Task identity — **RESOLVED 2026-08-28**
 
-This is the single most dangerous inconsistency in the codebase.
+Kept for the record; the table below describes the state *before* the fix.
+
+**Resolution (D7 / DEC-014).** The integer `Task.id` is canonical everywhere.
+`dependencies` is now `List[int]` on create, update and read, so it references
+real primary keys; `TaskOut` gained a derived `key` (`"TSK-12"`) as the display
+label. The server rejects dependency ids that do not resolve within the same
+project, self-dependencies, and cross-project references. The frontend converts
+between the two representations in exactly one place — `taskKeyOf` / `serverIdOf`
+in `services/api.ts`.
+
+<details><summary>Historical description of the defect</summary>
 
 | Layer | Type of a task ID | Example | Source |
 |:--|:--|:--|:--|
@@ -48,8 +58,7 @@ through the API but the **server-side graph is unresolvable**; only the client's
 locally-seeded string IDs form a working graph. `POST /api/tasks` with
 `"dependencies": ["TSK-1"]` is accepted and stored verbatim, and resolves to nothing.
 
-**Do not "fix" this incidentally.** Unifying identity touches C1, C2, C3 and C4 simultaneously and
-is tracked as OQ-01 (D1 §5). See D6 §2 — it requires human sign-off.
+</details>
 
 ### 2.2 VIOLATION-02 — API prefix is `/api`, not `/api/v1`
 
@@ -75,13 +84,11 @@ historical reference. It diverges from the ORM in at least four ways:
 
 Treat `entities.py` as truth. `schema.sql` is documentation with a `.sql` extension.
 
-### 2.4 VIOLATION-04 — `analyzeGitDiff` shadows the real parser
+### 2.4 ~~VIOLATION-04~~ — `analyzeGitDiff` shadowed the real parser — **RESOLVED 2026-08-28**
 
-`services/api.ts::analyzeGitDiff()` returns a fabricated result built from `+++ b/` line counts and
-blindly marks `currentTasks[0]` resolved. The genuine implementation —
-`lib/gitParser.ts::parseGitDiff()` — is fully written, handles close-keyword regexes and security
-scanning, and returns the complete `GitDiffAnalysisResult` including `architecturalConcerns`. The
-stub omits `architecturalConcerns` entirely, so it does not even satisfy C3.
+`ApiClient.analyzeGitDiff` returned a fabricated result and did not satisfy C3. It is deleted;
+`GitDiffModal.vue` now calls `lib/gitParser.ts::parseGitDiff` directly, which is a pure client-side
+function needing no network call. See D7 / DEC-014.
 
 ---
 
@@ -141,6 +148,8 @@ code. Do not "harmonise" them without reading D7 / DEC-002.
 | INV-09 | Every project must retain at least one PM. | `routers/projects.py` demote/remove guards |
 | INV-10 | Non-membership is reported as `404`, never `403`, so project existence stays undisclosed. | `security.py::require_member` |
 | INV-11 | A `(project_id, user_id)` pair is unique — a user holds exactly one role per project. | `uq_project_member` constraint |
+| INV-13 | Every dependency id resolves to a task in the same project; self-dependency is rejected. | `routers/tasks.py::_validate_dependencies` |
+| INV-14 | The integer id is canonical; `TSK-n` is a derived label. Conversion happens only in `taskKeyOf` / `serverIdOf`. | `services/api.ts` |
 
 ---
 
@@ -226,11 +235,13 @@ Base URL: `/api`. All responses JSON. All endpoints except `POST /auth/register`
 // TaskCreate — project_id required; status/priority/complexity_points defaulted
 { "project_id": 1, "sprint_id": null, "assignee_id": null,
   "title": "…", "description": "", "status": "TODO", "priority": "MEDIUM",
-  "complexity_points": 2,            // int 1..8 (create only)
+  "complexity_points": 2,            // int 1..8, enforced on create AND update
   "due_date": null, "blocking_reason": null,
-  "dependencies": [], "acceptance_criteria": [] }   // both List[str]
+  "dependencies": [],                // List[int] — real task ids, same project
+  "acceptance_criteria": [] }        // List[str]
 
-// TaskOut adds: id:int, assignee:UserOut|null, created_at, updated_at, comments[]
+// TaskOut adds: id:int, key:str ("TSK-12"), assignee:UserOut|null,
+//               created_at, updated_at, comments[]
 ```
 
 **Authorisation.** Every task endpoint requires membership of the owning project. List and create
@@ -253,16 +264,18 @@ check membership through `_get_task_for_member`. A non-member receives `404` on 
 | POST | `/ai/recommend-assignment?project_id=` | `{title, description?}` | `{status, recommendation:{recommended_user_id, recommended_name, rationale, risk_assessment}}` |
 | POST | `/ai/decompose` | `{goal}` | `{status, goal, rationale, subtasks[3]}`; `400` if goal blank. **Hardcoded — no model call.** |
 
+Subtask fields are `acceptance_criteria` / `depends_on_titles` — snake_case, consistent with the
+rest of the API since F-16.
+
 ```jsonc
 // ActionItemOut
 { "title": "…", "assignee_name": "Unassigned", "priority": "MEDIUM", "deadline": "Next Sprint" }
-// DecomposedSubtask  — note camelCase keys, unlike every other schema in the API
+// DecomposedSubtask
 { "title": "…", "description": "…", "priority": "HIGH", "complexity": "M",
-  "acceptanceCriteria": ["…"], "dependsOnTitles": ["…"] }
+  "acceptance_criteria": ["…"], "depends_on_titles": ["…"] }
 ```
 
-> ⚠️ Naming inconsistency: `DecomposedSubtask` uses `acceptanceCriteria` / `dependsOnTitles`
-> (camelCase) while `TaskCreate` uses `acceptance_criteria` (snake_case). Both are live contracts.
+
 
 ### 4.7 Health
 
@@ -278,7 +291,7 @@ type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 type Complexity   = 'S' | 'M' | 'L' | 'XL';
 
 interface Task {
-  id: string;                    // ⚠️ string here, int on the server
+  id: string;                    // display key "TSK-n"; server id via serverIdOf()
   title: string;
   description?: string;
   status: TaskStatus;
@@ -288,7 +301,7 @@ interface Task {
   blockingReason?: string;       // server sends `blocking_reason`
   createdAt: number;             // epoch ms — server sends ISO datetime
   updatedAt: number;
-  dependencies?: string[];
+  dependencies?: string[];       // display keys; sent as List[int] (INV-14)
   complexity?: Complexity;       // server stores complexity_points: int
   acceptanceCriteria?: string[];
 }

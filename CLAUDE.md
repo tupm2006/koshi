@@ -19,7 +19,7 @@ Guidance for AI agents working in this repository. **Read `documentation/` befor
 
 ```bash
 # Backend — must stay green
-cd source/backend && pytest -q          # expect: 34 passed
+cd source/backend && pytest -q          # expect: 38 passed
 
 # Frontend
 pnpm test                               # expect: 28 passed (vitest)
@@ -70,6 +70,13 @@ unvalidated.
 **Alembic owns the schema.** Any ORM change needs a new migration — never edit an applied
 revision, and never reintroduce `create_all` outside development. Outside development the app
 refuses to start unless the database is at head.
+
+**Task ids: integers are canonical.** `TSK-n` is a derived display key (`TaskOut.key`), and the
+only place the two representations convert is `taskKeyOf` / `serverIdOf` in `services/api.ts`.
+Dependencies are `List[int]` and must resolve within the same project.
+
+**Three screens, no router.** `taskStore.appView` is `LANDING | BOARD | PROFILE`. A signed-out
+visitor must never reach the board except via explicit guest mode.
 
 **Roles are per-project, never global.** `User` has no `role` column; authority lives on
 `ProjectMember`. Every project-scoped route must call `require_member` or `require_project_pm` —

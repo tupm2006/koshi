@@ -38,3 +38,7 @@ pnpm-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Build cache / local databases (F-14)
+tsconfig.tsbuildinfo
+*.db

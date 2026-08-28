@@ -501,35 +501,123 @@ runner now exists, so it is unblocked.
 
 ---
 
+### DEC-014 — Outstanding defects cleared; landing and profile pages added
+**Date:** 2026-08-28 · **Status:** Active · **Requested by the maintainer**
+
+Three separate asks: clear the open findings, add a landing page, and replace the
+account popover with a real profile page.
+
+#### Task identity unified (F-01, VIOLATION-01, RISK-08)
+
+The longest-standing defect. `dependencies` was `List[str]` while `Task.id` was an integer, so a
+dependency could never match a task: data round-tripped through the API and resolved to nothing.
+
+**Decision.** The integer id is canonical everywhere. `dependencies` becomes `List[int]`;
+`TaskOut` gains a derived `key` (`"TSK-12"`) as the display label. The server now **rejects**
+dependency ids that do not resolve inside the same project, self-dependencies, and cross-project
+references — silently storing junk is what let the defect survive this long. Legacy `"TSK-n"`
+strings already in `dependencies_json` are coerced on read rather than left to poison the graph.
+
+*Alternative rejected:* making the primary key a `TSK-n` string, matching `db/schema.sql`. That
+would have required a table rebuild and a migration of every foreign key, to gain nothing the
+derived `key` does not already provide.
+
+On the client, conversion happens in exactly two functions — `taskKeyOf` / `serverIdOf` in
+`services/api.ts` (INV-14). Scattering that translation is how the representations drifted apart.
+
+`test_tasks.py` now asserts a dependency round-trips as a resolvable id, and covers the three
+rejection cases. The pre-existing test that posted `"dependencies": ["TSK-1"]` was asserting the
+broken contract; it was rewritten to create a real prerequisite (D6 P5 — the test encoded the bug).
+
+#### Other findings closed
+
+| Finding | Fix |
+|:--|:--|
+| **F-24** | `computeCriticalPath` cached results from truncated walks. Truncated results are now returned but never memoised, so cyclic graphs are order-independent. Its `KNOWN LIMITATION` test became a regression test. |
+| **F-25** | `ApiClient.analyzeGitDiff` fabricated results and shadowed the real `parseGitDiff`. Deleted; `GitDiffModal` calls the parser directly, so secret/TODO detection actually runs. |
+| **F-08** | `complexity_points` bounds now enforced on update, not only create. |
+| **F-10** | The deterministic AI fallback selected its response by substring-matching the prompt, so rewording a prompt silently changed the fallback. It now takes an explicit `AIFeature` enum. |
+| **F-11** | Tier 1 required `"openai"` in the URL, silently disabling it for every other compatible vendor even with a valid key. It now fires whenever a key is configured. |
+| **F-16** | `acceptanceCriteria` / `dependsOnTitles` → snake_case, matching every other schema. |
+| **F-18** | `datetime.utcnow()` replaced with a `utcnow()` helper returning naive UTC — aware datetimes would have broken comparisons against the naive columns. Warnings: 175 → 8. |
+| **F-06, F-14, F-15** | Stale `db/schema.sql` and dead `svelte.config.js` deleted; the committed SQLite binary and build cache untracked. |
+| **F-20** | UI labels corrected `c` → `n`. |
+| **F-26 (DEC-007)** | `package-lock.json` removed; the Dockerfile now runs `pnpm install --frozen-lockfile` instead of `npm install` with no lockfile at all. |
+
+**Two findings deliberately left open**, because they are decisions rather than defects:
+
+- **F-09** — requiring `blocking_reason` when a task is `BLOCKED` conflicts directly with
+  `POST /tasks/{id}/cycle-status`, which cycles *into* `BLOCKED` with no reason available.
+  Enforcing it breaks that endpoint. Tracked as OQ-07.
+- **FR-AI-04** — whether `/ai/decompose` should call a real model is a product question (OQ-04).
+
+#### Landing page (FR-NAV-01..04)
+
+An unauthenticated visitor previously landed on a board full of sample tasks with a small sign-in
+popover, which implied the data was theirs and gave no sense of what the product was. `LandingPage.vue`
+is now the default screen and where `logout()` returns.
+
+**Tension resolved deliberately.** FR-PERS-02 promises the app is usable with the backend
+unreachable. Forcing everyone through authentication would have quietly broken that, so the landing
+page carries an explicit *"Explore the demo board without an account"* option (FR-NAV-03). Guest
+mode survives, but as a choice rather than the accidental default.
+
+#### Profile page (FR-PROJ-09..11)
+
+`ProfilePage.vue` replaces the popover: identity with avatar/initials and member-since, stat tiles,
+**editable name and skills** with dirty-state save/discard, project memberships with the caller's
+role in each (selecting one opens its board), and sign-out. `AuthModal.vue` is deleted — its login
+half moved to the landing page and its account half became this page.
+
+#### Navigation
+
+Three screens driven by `taskStore.appView` (`LANDING | BOARD | PROFILE`). A router was rejected:
+three screens, no deep links to preserve, and it would add a dependency plus URL state to keep in
+sync with a store that already owns the session (D3 §5a). The cost is that screens are not
+addressable — the reason to revisit if deep-linking is ever wanted.
+
+**Verification.** Backend 34 → 38 tests; frontend 28; type-check and build clean. Verified live:
+a dependency round-trips as `[6]` and resolves, bogus and self-referential ids are rejected, the
+landing page renders for a signed-out visitor, sign-in reaches the board, the profile page shows
+identity and memberships, and sign-out returns to the landing page.
+
+**Gap.** The landing and profile pages are auth-adjacent and have **no automated tests** (GAP-10),
+and `taskStore.ts` — which now also owns `appView`, guest mode and profile updates — is still
+untested (GAP-05, RISK-16). That remains the largest gap in the project.
+
+---
+
 ## Part II — Findings ledger
 
 Observations that are not yet decisions. Each should become a decision or a work item.
 
 | ID | Finding | Location | Severity | Status |
 |:--|:--|:--|:--:|:--|
-| F-01 | Task ID type differs across ORM (`int`), frontend (`string`), and `schema.sql` (`VARCHAR`). Dependencies are `List[str]` against `int` IDs, so the server-side graph can never resolve. | D4 VIOLATION-01 | **Critical** | Open — OQ-01, RED |
+| F-01 | Task ID type differed across layers; dependencies were `List[str]` against `int` ids, so the server-side graph could never resolve. | D4 §2.1 | Critical | ✅ Closed — DEC-014 |
 | F-02 | Google ID token signature verification failure fell back to **unverified** base64 payload decoding. | `routers/auth.py` | Critical | ✅ Closed — DEC-010 |
 | F-03 | JWT secret hardcoded in `config.py` and `docker-compose.yml`, both public. | | Critical | ⚠️ Mitigated — DEC-010. **Rotate any deployed secret**; old tokens stay forgeable. |
 | F-04 | No task endpoint verified project membership. Any user could mutate any task. | `routers/tasks.py` | High | ✅ Closed — DEC-009 |
 | F-05 | `dagSorter.ts` — the most intricate logic in the repo — has zero tests. | | High | ✅ Closed — DEC-013 (28 tests, mutation-verified) |
-| F-06 | `db/schema.sql` diverges from the ORM and is never executed. | | Medium | Superseded — Alembic is now the schema source (DEC-011). The file is stale legacy reference; **candidate for deletion**. |
+| F-06 | `db/schema.sql` diverged from the ORM and was never executed. | | Medium | ✅ Closed — DEC-014 (deleted; Alembic owns the schema) |
 | F-07 | `allow_origins=["*"]` with `allow_credentials=True` is spec-invalid. | `main.py` | Medium | ✅ Closed — DEC-010 |
-| F-08 | `complexity_points` validated `ge=1, le=8` on create, unvalidated on update. | `schemas/task.py` | Low | Open |
-| F-09 | `blocking_reason` not required when status is `BLOCKED`, despite FR-DOM-07. | | Low | Open — OQ-02 |
-| F-10 | Tier-3 AI fallback branches on **substring matches in prompt text** (`"cuộc họp"`, `"recommended_user_id"`). Rewording a prompt silently breaks fallback routing. | `ai_service.py` | Medium | Open |
-| F-11 | Tier 1 fires only if `"openai" in AI_API_URL`. Any other OpenAI-compatible vendor silently falls through to Tier 2/3 even with a valid key. | `ai_service.py` | Medium | Open |
+| F-08 | `complexity_points` validated on create, unvalidated on update. | `schemas/task.py` | Low | ✅ Closed — DEC-014 |
+| F-09 | `blocking_reason` not required when status is `BLOCKED`. | | Low | ⚠️ **Open by decision** — conflicts with `cycle-status`, which enters `BLOCKED` with no reason. OQ-07. |
+| F-10 | Tier-3 AI fallback branched on substring matches in prompt text. | `ai_service.py` | Medium | ✅ Closed — DEC-014 (explicit `AIFeature` enum) |
+| F-11 | Tier 1 required `"openai"` in the URL, silently disabling it for other compatible vendors. | `ai_service.py` | Medium | ✅ Closed — DEC-014 |
 | F-12 | Seed data creates `pm@tupm.qzz.io` / `koshi123` whenever the users table is empty. | `main.py` | High | ✅ Closed — DEC-010 (gated by `SEED_DEMO_DATA`) |
 | F-13 | No migration tooling. `create_all` never alters existing tables, so schema changes silently no-op on a deployed volume. | | High | ✅ Closed — DEC-011 (Alembic, with an upgrade path for pre-existing databases) |
-| F-14 | `source/backend/app/data/koshi.db` (SQLite binary) and `tsconfig.tsbuildinfo` (build cache) are committed. | | Low | Open |
-| F-15 | `svelte.config.js` is dead residue from a Svelte prototype. | | Low | Open — safe to delete |
-| F-16 | `AIDecomposeResponse` uses camelCase (`acceptanceCriteria`) while every other schema uses snake_case. | `schemas/ai.py` | Low | Open |
+| F-14 | SQLite binary and build cache were committed. | | Low | ✅ Closed — DEC-014 (untracked + gitignored) |
+| F-15 | `svelte.config.js` was dead residue from a Svelte prototype. | | Low | ✅ Closed — DEC-014 (deleted) |
+| F-16 | `AIDecomposeResponse` used camelCase while every other schema used snake_case. | `schemas/ai.py` | Low | ✅ Closed — DEC-014 |
 | ~~F-17~~ | ~~Tests require `source/backend/data/` to exist before the first run.~~ **Incorrect when written** — `app/database.py` creates the sqlite directory itself. Corrected in D5 §1. | `database.py` | — | Withdrawn |
-| F-18 | Widespread `datetime.utcnow()` — deprecated, 47 warnings per test run. | backend | Low | Open |
+| F-18 | Widespread deprecated `datetime.utcnow()`. | backend | Low | ✅ Closed — DEC-014 (warnings 175 → 8) |
 | F-19 | `AuthModal.vue` quick-login buttons were labelled "PM" / "Member", implying global roles. | `AuthModal.vue` | Low | ✅ Closed — DEC-012 (relabelled `pm@` / `dev@`, dev-only) |
-| F-20 | Several UI tooltips and the footer legend still say `c` for create task; the binding is `n` (DEC-005). | `App.vue`, `MobileBottomNav.vue` | Low | Open — cosmetic, but it is the same class of drift as DEC-005 |
+| F-20 | UI tooltips said `c` for create task; the binding is `n`. | `App.vue`, `MobileBottomNav.vue` | Low | ✅ Closed — DEC-014 |
 | F-21 | The post-auth sequence was duplicated between boot and login and drifted, leaving a signed-in user with no projects loaded. | `taskStore.ts`, `AuthModal.vue` | High | ✅ Closed — DEC-012 (single `onAuthenticated`) |
 | F-22 | `App.vue` shadowed `taskStore.isDashboardOpen` with a local ref, making the store field dead state. | `App.vue` | Medium | ✅ Closed — DEC-012 |
-| F-24 | `computeCriticalPath` memoises by task id but the value depends on the traversal's `visited` set, so **cyclic** graphs yield order-dependent results. Acyclic graphs are unaffected. | `lib/dagSorter.ts` | Medium | Open — pinned by a KNOWN LIMITATION test (DEC-013). Fix: skip the memo when a walk truncated. |
+| F-24 | `computeCriticalPath` memoised results from truncated walks, so cyclic graphs were order-dependent. | `lib/dagSorter.ts` | Medium | ✅ Closed — DEC-014 (truncated results never cached) |
+| F-25 | `ApiClient.analyzeGitDiff` fabricated results and shadowed the real `parseGitDiff`. | `services/api.ts` | Medium | ✅ Closed — DEC-014 |
+| F-26 | Dockerfile ran `npm install` copying neither lockfile, so the image resolved an untested dependency tree. | `Dockerfile` | Medium | ✅ Closed — DEC-014 |
 | F-23 | Deleting the SQLite file under a running uvicorn leaves it writing to a deleted inode ("attempt to write a readonly database"). Restart the process, do not just replace the file. | operational | Low | Open — documented here |
 
 ## Part III — Timeline
@@ -550,3 +638,4 @@ Observations that are not yet decisions. Each should become a decision or a work
 | **2026-08-28** | Alembic adopted with an upgrade path for pre-existing databases; RISK-10 closed (DEC-011). |
 | **2026-08-28** | JWT secret rotated; three auth-UI defects fixed; RISK-02 closed for this checkout (DEC-012). Suite → 34. |
 | **2026-08-28** | Vitest adopted; `dagSorter.ts` characterised with 28 mutation-verified tests; GAP-01/RISK-06 closed, F-24 found (DEC-013). |
+| **2026-08-28** | Task identity unified and 11 further findings closed; landing + profile pages added (DEC-014). Backend suite → 38. |

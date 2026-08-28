@@ -4,6 +4,24 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, Enum, DateTime, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.database import Base
+from app.utils.time import utcnow
+
+def _coerce_task_id(value) -> "int | None":
+    """Accept 12, "12" or a legacy "TSK-12"; anything else is dropped."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        text = value.strip()
+        if text.upper().startswith("TSK-"):
+            text = text[4:]
+        try:
+            return int(text)
+        except ValueError:
+            return None
+    return None
+
 
 class ProjectRoleEnum(str, enum.Enum):
     """A user's role *within a single project*. There is no global role."""
@@ -31,7 +49,7 @@ class User(Base):
     google_id = Column(String(255), unique=True, index=True, nullable=True)
     avatar_url = Column(String(500), nullable=True)
     skills = Column(String(255), default="frontend,backend,general")  # Comma-separated
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     assigned_tasks = relationship("Task", back_populates="assignee")
     comments = relationship("Comment", back_populates="author")
@@ -44,7 +62,7 @@ class Project(Base):
     name = Column(String(100), nullable=False)
     description = Column(Text, default="")
     owner_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
     
     owner = relationship("User", back_populates="owned_projects")
     sprints = relationship("Sprint", back_populates="project", cascade="all, delete-orphan")
@@ -66,7 +84,7 @@ class ProjectMember(Base):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     role = Column(Enum(ProjectRoleEnum), default=ProjectRoleEnum.MEMBER, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     project = relationship("Project", back_populates="members")
     user = relationship("User", back_populates="memberships")
@@ -81,7 +99,7 @@ class Sprint(Base):
     start_date = Column(DateTime, nullable=False)
     end_date = Column(DateTime, nullable=False)
     is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
     
     project = relationship("Project", back_populates="sprints")
     tasks = relationship("Task", back_populates="sprint")
@@ -102,8 +120,8 @@ class Task(Base):
     blocking_reason = Column(String(255), nullable=True)
     dependencies_json = Column(Text, default="[]")  # JSON list of task IDs
     acceptance_criteria_json = Column(Text, default="[]")  # JSON list of strings
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
+    updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 
     project = relationship("Project", back_populates="tasks")
     sprint = relationship("Sprint", back_populates="tasks")
@@ -111,15 +129,36 @@ class Task(Base):
     comments = relationship("Comment", back_populates="task", cascade="all, delete-orphan")
 
     @property
+    def key(self) -> str:
+        """Display label, e.g. "TSK-12". Derived — never stored."""
+        return f"TSK-{self.id}"
+
+    @property
     def dependencies(self):
+        """
+        Integer ids of prerequisite tasks.
+
+        Legacy rows may hold "TSK-n" strings from before the ids were unified,
+        so those are coerced on read rather than left to poison the graph.
+        """
         try:
-            return json.loads(self.dependencies_json or "[]")
+            raw = json.loads(self.dependencies_json or "[]")
         except Exception:
             return []
+        out = []
+        for item in raw if isinstance(raw, list) else []:
+            coerced = _coerce_task_id(item)
+            if coerced is not None:
+                out.append(coerced)
+        return out
 
     @dependencies.setter
     def dependencies(self, value):
-        self.dependencies_json = json.dumps(value if isinstance(value, list) else [])
+        if not isinstance(value, list):
+            self.dependencies_json = json.dumps([])
+            return
+        cleaned = [c for c in (_coerce_task_id(v) for v in value) if c is not None]
+        self.dependencies_json = json.dumps(cleaned)
 
     @property
     def acceptance_criteria(self):
@@ -138,7 +177,7 @@ class Comment(Base):
     task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     content = Column(Text, nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utcnow)
 
     task = relationship("Task", back_populates="comments")
     author = relationship("User", back_populates="comments")

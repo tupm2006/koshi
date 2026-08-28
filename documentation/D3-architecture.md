@@ -228,6 +228,32 @@ controls. It is **not** a security boundary: the server re-checks every request 
 the tests in `test_projects_and_roles.py` assert the server refuses even when the UI would not have
 offered the action.
 
+## 5a. Screen state
+
+Three top-level screens, selected by `taskStore.appView`, with no router:
+
+```
+                    ┌─────────────┐
+   no session ─────▶│   LANDING   │◀───── logout()
+                    └──────┬──────┘
+        onAuthenticated()  │  continueAsGuest()
+                           ▼
+                    ┌─────────────┐  showProfile()   ┌─────────────┐
+                    │    BOARD    │ ───────────────▶ │   PROFILE   │
+                    └─────────────┘ ◀─────────────── └─────────────┘
+                                       showBoard()
+```
+
+A router was rejected: there are three screens, no deep links to preserve, and
+adding one would mean a dependency plus URL state to keep in sync with a store
+that already owns the session. The trade is that screens are not addressable —
+acceptable now, and the reason to revisit if deep-linking is ever wanted.
+
+`LANDING` is the default rather than the board. Previously an unauthenticated
+visitor landed straight on a board of sample tasks, which implied the data was
+theirs. Guest mode still exists (FR-NAV-03) but is now an explicit choice, so
+local-first usage (FR-PERS-02) survives without being the accidental default.
+
 ## 5c. Schema ownership
 
 Alembic owns the schema; the ORM describes it. The two must agree, and the app enforces that

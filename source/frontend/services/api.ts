@@ -19,6 +19,18 @@ export interface UserProfile {
 
 export type ProjectRole = 'PM' | 'MEMBER';
 
+/**
+ * The server's canonical task id is an integer; the UI shows "TSK-n".
+ * These two helpers are the only place that translation is allowed to happen —
+ * scattering it was how the two representations drifted apart (F-01).
+ */
+export const taskKeyOf = (serverId: number): string => `TSK-${serverId}`;
+
+export function serverIdOf(key: string): number | null {
+  const parsed = Number.parseInt(String(key).replace(/^TSK-/i, ''), 10);
+  return Number.isNaN(parsed) ? null : parsed;
+}
+
 export interface Project {
   id: number;
   name: string;
@@ -128,6 +140,14 @@ export class ApiClient {
     this.setToken(null);
   }
 
+  /** Self-service profile edit. Roles are not settable here — they are per-project. */
+  async updateProfile(userId: number, changes: { full_name?: string; skills?: string }): Promise<UserProfile> {
+    return this.request<UserProfile>(`/users/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(changes),
+    });
+  }
+
   // Project Endpoints (personal dashboard)
   async listProjects(): Promise<Project[]> {
     return this.request<Project[]>('/projects');
@@ -230,19 +250,10 @@ export class ApiClient {
     });
   }
 
-  async analyzeGitDiff(diffText: string, currentTasks: any[]): Promise<any> {
-    // Client-side & backend semantic mapping
-    const lines = diffText.split('\n');
-    const changedFiles = lines.filter((l) => l.startsWith('+++ b/')).map((l) => l.replace('+++ b/', ''));
-    const resolved = currentTasks.slice(0, 1).map((t) => t.id);
-
-    return {
-      prTitle: `Commit / Diff Analysis (${changedFiles.length || 1} files touched)`,
-      summary: `Analyzed unified diff. Detected module migrations and refactors across ${changedFiles.join(', ') || 'core repository'}.`,
-      resolvedTaskIds: resolved,
-      blockedTaskIds: [],
-    };
-  }
+  // NOTE: Git diff analysis is deliberately NOT here. It is a pure client-side
+  // function, `lib/gitParser.ts::parseGitDiff`, called directly by GitDiffModal.
+  // A stub used to live at this spot and shadowed the real parser, returning
+  // fabricated results that did not even satisfy GitDiffAnalysisResult (F-25).
 
   // Workload & Delayed Tasks
   async getWorkloads(projectId: number): Promise<any[]> {

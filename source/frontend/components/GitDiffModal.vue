@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useTaskStore } from '../stores/taskStore';
+import { parseGitDiff } from '../lib/gitParser';
 import { api } from '../services/api';
 import type { GitDiffAnalysisResult } from '../types/task';
 import { GitPullRequest, X, Sparkles, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-vue-next';
@@ -27,7 +28,7 @@ async function handleAnalyze() {
   isApplied.value = false;
 
   try {
-    const res = await api.analyzeGitDiff(diffText.value, taskStore.tasks);
+    const res = parseGitDiff(diffText.value, taskStore.tasks);
     result.value = res;
   } catch (e: any) {
     errorMsg.value = e.message || 'Failed to analyze diff';

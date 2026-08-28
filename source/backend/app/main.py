@@ -11,6 +11,7 @@ from app.models.entities import (
 )
 from app.security import get_password_hash
 from app.routers import auth, users, projects, sprints, tasks, stats, ai
+from app.utils.time import utcnow
 
 def seed_initial_data():
     db = SessionLocal()
@@ -52,7 +53,7 @@ def seed_initial_data():
             db.commit()
             
             # Create default Sprint
-            now = datetime.utcnow()
+            now = utcnow()
             default_sprint = Sprint(
                 project_id=default_proj.id,
                 name="Sprint 1: Core Architecture & AI Integration",

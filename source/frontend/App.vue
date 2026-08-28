@@ -9,7 +9,8 @@ import AIDecomposerModal from './components/AIDecomposerModal.vue';
 import WeeklySummaryModal from './components/WeeklySummaryModal.vue';
 import MeetingMinutesModal from './components/MeetingMinutesModal.vue';
 import WorkloadAssignModal from './components/WorkloadAssignModal.vue';
-import AuthModal from './components/AuthModal.vue';
+import LandingPage from './components/LandingPage.vue';
+import ProfilePage from './components/ProfilePage.vue';
 import ProjectDashboard from './components/ProjectDashboard.vue';
 import GitDiffModal from './components/GitDiffModal.vue';
 import DAGVisualizerModal from './components/DAGVisualizerModal.vue';
@@ -45,7 +46,6 @@ const isAIDecomposerOpen = ref(false);
 const isWeeklySummaryOpen = ref(false);
 const isMeetingMinutesOpen = ref(false);
 const isWorkloadAssignOpen = ref(false);
-const isAuthModalOpen = ref(false);
 const isGitDiffOpen = ref(false);
 const isDAGOpen = ref(false);
 const isShortcutsHelpOpen = ref(false);
@@ -78,7 +78,6 @@ function closeAllModals() {
     isWeeklySummaryOpen.value ||
     isMeetingMinutesOpen.value ||
     isWorkloadAssignOpen.value ||
-    isAuthModalOpen.value ||
     taskStore.isDashboardOpen ||
     isGitDiffOpen.value ||
     isDAGOpen.value ||
@@ -92,7 +91,6 @@ function closeAllModals() {
   isWeeklySummaryOpen.value = false;
   isMeetingMinutesOpen.value = false;
   isWorkloadAssignOpen.value = false;
-  isAuthModalOpen.value = false;
   taskStore.isDashboardOpen = false;
   isGitDiffOpen.value = false;
   isDAGOpen.value = false;
@@ -174,7 +172,13 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 </script>
 
 <template>
-  <div class="h-screen h-[100dvh] flex flex-col bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans text-xs md:text-sm safe-top overflow-hidden">
+  <!-- Three top-level screens. A signed-out visitor never reaches the board
+       unless they explicitly choose guest mode (taskStore.continueAsGuest). -->
+  <LandingPage v-if="taskStore.appView === 'LANDING'" />
+
+  <ProfilePage v-else-if="taskStore.appView === 'PROFILE'" />
+
+  <div v-else class="h-screen h-[100dvh] flex flex-col bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans text-xs md:text-sm safe-top overflow-hidden">
     <!-- Top Header (Fixed h-12) -->
     <header class="h-12 border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 px-4 md:px-6 flex items-center justify-between z-30 shadow-xs">
       <div class="w-full max-w-[1720px] mx-auto flex items-center justify-between gap-3">
@@ -211,10 +215,11 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             type="button"
             class="h-8 hidden sm:inline-flex items-center gap-1.5 px-3 rounded-md border text-xs font-mono cursor-pointer shadow-2xs"
             :class="taskStore.currentUser ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold' : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'"
-            @click="isAuthModalOpen = true"
+            :title="taskStore.currentUser ? 'Your profile' : 'Sign in'"
+            @click="taskStore.currentUser ? taskStore.showProfile() : taskStore.logout()"
           >
             <Shield class="w-3.5 h-3.5" />
-            <span>{{ taskStore.currentUser ? `${taskStore.myRole ?? '—'}: ${taskStore.currentUser.full_name}` : 'Guest / Sign In' }}</span>
+            <span>{{ taskStore.currentUser ? `${taskStore.myRole ?? '—'}: ${taskStore.currentUser.full_name}` : 'Guest — sign in' }}</span>
           </button>
         </div>
 
@@ -327,10 +332,10 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             type="button"
             class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-slate-900 hover:bg-slate-800 text-slate-50 dark:bg-slate-100 dark:hover:bg-white dark:text-slate-950 text-xs font-mono font-medium cursor-pointer shadow-xs"
             @click="isCreateModalOpen = true"
-            title="Create Task (c)"
+            title="Create Task (n)"
           >
             <Plus class="w-3.5 h-3.5" />
-            <span>New <kbd class="hidden sm:inline opacity-70 text-[11px]">c</kbd></span>
+            <span>New <kbd class="hidden sm:inline opacity-70 text-[11px]">n</kbd></span>
           </button>
         </div>
       </div>
@@ -482,7 +487,6 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
     <WeeklySummaryModal v-if="isWeeklySummaryOpen" :on-close="() => (isWeeklySummaryOpen = false)" />
     <MeetingMinutesModal v-if="isMeetingMinutesOpen" :on-close="() => (isMeetingMinutesOpen = false)" />
     <WorkloadAssignModal v-if="isWorkloadAssignOpen" :on-close="() => (isWorkloadAssignOpen = false)" />
-    <AuthModal v-if="isAuthModalOpen" @close="isAuthModalOpen = false" />
     <ProjectDashboard v-if="taskStore.isDashboardOpen" @close="taskStore.isDashboardOpen = false" />
     <AIDecomposerModal v-if="isAIDecomposerOpen" @close="isAIDecomposerOpen = false" />
     <GitDiffModal v-if="isGitDiffOpen" @close="isGitDiffOpen = false" />

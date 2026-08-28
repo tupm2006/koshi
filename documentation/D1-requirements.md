@@ -57,6 +57,18 @@ Status reflects what is actually implemented in the code, not what is aspiration
 > (n/Enter/i/Esc)"); the older docs were never updated and have since been retired. The
 > authoritative list is `source/frontend/lib/keyboard.ts`. See D7 / DEC-005.
 
+### 3.1b Functional — Navigation & entry (FR-NAV)
+
+The app has three top-level screens driven by `taskStore.appView`, not a router.
+
+| ID | Requirement | Priority | Status |
+|:--|:--|:--|:--|
+| FR-NAV-01 | An unauthenticated visitor is shown a landing page explaining the product, with sign-in and create-account as the primary actions. | Must | Implemented |
+| FR-NAV-02 | Signing out returns to the landing page, never to a board the user can no longer act on. | Must | Implemented |
+| FR-NAV-03 | A signed-out visitor may explicitly choose a local-only demo board, preserving FR-PERS-02. | Should | Implemented |
+| FR-NAV-04 | Authenticating moves to the board; an account with no projects opens the dashboard instead. | Must | Implemented |
+| FR-NAV-05 | The profile page is reachable from the board header and returns to the board. | Must | Implemented |
+
 ### 3.2 Functional — Domain model (FR-DOM)
 
 | ID | Requirement | Priority | Status |
@@ -65,7 +77,8 @@ Status reflects what is actually implemented in the code, not what is aspiration
 | FR-DOM-02 | Status cycling is a total, cyclic function over the ordered 4-set (see D4 §3.1). | Must | Implemented |
 | FR-DOM-03 | A task has exactly one priority from `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`. | Must | Implemented |
 | FR-DOM-04 | A task carries a complexity weight (S/M/L/XL, stored as integer points). | Must | Implemented |
-| FR-DOM-05 | A task may declare dependencies on other tasks, forming a directed graph. | Must | Implemented |
+| FR-DOM-05 | A task may declare dependencies on other tasks by **integer id**, forming a directed graph that resolves on both client and server. | Must | Implemented |
+| FR-DOM-10 | A dependency must reference an existing task in the same project, and a task may not depend on itself. | Must | Implemented |
 | FR-DOM-06 | A task may carry an ordered list of acceptance criteria. | Should | Implemented |
 | FR-DOM-07 | A task in `BLOCKED` status should carry a human-readable `blocking_reason`. | Should | **Not enforced** — the field is nullable and no validation requires it. |
 | FR-DOM-08 | Tasks belong to a project; optionally to a sprint; optionally assigned to one user. | Must | Implemented |
@@ -125,7 +138,9 @@ project it belongs to, and may be `PM` of one project while being `MEMBER` of an
 | FR-PROJ-06 | Role-changing controls are hidden from non-PMs, and independently refused by the server. | Must | Implemented |
 | FR-PROJ-07 | A PM may delete a project they administer. | Could | Implemented |
 | FR-PROJ-08 | An account with no projects is shown the dashboard on load so it can create its first one, rather than an empty board. | Should | Implemented |
-| FR-PROJ-09 | The account panel shows the signed-in user, their current project and role, and offers sign-out. | Must | Implemented |
+| FR-PROJ-09 | A dedicated profile page shows identity, membership summary, and offers sign-out. | Must | Implemented |
+| FR-PROJ-10 | The user may edit their own display name and skills from the profile page. | Should | Implemented |
+| FR-PROJ-11 | The profile page lists every project the user belongs to with their role in each, and switching to one opens its board. | Should | Implemented |
 
 ### 3.7 Functional — AI workflows (FR-AI)
 
@@ -138,7 +153,7 @@ generator. No endpoint may return free-form text where a schema is declared.
 | FR-AI-02 | Meeting-minutes extraction: raw transcript → `main_topics`, `action_items`, `key_decisions`. | Must | Implemented (LLM-backed, JSON) |
 | FR-AI-03 | Assignment recommendation from member skills and in-flight complexity points. | Must | Implemented (LLM-backed, JSON) |
 | FR-AI-04 | Goal decomposition: a goal string → a dependency-linked subtask list. | Should | **Stub** — returns three hardcoded Vietnamese subtasks; the LLM is never called. See D7 / DEC-003. |
-| FR-AI-05 | Git diff analysis: unified diff → resolved task IDs + architectural concerns. | Should | **Split brain** — a real parser exists client-side but the API client shadows it with a stub. See D7 / DEC-006. |
+| FR-AI-05 | Git diff analysis: unified diff → resolved task IDs + architectural concerns. | Should | Implemented — `GitDiffModal` calls `lib/gitParser.ts` directly. |
 | FR-AI-06 | Every AI call degrades through a three-tier cascade and never returns a 5xx due to LLM unavailability. | Must | Implemented |
 | FR-AI-07 | Team workload statistics: per-member active task count, complexity points, overload flag. | Must | Implemented |
 | FR-AI-08 | Overdue task listing with days-overdue computation. | Should | Implemented |
@@ -171,9 +186,10 @@ generator. No endpoint may return free-form text where a schema is declared.
 
 | ID | Question | Blocks |
 |:--|:--|:--|
-| OQ-01 | Should task IDs be integers (server truth) or `TSK-n` strings (client truth)? See D4 §2.1. | FR-DOM-05, FR-AI-05 |
+| ~~OQ-01~~ | ~~Integer vs `TSK-n` task ids?~~ **Resolved 2026-08-28:** integers are canonical; `TSK-n` is a derived display key (`TaskOut.key`). | — |
 | OQ-02 | Should `blocking_reason` become mandatory when status is `BLOCKED`? | FR-DOM-07 |
 | OQ-05 | Should a project support more than two roles (e.g. a read-only VIEWER)? | FR-AUTH-06 |
 | OQ-06 | Should adding a member send an invitation, rather than requiring the account to exist already? | FR-PROJ-04 |
 | ~~OQ-03~~ | ~~Is unverified Google token decoding acceptable outside test environments?~~ **Resolved 2026-08-28:** no. It is now opt-in via `ALLOW_UNVERIFIED_GOOGLE_TOKENS`, off by default, and blocked outside development. | — |
 | OQ-04 | Should FR-AI-04 call a real model, or is deterministic decomposition the intended product? | FR-AI-04 |
+| OQ-07 | Should `blocking_reason` be mandatory when a task enters `BLOCKED`? It conflicts with `POST /tasks/{id}/cycle-status`, which cycles into `BLOCKED` with no reason available. | FR-DOM-07 |

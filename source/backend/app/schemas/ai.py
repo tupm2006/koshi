@@ -40,8 +40,9 @@ class DecomposedSubtask(BaseModel):
     description: str
     priority: str
     complexity: str
-    acceptanceCriteria: List[str]
-    dependsOnTitles: Optional[List[str]] = []
+    # snake_case, consistent with every other schema in the API (F-16).
+    acceptance_criteria: List[str]
+    depends_on_titles: Optional[List[str]] = []
 
 class AIDecomposeRequest(BaseModel):
     goal: str

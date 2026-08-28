@@ -42,7 +42,7 @@ Do **not** proceed on your own initiative, even if the change looks obviously co
 
 | Activity | Why |
 |:--|:--|
-| **Unifying task identity** (int vs `TSK-n`) | D4 VIOLATION-01. Touches four contracts at once; product decision, not a refactor. Tracked as OQ-01. |
+| **Changing the task identity model** | Now settled (DEC-014): integer ids are canonical, `TSK-n` is a display key, and conversion lives only in `taskKeyOf`/`serverIdOf`. Reintroducing a second representation is a contract change. |
 | **Changing the status cycle order** | D4 §3.1. Breaks kanban layout, lateral movement, and a passing test. Note the prose docs already disagree with the code — that is a documentation bug, *not* licence to change the code. |
 | **Any change to a D4 contract** | Request/response shapes, DB columns, `types/task.ts`, JWT claims, the `koshi_tasks_v1` key. |
 | **Auth, JWT, hashing, or role logic** | Security-critical. Now well covered by `test_projects_and_roles.py`, but still 🔴. |
@@ -91,8 +91,8 @@ documentation.
 | **RISK-06** | **`dagSorter.ts` has no tests** yet holds the most intricate logic in the repo. | Low | High | ✅ **Closed 2026-08-28.** 28 tests; verified by seeding 7 defects and confirming each was caught. |
 | **RISK-16** | **`taskStore.ts` has no tests** and now carries the widest blast radius in the repo — auth transitions, project selection, persistence ordering. All three DEC-012 defects lived here. | High | High | ⚠️ **Open.** D5 GAP-05; the Vitest runner now exists, so it is unblocked. |
 | **RISK-07** | **Documentation contradicting code.** The retired SRS/URD/README made at least seven claims the code did not support (status order, key bindings, `/api/v1`, a non-existent test file, the LLM vendor). An agent trusting prose writes wrong code. | Low | High | ✅ **Closed 2026-08-28.** Stale documents deleted; `README.md` and `CLAUDE.md` rewritten against the code; D1–D8 are the single source. Conflicts preserved for the record in D7 / DEC-005. |
-| **RISK-08** | **Dependency graph is server-side unresolvable** (D4 VIOLATION-01) — dependencies are `List[str]` but IDs are `int`. | **Certain** | High | ⚠️ **Open.** OQ-01, RED zone. |
-| **RISK-09** | **Two lockfiles** (`pnpm-lock.yaml`, `package-lock.json`) with `Dockerfile` using `npm install` while docs say `pnpm`. Dev and prod can resolve different trees. | Medium | Medium | ⚠️ **Open.** D7 / DEC-007. |
+| **RISK-08** | **Dependency graph was server-side unresolvable** — dependencies were `List[str]` against `int` ids. | Low | High | ✅ **Closed 2026-08-28.** Integer ids are canonical; unresolvable, self- and cross-project dependencies are rejected (D7 / DEC-014). |
+| **RISK-09** | **Two lockfiles**, with the Dockerfile running `npm install` and copying neither, so the image resolved an untested tree. | Low | Medium | ✅ **Closed 2026-08-28.** `package-lock.json` removed; the image runs `pnpm install --frozen-lockfile`. |
 | **RISK-10** | **No DB migrations.** Schema came from `create_all`, which never alters an existing table, so a column change silently did nothing to a deployed volume. | Low | High | ✅ **Closed 2026-08-28.** Alembic adopted with a pre-roles baseline (`0001`) and the roles migration (`0002`), both reversible. Outside development the app creates no schema and refuses to start unless the DB is at head. Covered by `test_migrations.py`, including upgrade of a populated legacy database. |
 | **RISK-11** | **Seed data fires on an empty users table** in the lifespan hook, including a fixed password `koshi123` for `pm@tupm.qzz.io`. | Low | High | ✅ **Closed 2026-08-28.** Gated behind `SEED_DEMO_DATA`, and startup fails if it is enabled outside development. |
 | **RISK-12** | **Tier-3 AI output is indistinguishable from real model output** to the caller. Users may act on canned text believing it is analysis. | High | Medium | Surface the tier in the response (e.g. a `source` field). |
