@@ -7,7 +7,9 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
-from app.models.entities import User, Project, ProjectMember, ProjectRoleEnum
+from app.models.entities import (
+    MembershipStatusEnum, Project, ProjectMember, ProjectRoleEnum, User,
+)
 from app.schemas.auth import TokenPayload
 from app.utils.time import utcnow
 
@@ -68,7 +70,30 @@ async def get_current_user(
 # ---------------------------------------------------------------------------
 
 def get_membership(db: Session, project_id: int, user: User) -> Optional[ProjectMember]:
-    """Return the caller's membership row for a project, or None."""
+    """
+    Return the caller's *effective* membership row, or None.
+
+    A PENDING or DECLINED row is not a membership: being invited to a project
+    grants nothing until the invitation is accepted. This function is the single
+    place that decides that, so no endpoint can accidentally treat an unanswered
+    invitation as access.
+
+    Use `get_membership_row` when you need the raw row regardless of status —
+    the invitation endpoints do, and nothing else should.
+    """
+    membership = get_membership_row(db, project_id, user)
+    if membership is None or membership.status != MembershipStatusEnum.ACCEPTED:
+        return None
+    return membership
+
+
+def get_membership_row(db: Session, project_id: int, user: User) -> Optional[ProjectMember]:
+    """
+    The raw row, whatever its status.
+
+    Only the invitation flow should call this. Everything that answers "may this
+    caller do X?" must go through `get_membership`, which excludes PENDING.
+    """
     return (
         db.query(ProjectMember)
         .filter(ProjectMember.project_id == project_id, ProjectMember.user_id == user.id)

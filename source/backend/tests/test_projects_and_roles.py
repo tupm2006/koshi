@@ -151,6 +151,8 @@ def test_roles_are_independent_across_projects(client: TestClient, pm_auth_heade
         json={"email": me["email"], "role": "MEMBER"},
         headers=pm_auth_headers,
     )
+    # The invitation must be accepted before the role means anything.
+    client.post(f"/api/projects/{shared['id']}/invitation/accept", headers=member_auth_headers)
 
     own = client.post("/api/projects", json={"name": "My Own"}, headers=member_auth_headers).json()
 

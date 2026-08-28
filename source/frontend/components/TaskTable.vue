@@ -4,6 +4,14 @@ import { useTaskStore } from '../stores/taskStore';
 import type { Task, TaskPriority, TaskStatus } from '../types/task';
 import TaskContextMenu from './TaskContextMenu.vue';
 import { Flame, Plus, Check, Edit3, Trash2 } from 'lucide-vue-next';
+import { urgencyOf, dueLabel } from '../lib/urgency';
+
+/**
+ * Read once per render rather than per cell. Every row calling Date.now()
+ * independently could straddle midnight mid-render and label two tasks with the
+ * same deadline differently.
+ */
+const now = Date.now();
 
 defineProps<{
   onOpenCreate: () => void;
@@ -286,10 +294,21 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
             </span>
           </div>
 
-          <!-- Col 6: Due Date -->
-          <div class="flex items-center text-xs text-slate-600 dark:text-slate-400 font-mono truncate">
-            <span v-if="task.dueDate">{{ new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }}</span>
-            <span v-else>-</span>
+          <!-- Col 6: Due Date. Coloured by urgency band, because the date
+               alone makes the reader do the arithmetic. -->
+          <div class="flex items-center text-xs font-mono truncate" :data-urgency="urgencyOf(task, now)">
+            <span
+              v-if="task.dueDate"
+              class="px-1.5 py-0.5 rounded font-medium"
+              :class="{
+                'bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-300': urgencyOf(task, now) === 'OVERDUE',
+                'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300': urgencyOf(task, now) === 'TODAY',
+                'bg-yellow-50 text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-400': urgencyOf(task, now) === 'SOON',
+                'text-slate-600 dark:text-slate-400': ['LATER', 'NONE'].includes(urgencyOf(task, now)),
+              }"
+              :title="new Date(task.dueDate).toLocaleString()"
+            >{{ dueLabel(task, now) }}</span>
+            <span v-else class="text-slate-400 dark:text-slate-600">-</span>
           </div>
 
           <!-- Col 7: Actions -->

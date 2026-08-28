@@ -375,6 +375,30 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           </button>
         </div>
 
+        <!-- Scope: whose tasks. A PM defaults to ALL because their job is the
+             whole project; a member defaults to MINE because theirs is their
+             own queue. Either can switch — this is attention, not permission. -->
+        <div
+          v-if="taskStore.currentProjectId !== null && !taskStore.isPersonalProject"
+          id="scope-switch"
+          class="flex items-center gap-0.5 text-xs font-mono shrink-0 rounded-md border border-slate-300 dark:border-slate-700 p-0.5"
+        >
+          <button
+            v-for="s in (['ALL', 'MINE'] as const)"
+            :key="s"
+            type="button"
+            :data-scope="s"
+            :data-active="taskStore.scope === s"
+            class="h-6 px-2.5 inline-flex items-center justify-center rounded cursor-pointer text-[11px]"
+            :class="taskStore.scope === s
+              ? 'bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-100 font-semibold'
+              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'"
+            @click="taskStore.setScope(s)"
+          >
+            {{ s === 'ALL' ? 'All tasks' : 'My tasks' }}
+          </button>
+        </div>
+
         <!-- Status Tabs (h-6 Compact) -->
         <div class="flex items-center gap-1.5 text-xs font-mono overflow-x-auto no-scrollbar py-0.5">
           <button

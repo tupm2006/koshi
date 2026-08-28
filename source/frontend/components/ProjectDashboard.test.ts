@@ -36,6 +36,9 @@ import { mountWithPinia, fakeUser, fakeProject } from './testing';
 
 const member = (over: Record<string, unknown> = {}) => ({
   user_id: 2, project_id: 1, role: 'MEMBER',
+  // Mirrors the server default. Without it the roster reads `undefined` and
+  // renders every member as having declined.
+  status: 'ACCEPTED',
   full_name: 'Grace Hopper', email: 'grace@navy.mil', skills: 'cobol',
   avatar_url: null, active_tasks_count: 3, wip_points: 7, ...over,
 });
@@ -187,5 +190,44 @@ describe('failure handling', () => {
     await flushPromises();
 
     expect(w.text()).toContain('User not found');
+  });
+});
+
+describe('invitation state in the roster', () => {
+  it('marks an invited person as INVITED, not as a member', async () => {
+    // A PM must be able to tell at a glance who can actually see the project.
+    // Assigning work to somebody who has not accepted is work nobody receives.
+    const { w } = await open({ members: [member({ status: 'PENDING' })] });
+
+    expect(w.text()).toContain('INVITED');
+    expect(w.text()).toContain('awaiting their answer');
+  });
+
+  it('shows a declined invitation rather than hiding it', async () => {
+    const { w } = await open({ members: [member({ status: 'DECLINED' })] });
+    expect(w.text()).toContain('DECLINED');
+  });
+
+  it('shows workload only for people who actually joined', async () => {
+    // An invited person has no tasks and no access; printing "0 active" for
+    // them would read as an idle teammate rather than an unanswered request.
+    const { w } = await open({ members: [member({ status: 'PENDING', active_tasks_count: 0 })] });
+    expect(w.text()).not.toContain('0 active');
+  });
+
+  it('does not call an invitation an addition', async () => {
+    const { w } = await open();
+    apiMock.addMember.mockResolvedValue(member({ status: 'PENDING' }));
+
+    await w.find('#invite-email').setValue('newbie@example.com');
+    // Scoped: the dashboard renders two forms (create project, invite member)
+    // and `find('form')` returns the first, which is not this one.
+    const inviteForm = w.findAll('form').find((f: any) => f.find('#invite-email').exists())!;
+    await inviteForm.trigger('submit.prevent');
+    await flushPromises();
+
+    // "Added" would be a lie the roster immediately contradicts.
+    expect(w.text()).toContain('Invitation sent');
+    expect(w.text()).not.toMatch(/added as/i);
   });
 });

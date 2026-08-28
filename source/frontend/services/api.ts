@@ -42,16 +42,35 @@ export interface Project {
   member_count: number;
 }
 
+/** PENDING = invited, not yet answered. Grants nothing until ACCEPTED. */
+export type MembershipStatus = 'PENDING' | 'ACCEPTED' | 'DECLINED';
+
 export interface ProjectMember {
   user_id: number;
   project_id: number;
   role: ProjectRole;
+  status: MembershipStatus;
   full_name: string;
   email: string;
   skills: string;
   avatar_url?: string | null;
   active_tasks_count: number;
   wip_points: number;
+}
+
+/**
+ * A pending invitation, as the invited user sees it.
+ *
+ * Carries the project name and inviter because the recipient is not a member
+ * yet and so cannot read either from the project itself.
+ */
+export interface Invitation {
+  project_id: number;
+  project_name: string;
+  project_description: string;
+  role: ProjectRole;
+  invited_by_name: string | null;
+  invited_at: string | null;
 }
 
 export interface AuthResponse {
@@ -169,6 +188,19 @@ export class ApiClient {
   }
 
   // Per-project role management (PM only, enforced server-side)
+  /** Invitations awaiting this user's answer. */
+  async listInvitations(): Promise<Invitation[]> {
+    return this.request<Invitation[]>('/projects/invitations/pending');
+  }
+
+  async acceptInvitation(projectId: number): Promise<Project> {
+    return this.request<Project>(`/projects/${projectId}/invitation/accept`, { method: 'POST' });
+  }
+
+  async declineInvitation(projectId: number): Promise<void> {
+    return this.request<void>(`/projects/${projectId}/invitation/decline`, { method: 'POST' });
+  }
+
   async listMembers(projectId: number): Promise<ProjectMember[]> {
     return this.request<ProjectMember[]>(`/projects/${projectId}/members`);
   }

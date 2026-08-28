@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useTaskStore } from '../stores/taskStore';
+import { api, type ProjectMember } from '../services/api';
 import type { TaskPriority, TaskStatus } from '../types/task';
-import { Plus, X, Tag } from 'lucide-vue-next';
+import { Plus, X, CalendarDays, UserPlus } from 'lucide-vue-next';
 
 const emit = defineEmits<{
   (e: 'close'): void;
@@ -13,17 +14,50 @@ const taskStore = useTaskStore();
 const title = ref('');
 const priority = ref<TaskPriority>('MEDIUM');
 const status = ref<TaskStatus>('TODO');
+const dueDate = ref('');
+const assigneeId = ref<number | ''>('');
+const members = ref<ProjectMember[]>([]);
 const inputRef = ref<HTMLInputElement | null>(null);
+
+/**
+ * Assigning work is a PM affordance. A member creating a task gets it in their
+ * own queue; only a PM chooses somebody else's.
+ *
+ * This hides a control — it is not the boundary. The server refuses a
+ * non-PM's attempt regardless (D6 P11).
+ */
+const canAssign = computed(() => taskStore.isProjectManager && members.value.length > 1);
+
+/** Today, as the `min` for the date input — a deadline in the past is a typo. */
+const today = new Date().toISOString().slice(0, 10);
 
 function handleCreate() {
   if (!title.value.trim()) return;
-  taskStore.createTask(title.value.trim(), priority.value, status.value);
+
+  const chosen = assigneeId.value === '' ? null : Number(assigneeId.value);
+  taskStore.createTask(title.value.trim(), priority.value, status.value, {
+    // <input type="date"> gives YYYY-MM-DD with no time. Pin it to end of day
+    // local: a task due "the 30th" is not late at 00:01 on the 30th.
+    dueDate: dueDate.value ? new Date(`${dueDate.value}T23:59:59`).toISOString() : undefined,
+    assigneeId: chosen,
+    assignee: members.value.find((m) => m.user_id === chosen)?.full_name,
+  });
   emit('close');
 }
 
-onMounted(() => {
-  if (inputRef.value) {
-    inputRef.value.focus();
+onMounted(async () => {
+  inputRef.value?.focus();
+
+  // Only a PM needs the roster, and only for a project that has one.
+  if (taskStore.isProjectManager && taskStore.currentProjectId !== null) {
+    try {
+      const roster = await api.listMembers(taskStore.currentProjectId);
+      // Pending invitations cannot be assigned work — they have no access to
+      // the project yet and may never accept.
+      members.value = roster.filter((m) => m.status === 'ACCEPTED');
+    } catch (e) {
+      console.warn('Could not load members for assignment:', e);
+    }
   }
 });
 </script>
@@ -94,6 +128,43 @@ onMounted(() => {
               <option value="DONE">DONE</option>
             </select>
           </div>
+        </div>
+
+        <div>
+          <label for="vue-create-task-due" class="flex items-center gap-1.5 font-mono text-slate-600 dark:text-slate-400 mb-1.5 font-medium">
+            <CalendarDays class="w-3.5 h-3.5" />
+            <span>Due date</span>
+          </label>
+          <input
+            id="vue-create-task-due"
+            v-model="dueDate"
+            type="date"
+            :min="today"
+            class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-indigo-500 min-h-[40px]"
+          />
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+            Optional. Dated tasks sort to the top of the board as the deadline nears.
+          </p>
+        </div>
+
+        <div v-if="canAssign">
+          <label for="vue-create-task-assignee" class="flex items-center gap-1.5 font-mono text-slate-600 dark:text-slate-400 mb-1.5 font-medium">
+            <UserPlus class="w-3.5 h-3.5" />
+            <span>Assign to</span>
+          </label>
+          <select
+            id="vue-create-task-assignee"
+            v-model="assigneeId"
+            class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-indigo-500 min-h-[40px]"
+          >
+            <option value="">Unassigned</option>
+            <option v-for="m in members" :key="m.user_id" :value="m.user_id">
+              {{ m.full_name }} — {{ m.active_tasks_count }} active
+            </option>
+          </select>
+          <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+            Current load is shown so you can spread work rather than stack it.
+          </p>
         </div>
 
         <div class="pt-2 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2">

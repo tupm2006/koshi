@@ -56,6 +56,7 @@ koshi/
 |:--|:--|:--|:--|
 | `dagSorter.ts` | `topologicalSort(tasks)`, `computeCriticalPath(tasks)` | Kahn's algorithm with deterministic tie-breaking; memoised longest-weighted-path search over non-`DONE` tasks. **Tested** — `dagSorter.test.ts` (28). | FR-GRAPH-01…05 |
 | `keyboard.ts` | keydown dispatcher, `isInputActive` | Single global `switch` mapping keys → store actions. **The one authoritative list of key bindings.** **Tested** — `keyboard.test.ts` (38). | FR-INT-01…14 |
+| `urgency.ts` | `urgencyOf`, `sortByUrgency`, `daysUntil`, `dueLabel` | Deadline banding and the board's default order. `now` is always a parameter. Deadline outranks priority by design. | FR-TASK, D7 DEC-022 |
 | `gitParser.ts` | `parseGitDiff(diff, tasks)` | Regex extraction of `close/fix/resolve #ID`; scans added lines for TODO/FIXME, empty catch blocks, hardcoded secrets, `: any`. Also resolves BLOCKED tasks on a whole-word title match — a loose heuristic, see OQ-08. `blockedTaskIds` is always empty (F-29). Covered by `gitParser.test.ts`. | FR-AI-05 |
 | `aiDecomposer.ts` | client-side goal heuristics | Tier-1 (<5 ms) local decomposition before any network call. | FR-AI-04 |
 | `translations.ts` | `MESSAGES`, `LOCALES`, `LOCALE_LABELS` | English + Vietnamese dictionary. `Translations` is derived from the English object, so a key missing elsewhere is a **compile error**, not a runtime fallback. | FR-I18N-01…05 |

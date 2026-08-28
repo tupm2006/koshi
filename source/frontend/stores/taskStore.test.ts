@@ -28,6 +28,9 @@ const { idb, apiMock } = vi.hoisted(() => ({
     updateTask: vi.fn(async () => ({})),
     deleteTask: vi.fn(async () => undefined),
     updateProfile: vi.fn(),
+    listInvitations: vi.fn(async () => [] as any[]),
+    acceptInvitation: vi.fn(),
+    declineInvitation: vi.fn(async () => undefined),
   },
 }));
 
@@ -358,5 +361,164 @@ describe('filters', () => {
     const s = await seeded();
     s.setFilterPriority('HIGH');
     expect(s.filteredTasks.map((t) => t.priority)).toEqual(['HIGH']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Deadlines, scope and invitations
+// ---------------------------------------------------------------------------
+
+const invitation = (over: Partial<any> = {}) => ({
+  project_id: 7, project_name: 'Orion', project_description: '',
+  role: 'MEMBER', invited_by_name: 'Ada', invited_at: null, ...over,
+});
+
+describe('creating a task with a deadline and an assignee', () => {
+  async function ready(over: Partial<any> = {}) {
+    const s = store();
+    apiMock.listProjects.mockResolvedValue([project(over)]);
+    await s.onAuthenticated({ id: 1, email: 'a@b.c', full_name: 'Ada', skills: '' } as any);
+    s.isBackendConnected = true;
+    return s;
+  }
+
+  it('stores a due date and sends it to the server', async () => {
+    const s = await ready();
+    apiMock.createTask.mockClear();
+
+    const due = '2026-09-30T23:59:59.000Z';
+    const t = s.createTask('Ship it', 'HIGH', 'TODO', { dueDate: due, assigneeId: 4 })!;
+
+    expect(t.dueDate).toBe(due);
+    expect(apiMock.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({ due_date: due, assignee_id: 4 }),
+    );
+  });
+
+  it('sends null rather than an empty string when there is no deadline', async () => {
+    // '' would be stored and then sort as an unparseable date.
+    const s = await ready();
+    apiMock.createTask.mockClear();
+
+    const t = s.createTask('No deadline')!;
+
+    expect(t.dueDate).toBeUndefined();
+    expect(apiMock.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({ due_date: null, assignee_id: null }),
+    );
+  });
+});
+
+describe('board ordering', () => {
+  it('puts an overdue task above a newer undated one', async () => {
+    const s = store();
+    apiMock.listProjects.mockResolvedValue([project()]);
+    await s.onAuthenticated({ id: 1, email: 'a@b.c', full_name: 'Ada', skills: '' } as any);
+    s.isBackendConnected = true;
+
+    s.createTask('Undated but newest');
+    const overdue = s.createTask('Overdue', 'LOW', 'TODO', {
+      dueDate: new Date(Date.now() - 86_400_000 * 2).toISOString(),
+    })!;
+
+    // Creation order would have put the undated task first.
+    expect(s.filteredTasks[0]!.id).toBe(overdue.id);
+  });
+});
+
+describe('scope', () => {
+  async function shared(role: 'PM' | 'MEMBER') {
+    const s = store();
+    apiMock.listProjects.mockResolvedValue([project({ my_role: role, member_count: 3 })]);
+    await s.onAuthenticated({ id: 1, email: 'a@b.c', full_name: 'Ada', skills: '' } as any);
+    s.isBackendConnected = true;
+    return s;
+  }
+
+  it('opens a PM on the whole project and a member on their own queue', async () => {
+    // A default about attention, not permission — either can switch.
+    expect((await shared('PM')).scope).toBe('ALL');
+    expect((await shared('MEMBER')).scope).toBe('MINE');
+  });
+
+  it('MINE shows only the caller\'s tasks', async () => {
+    const s = await shared('MEMBER');
+    s.createTask('Mine', 'MEDIUM', 'TODO', { assigneeId: 1 });
+    s.createTask('Someone else\'s', 'MEDIUM', 'TODO', { assigneeId: 2 });
+
+    expect(s.filteredTasks.map((t) => t.title)).toEqual(['Mine']);
+
+    s.setScope('ALL');
+    expect(s.filteredTasks).toHaveLength(2);
+  });
+
+  it('MINE hides unassigned work rather than claiming it', async () => {
+    const s = await shared('MEMBER');
+    s.createTask('Nobody owns this');
+    expect(s.filteredTasks).toHaveLength(0);
+  });
+});
+
+describe('invitations', () => {
+  it('loads pending invitations after authenticating', async () => {
+    const s = store();
+    apiMock.listProjects.mockResolvedValue([]);
+    apiMock.listInvitations.mockResolvedValue([invitation()]);
+
+    await s.onAuthenticated({ id: 1, email: 'a@b.c', full_name: 'Ada', skills: '' } as any);
+
+    expect(s.invitations).toHaveLength(1);
+    expect(s.invitations[0]!.project_name).toBe('Orion');
+  });
+
+  it('still loads the board when invitations fail', async () => {
+    // An invitation is a nicety; the board is the product.
+    const s = store();
+    apiMock.listProjects.mockResolvedValue([project()]);
+    apiMock.listInvitations.mockRejectedValue(new Error('boom'));
+
+    await s.onAuthenticated({ id: 1, email: 'a@b.c', full_name: 'Ada', skills: '' } as any);
+
+    expect(s.appView).toBe('BOARD');
+    expect(s.invitations).toEqual([]);
+  });
+
+  it('accepting opens the project and clears the invitation', async () => {
+    const s = store();
+    apiMock.listProjects.mockResolvedValue([]);
+    apiMock.listInvitations.mockResolvedValue([invitation({ project_id: 7 })]);
+    await s.onAuthenticated({ id: 1, email: 'a@b.c', full_name: 'Ada', skills: '' } as any);
+
+    apiMock.acceptInvitation.mockResolvedValue(project({ id: 7, my_role: 'MEMBER' }));
+    apiMock.listProjects.mockResolvedValue([project({ id: 7, my_role: 'MEMBER' })]);
+    await s.acceptInvitation(7);
+
+    expect(s.invitations).toEqual([]);
+    expect(s.currentProjectId).toBe(7);
+    expect(s.isDashboardOpen).toBe(false);
+  });
+
+  it('declining removes it without joining anything', async () => {
+    const s = store();
+    apiMock.listProjects.mockResolvedValue([]);
+    apiMock.listInvitations.mockResolvedValue([invitation({ project_id: 7 })]);
+    await s.onAuthenticated({ id: 1, email: 'a@b.c', full_name: 'Ada', skills: '' } as any);
+
+    await s.declineInvitation(7);
+
+    expect(apiMock.declineInvitation).toHaveBeenCalledWith(7);
+    expect(s.invitations).toEqual([]);
+    expect(s.currentProjectId).toBeNull();
+  });
+
+  it('clears invitations on sign-out', async () => {
+    const s = store();
+    apiMock.listProjects.mockResolvedValue([]);
+    apiMock.listInvitations.mockResolvedValue([invitation()]);
+    await s.onAuthenticated({ id: 1, email: 'a@b.c', full_name: 'Ada', skills: '' } as any);
+
+    await s.logout();
+
+    expect(s.invitations).toEqual([]);
   });
 });

@@ -1056,6 +1056,86 @@ dependency id is rejected with 400; a non-member reading the project gets **404,
 the seeded demo password that works on the dev stack is refused here with 401. The smoke-test data
 was then destroyed, so the instance is empty and awaiting its first real signup.
 
+### DEC-022 — Deadlines at creation, a PM view, and invitations that must be accepted
+
+**Date:** 2026-08-28 · **Tests:** backend 64 → 80, frontend 260 → 292 · **Migration:** 0003
+
+Four changes from using the app: no deadline field when creating a task, no
+deadline-driven ordering, no way for a PM to assign work as they create it, and
+"adding a member" silently conscripting somebody into a project.
+
+**Deadlines.** `due_date` and `assignee_id` already existed on the server and in
+`TaskOut` — only the create form never offered them, so setting a deadline meant
+create → open detail → open description. Both are now on the form. `<input
+type="date">` yields `YYYY-MM-DD` with no time, pinned to **23:59:59 local**: a
+task due "the 30th" is not late at 00:01 on the 30th.
+
+**Ordering** lives in `lib/urgency.ts`, a pure module, because a getter that
+reaches into Pinia, IndexedDB and the API client cannot be tested for a
+comparison. `now` is a parameter everywhere; "is this overdue?" is nothing but
+boundaries, and a function that reads the clock internally cannot be tested at
+one. Days are counted as **calendar days, not 24-hour blocks** — at 23:00,
+something due 09:00 tomorrow is one day away, because that is what a person
+reading a calendar means.
+
+The ordering rule is deliberate: **deadline outranks priority.** A LOW task due
+yesterday is a broken promise; a CRITICAL one due next month is not yet a
+problem. Priority states importance, a deadline states time, and only one of
+them runs out. DONE tasks are never urgent regardless of how overdue — leaving
+finished work burning red at the top is how a board stops being read.
+
+**PM vs member** is a difference of *default attention*, not of permission.
+`taskStore.scope` opens a PM on ALL (their job is the project) and a member on
+MINE (theirs is their queue); both can switch. The assignee selector on the
+create form appears only for a PM, showing each member's current load so work
+can be spread rather than stacked. Hiding it is an affordance — the server
+refuses a non-PM's attempt regardless (D6 P11).
+
+**Invitations** were the real work. `add_member` used to be unilateral: a PM
+typed an email and that person was in a project they had never heard of.
+
+Modelled as `ProjectMember.status` rather than a separate Invitation table,
+which keeps the authorisation root single — still exactly one row to consult,
+and exactly one place deciding what it means. `get_membership` now returns None
+for a non-ACCEPTED row, so **every** existing guard inherits the rule without
+being touched. `get_membership_row` exposes the raw row for the invitation
+endpoints alone.
+
+That indirection is the whole design, and `test_invitations.py` checks it
+against every project-scoped surface at once — project, roster, tasks, sprints,
+stats, AI — because one endpoint resolving the raw row would silently undo it.
+A pending invitation returns **404, not 403**: replying must not confirm the
+project exists either.
+
+Two smaller judgements. `member_count` counts ACCEPTED only, or an unanswered
+invitation would make a personal project look shared and flip it read-only
+offline (INV-15) on the strength of somebody who never replied. And a DECLINED
+row is kept rather than deleted, so the PM sees an answer instead of an
+invitation that vanished — and can re-invite, since otherwise one mis-click
+locks a person out of a project permanently.
+
+**The migration backfills ACCEPTED**, which is the only safe choice: those
+people have access today, and defaulting them to PENDING would revoke it from
+every existing member of every project. The `downgrade` deletes PENDING and
+DECLINED rows *before* dropping the column — otherwise downgrading would
+promote every unanswered invitation into a real membership, silently widening
+access.
+
+**Found while building.** Four existing tests failed immediately, correctly:
+they added a member and used the access straight away. The fixture now accepts
+the invitation, and `project_with_pending_invite` was added for the flow itself.
+A locally-created task was dropping `assigneeId` — it was sent to the server but
+not kept in the local object, so a task you had just assigned to yourself
+vanished from your own "My tasks" view until the next sync. Local-first means
+the local copy is complete (INV-03). And `ProjectDashboard.test.ts`'s member
+fixture predated `status`, so every member rendered as having declined; the
+fixture now mirrors the server default.
+
+**Verified end to end** against the local production instance: invited user gets
+404 on the project, sees the invitation with the project name and inviter,
+`member_count` stays 1 while pending, accepting grants access and returns the
+project, and a PM-created task carries both its deadline and its assignee.
+
 ## Part III — Timeline
 
 | Date | Event |
@@ -1082,6 +1162,7 @@ was then destroyed, so the instance is empty and awaiting its first real signup.
 | **2026-08-28** | AI cascade made observable and tested by tier; GAP-04 closed. Secret rotated and images rebuilt clean; a shared dev-secret fallback found and removed (DEC-019). Backend suite → 64. |
 | **2026-08-28** | Deploy authorised by the owner but unreachable from this machine; inspecting the documented command found it shipped developer secrets and dev settings over production (F-37). Replaced with `scripts/deploy.sh` (DEC-020). |
 | **2026-08-28** | Production-configured instance stood up locally on :8090 and verified end to end; compose project-name collision (F-38) and a false-passing image check (F-39) found and fixed (DEC-021). |
+| **2026-08-28** | Deadlines on the create form, deadline-first board ordering, PM/member default scope, and membership invitations requiring acceptance (DEC-022, migration 0003). Backend → 80, frontend → 292. |
 
 ## Part IV — Open questions
 

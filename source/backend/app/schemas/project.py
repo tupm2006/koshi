@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from datetime import datetime
-from app.models.entities import ProjectRoleEnum
+from app.models.entities import MembershipStatusEnum, ProjectRoleEnum
 
 
 class ProjectBase(BaseModel):
@@ -30,6 +30,9 @@ class ProjectMemberOut(BaseModel):
     user_id: int
     project_id: int
     role: ProjectRoleEnum
+    # PENDING means invited but not yet accepted — the roster shows them greyed
+    # out, and they have no access at all until they respond.
+    status: MembershipStatusEnum = MembershipStatusEnum.ACCEPTED
     full_name: str
     email: str
     skills: str
@@ -50,3 +53,23 @@ class ProjectMemberAdd(BaseModel):
 
 class ProjectMemberUpdate(BaseModel):
     role: ProjectRoleEnum
+
+
+class InvitationOut(BaseModel):
+    """
+    A pending invitation, from the invited user's point of view.
+
+    Deliberately carries the project name and the inviter's name: someone
+    deciding whether to accept needs to know what they are joining and who asked,
+    and they cannot read the project itself to find out (they are not a member
+    yet — that is the whole point).
+    """
+    project_id: int
+    project_name: str
+    project_description: str = ""
+    role: ProjectRoleEnum
+    invited_by_name: Optional[str] = None
+    invited_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

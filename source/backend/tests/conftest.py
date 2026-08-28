@@ -105,4 +105,34 @@ def project_with_member(client, pm_auth_headers, member_auth_headers):
         headers=pm_auth_headers,
     )
     assert add.status_code == 201, add.text
+    # Adding somebody creates a PENDING invitation, which grants nothing. Most
+    # tests want an established member, so accept it here. Tests about the
+    # invitation flow itself use `project_with_pending_invite` instead.
+    assert add.json()["status"] == "PENDING", add.text
+    accepted = client.post(
+        f"/api/projects/{project_id}/invitation/accept",
+        headers=member_auth_headers,
+    )
+    assert accepted.status_code == 200, accepted.text
+    return project_id, me["id"]
+
+
+@pytest.fixture
+def project_with_pending_invite(client, pm_auth_headers, member_auth_headers):
+    """A project whose second user has been invited but has NOT answered."""
+    proj = client.post(
+        "/api/projects",
+        json={"name": "Pending Invite Project", "description": "invite flow"},
+        headers=pm_auth_headers,
+    )
+    assert proj.status_code == 201, proj.text
+    project_id = proj.json()["id"]
+
+    me = client.get("/api/auth/me", headers=member_auth_headers).json()
+    add = client.post(
+        f"/api/projects/{project_id}/members",
+        json={"email": me["email"], "role": "MEMBER"},
+        headers=pm_auth_headers,
+    )
+    assert add.status_code == 201, add.text
     return project_id, me["id"]

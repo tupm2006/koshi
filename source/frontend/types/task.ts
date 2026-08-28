@@ -8,7 +8,8 @@ export interface Task {
   description?: string;
   status: TaskStatus;
   priority: TaskPriority;
-  assignee?: string;
+  assignee?: string;        // display name, for rendering
+  assigneeId?: number | null; // server id, for filtering and writes
   dueDate?: string; // ISO 8601
   blockingReason?: string;
   createdAt: number;

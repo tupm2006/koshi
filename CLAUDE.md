@@ -19,10 +19,10 @@ Guidance for AI agents working in this repository. **Read `documentation/` befor
 
 ```bash
 # Backend — must stay green
-cd source/backend && pytest -q          # expect: 64 passed
+cd source/backend && pytest -q          # expect: 80 passed
 
 # Frontend
-pnpm test                               # expect: 260 passed (vitest)
+pnpm test                               # expect: 292 passed (vitest)
 pnpm run build                          # vue-tsc -b && vite build
 ```
 
@@ -107,6 +107,18 @@ English object is the source of truth and a missing key is a compile error.
 
 **Three screens, no router.** `taskStore.appView` is `LANDING | BOARD | PROFILE`. A signed-out
 visitor must never reach the board except via explicit guest mode.
+
+**A PENDING membership grants nothing.** Adding somebody to a project creates an invitation;
+`get_membership` returns None until they accept, so every existing guard inherits the rule. Only the
+invitation endpoints may call `get_membership_row`. Widening what counts as a membership silently
+grants access to everyone ever invited — 🔴 RED.
+
+**`member_count` counts accepted members only.** It drives `isPersonalProject` and so the offline
+write policy; counting invitations would flip a personal project read-only on the strength of
+somebody who never replied.
+
+**Deadline outranks priority** in board order (`lib/urgency.ts`). A LOW task due yesterday is a
+broken promise; a CRITICAL one due next month is not. DONE is never urgent.
 
 **Roles are per-project, never global.** `User` has no `role` column; authority lives on
 `ProjectMember`. Every project-scoped route must call `require_member` or `require_project_pm` —

@@ -54,7 +54,14 @@ class User(Base):
     assigned_tasks = relationship("Task", back_populates="assignee")
     comments = relationship("Comment", back_populates="author")
     owned_projects = relationship("Project", back_populates="owner")
-    memberships = relationship("ProjectMember", back_populates="user", cascade="all, delete-orphan")
+    memberships = relationship(
+        "ProjectMember",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        # Disambiguate: ProjectMember now has two FKs to users (user_id and
+        # invited_by_id), so the join condition must be stated.
+        foreign_keys="ProjectMember.user_id",
+    )
 
 class Project(Base):
     __tablename__ = "projects"
@@ -68,6 +75,22 @@ class Project(Base):
     sprints = relationship("Sprint", back_populates="project", cascade="all, delete-orphan")
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
     members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
+
+class MembershipStatusEnum(str, enum.Enum):
+    """
+    Whether a membership has been accepted by the person it names.
+
+    A PM adding someone to a project is an *invitation*, not a fact about that
+    person. PENDING rows grant nothing: `require_member` refuses them, so an
+    invited user cannot read the project — not even its existence — until they
+    accept. Modelling this as a column on ProjectMember rather than a separate
+    Invitation table keeps the authorisation root single: there is still exactly
+    one row to consult, and exactly one place that decides what it means.
+    """
+    PENDING = "PENDING"
+    ACCEPTED = "ACCEPTED"
+    DECLINED = "DECLINED"
+
 
 class ProjectMember(Base):
     """
@@ -84,10 +107,23 @@ class ProjectMember(Base):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     role = Column(Enum(ProjectRoleEnum), default=ProjectRoleEnum.MEMBER, nullable=False)
+    status = Column(
+        Enum(MembershipStatusEnum),
+        default=MembershipStatusEnum.ACCEPTED,
+        nullable=False,
+    )
+    invited_by_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    responded_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=utcnow)
 
     project = relationship("Project", back_populates="members")
-    user = relationship("User", back_populates="memberships")
+    user = relationship("User", back_populates="memberships", foreign_keys=[user_id])
+    invited_by = relationship("User", foreign_keys=[invited_by_id])
+
+    @property
+    def is_active(self) -> bool:
+        """Only an accepted membership confers access."""
+        return self.status == MembershipStatusEnum.ACCEPTED
 
 
 class Sprint(Base):

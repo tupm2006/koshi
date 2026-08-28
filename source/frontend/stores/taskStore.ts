@@ -3,7 +3,8 @@ import { nextTick } from 'vue';
 import { get, set } from 'idb-keyval';
 import type { Task, TaskStatus, TaskPriority, TaskFilter, FilterStatus, FilterPriority, Complexity } from '../types/task';
 import { topologicalSort, computeCriticalPath } from '../lib/dagSorter';
-import { api, taskKeyOf, serverIdOf, type UserProfile, type Project, type ProjectRole } from '../services/api';
+import { sortByUrgency } from '../lib/urgency';
+import { api, taskKeyOf, serverIdOf, type UserProfile, type Project, type ProjectRole, type Invitation } from '../services/api';
 
 /**
  * IndexedDB keys are partitioned per project.
@@ -50,6 +51,15 @@ export const useTaskStore = defineStore('taskStore', {
       priority: 'ALL',
       onlyCriticalPath: false,
     } as TaskFilter,
+    /**
+     * Whose tasks the board shows. A PM opens on ALL because their job is the
+     * whole project; a member opens on MINE because theirs is their own queue.
+     * Set from the project's role on selection, and overridable either way —
+     * the default is about attention, not permission.
+     */
+    scope: 'ALL' as 'ALL' | 'MINE',
+    /** Pending project invitations awaiting this user's answer. */
+    invitations: [] as Invitation[],
   }),
 
   getters: {
@@ -126,7 +136,16 @@ export const useTaskStore = defineStore('taskStore', {
         result = result.filter((t) => critSet.has(t.id));
       }
 
-      return result;
+      if (state.scope === 'MINE' && state.currentUser) {
+        const me = state.currentUser;
+        result = result.filter(
+          (t) => t.assigneeId === me.id || (!!t.assignee && t.assignee === me.full_name),
+        );
+      }
+
+      // Deadline-first ordering (see lib/urgency.ts). `Date.now()` is read here
+      // rather than inside the sorter so the sorter stays testable.
+      return sortByUrgency(result, Date.now());
     },
 
     tasksByColumn(): Record<TaskStatus, Task[]> {
@@ -205,6 +224,7 @@ export const useTaskStore = defineStore('taskStore', {
       this.appView = 'BOARD';
 
       const projects = await this.loadProjects();
+      await this.loadInvitations();
       if (this.currentProjectId !== null) {
         await this.selectProject(this.currentProjectId);
       } else {
@@ -216,10 +236,46 @@ export const useTaskStore = defineStore('taskStore', {
       return projects;
     },
 
+    /**
+     * Fetch pending invitations. Never throws: a failure here must not stop the
+     * board from loading — an invitation is a nicety, the board is the product.
+     */
+    async loadInvitations() {
+      if (!this.isBackendConnected) return;
+      try {
+        this.invitations = await api.listInvitations();
+      } catch (e) {
+        console.warn('Could not load invitations:', e);
+      }
+    },
+
+    async acceptInvitation(projectId: number) {
+      const project = await api.acceptInvitation(projectId);
+      this.invitations = this.invitations.filter((i) => i.project_id !== projectId);
+      // Re-list rather than pushing the returned project: loadProjects is the
+      // single path that shapes the dashboard, and duplicating it here is how
+      // the two drift (F-21).
+      await this.loadProjects();
+      await this.selectProject(project.id);
+      this.isDashboardOpen = false;
+    },
+
+    async declineInvitation(projectId: number) {
+      await api.declineInvitation(projectId);
+      this.invitations = this.invitations.filter((i) => i.project_id !== projectId);
+    },
+
+    setScope(scope: 'ALL' | 'MINE') {
+      this.scope = scope;
+      this.selectedIndex = 0;
+    },
+
     async logout() {
       api.logout();
       this.currentUser = null;
       this.projects = [];
+      this.invitations = [];
+      this.scope = 'ALL';
       this.currentProjectId = null;
       this.tasks = [];
       this.isDashboardOpen = false;
@@ -268,6 +324,11 @@ export const useTaskStore = defineStore('taskStore', {
 
     async selectProject(projectId: number) {
       this.currentProjectId = projectId;
+      // A PM's job is the whole project; a member's is their own queue. This is
+      // the default view, not a permission — either role can switch.
+      this.scope = this.projects.find((p) => p.id === projectId)?.my_role === 'PM'
+        ? 'ALL'
+        : 'MINE';
       this.selectedIndex = 0;
       this.kanbanColIndex = 0;
       this.kanbanRowIndex = 0;
@@ -329,6 +390,9 @@ export const useTaskStore = defineStore('taskStore', {
             priority: t.priority as TaskPriority,
             complexity: t.complexity_points === 1 ? 'S' : t.complexity_points === 2 ? 'M' : t.complexity_points === 3 ? 'L' : 'XL',
             dueDate: t.due_date,
+            // TaskOut nests the whole user, not a flat name.
+            assignee: t.assignee?.full_name || undefined,
+            assigneeId: t.assignee_id ?? null,
             blockingReason: t.blocking_reason,
             // Server sends integer ids; the board works in display keys.
             dependencies: (t.dependencies || []).map((d: number) => taskKeyOf(d)),
@@ -443,7 +507,12 @@ export const useTaskStore = defineStore('taskStore', {
       });
     },
 
-    createTask(title: string, priority: TaskPriority = 'MEDIUM', status: TaskStatus = 'TODO'): Task | null {
+    createTask(
+      title: string,
+      priority: TaskPriority = 'MEDIUM',
+      status: TaskStatus = 'TODO',
+      extra: { dueDate?: string; assignee?: string; assigneeId?: number | null } = {},
+    ): Task | null {
       if (!this.canMutate) return null;
       if (!title.trim()) return null;
       const nextNum = this.tasks.length > 0
@@ -458,6 +527,14 @@ export const useTaskStore = defineStore('taskStore', {
         status,
         priority,
         complexity: 'M',
+        // Undefined rather than empty string when absent: `dueDate` is optional
+        // in the contract and '' would sort as an unparseable date.
+        dueDate: extra.dueDate || undefined,
+        assignee: extra.assignee || undefined,
+        // Kept locally too, not just sent. Without it a task you just assigned
+        // vanishes from your own "My tasks" view until the next server sync —
+        // local-first means the local copy is complete (INV-03).
+        assigneeId: extra.assigneeId ?? null,
         createdAt: now,
         updatedAt: now,
         dependencies: [],
@@ -474,6 +551,8 @@ export const useTaskStore = defineStore('taskStore', {
           status: newTask.status,
           priority: newTask.priority,
           complexity_points: 2,
+          due_date: newTask.dueDate ?? null,
+          assignee_id: extra.assigneeId ?? null,
         }).catch((e) => console.warn('Background API create failed:', e));
       }
 

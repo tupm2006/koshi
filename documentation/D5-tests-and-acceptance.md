@@ -1,7 +1,7 @@
 # D5 — Tests & Acceptance Criteria
 
 **Purpose:** define what "correct" means, and record honestly what is currently verified.
-**Last verified by execution:** 2026-08-28 — backend `64 passed`, frontend `260 passed`.
+**Last verified by execution:** 2026-08-28 — backend `80 passed`, frontend `292 passed`.
 
 ---
 
@@ -15,7 +15,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pytest -q
 ```
-Expected: **64 passed**. (`app/database.py` creates the sqlite directory itself, so no `mkdir` is needed.) Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
+Expected: **80 passed**. (`app/database.py` creates the sqlite directory itself, so no `mkdir` is needed.) Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
 
 ### Database migrations
 
@@ -36,7 +36,7 @@ creates nothing and **refuses to start** unless the database is at head (D3 §5c
 
 ```bash
 pnpm install
-pnpm test                     # vitest run — 260 tests
+pnpm test                     # vitest run — 292 tests
 pnpm run test:watch           # vitest, watch mode
 pnpm run build                # vue-tsc -b && vite build
 pnpm run dev                  # manual verification at :5173
@@ -82,6 +82,8 @@ Still **manually verified only**: `lib/gitParser.ts` and the six AI modals.
 | `ProjectDashboard` — PM affordances vs MEMBER restrictions | ✅ `ProjectDashboard.test.ts` (14) | Good — affordance only; the server is the boundary |
 | `LandingPage` — sections, i18n switching, content commitments | ✅ `LandingPage.test.ts` (14) | Good |
 | `lib/keyboard.ts` — all 14 bindings, input guards, modal deference, lifecycle | ✅ `keyboard.test.ts` (38) | Good — closes GAP-12. Mutation-tested: 6 seeded defects, all caught. |
+| `lib/urgency.ts` — deadline banding, board ordering, calendar-day arithmetic | ✅ `urgency.test.ts` (17) | Good. `now` is a parameter, never read internally — a clock-dependent function cannot be tested at its boundaries. |
+| Membership invitations — a PENDING row grants nothing, on every project surface | ✅ `test_invitations.py` (16) | Good. The security claim is checked against project, roster, tasks, sprints, stats and AI. |
 | `TaskTable` / `KanbanBoard` — rendering, filters, selection, column placement | ✅ `BoardViews.test.ts` (15) | Good |
 | `TaskDetailModal` — its own keyboard mode, editing, read-only gate | ✅ `TaskDetailModal.test.ts` (13) | Good |
 | `lib/gitParser.ts` — close-keyword matching, BLOCKED auto-resolution, secret detection | ✅ `gitParser.test.ts` (39) | Good — closes GAP-03. Characterisation tests; several record blind spots rather than assert correctness. Mutation-tested: 6 seeded defects, all caught. |

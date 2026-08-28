@@ -11,6 +11,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useTaskStore } from '../stores/taskStore';
 import { api, type ProjectMember, type ProjectRole } from '../services/api';
+import InvitationsPanel from './InvitationsPanel.vue';
 import {
   X, FolderPlus, Users, Shield, User as UserIcon, Trash2,
   AlertCircle, Check, LayoutGrid, Loader2,
@@ -88,7 +89,9 @@ async function handleInvite() {
     inviteEmail.value = '';
     await refreshMembers();
     await taskStore.loadProjects();
-    flashNotice(`${email} added as ${inviteRole.value}.`);
+    // Not "added": they are not in the project until they accept. Saying
+    // "added" would be a lie the roster immediately contradicts.
+    flashNotice(`Invitation sent to ${email}. They join once they accept.`);
   } catch (e: any) {
     errorMsg.value = e.message || 'Could not add member';
   } finally {
@@ -161,6 +164,12 @@ onMounted(async () => {
       <div v-if="noticeMsg" class="mx-5 mt-3 p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 font-mono text-[11px]">
         <Check class="w-3.5 h-3.5 shrink-0" />
         <span>{{ noticeMsg }}</span>
+      </div>
+
+      <!-- Invitations first: they are the only thing here that is waiting on
+           the user rather than the other way round. -->
+      <div v-if="taskStore.invitations.length > 0" class="px-5 pt-4">
+        <InvitationsPanel />
       </div>
 
       <div class="grid md:grid-cols-2 gap-0 md:gap-5 p-5">
@@ -259,9 +268,32 @@ onMounted(async () => {
                 class="px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2"
               >
                 <span class="min-w-0">
-                  <span class="block text-xs font-medium font-sans truncate">{{ m.full_name }}</span>
+                  <span class="flex items-center gap-1.5">
+                    <span class="text-xs font-medium font-sans truncate" :class="m.status !== 'ACCEPTED' && 'text-slate-500 dark:text-slate-500'">
+                      {{ m.full_name }}
+                    </span>
+                    <!-- An invited person is not a member. Saying so plainly
+                         stops a PM assigning work to somebody who cannot see
+                         the project. -->
+                    <span
+                      v-if="m.status === 'PENDING'"
+                      class="px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 shrink-0"
+                    >INVITED</span>
+                    <span
+                      v-else-if="m.status === 'DECLINED'"
+                      class="px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold bg-rose-100 dark:bg-rose-500/15 text-rose-700 dark:text-rose-300 shrink-0"
+                    >DECLINED</span>
+                  </span>
                   <span class="block text-[10px] font-mono text-slate-500 dark:text-slate-400 truncate">
-                    {{ m.email }} · {{ m.active_tasks_count }} active · {{ m.wip_points }} pts
+                    <template v-if="m.status === 'ACCEPTED'">
+                      {{ m.email }} · {{ m.active_tasks_count }} active · {{ m.wip_points }} pts
+                    </template>
+                    <template v-else-if="m.status === 'PENDING'">
+                      {{ m.email }} · awaiting their answer
+                    </template>
+                    <template v-else>
+                      {{ m.email }} · declined the invitation
+                    </template>
                   </span>
                 </span>
 
