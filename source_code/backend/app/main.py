@@ -122,9 +122,24 @@ def seed_initial_data():
     finally:
         db.close()
 
+def migrate_database():
+    from sqlalchemy import text
+    try:
+        with engine.begin() as conn:
+            result = conn.execute(text("PRAGMA table_info(users)"))
+            columns = [row[1] for row in result.fetchall()]
+            if columns:
+                if "google_id" not in columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN google_id VARCHAR(255)"))
+                if "avatar_url" not in columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(500)"))
+    except Exception as e:
+        print("Migration notice:", e)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    migrate_database()
     Base.metadata.create_all(bind=engine)
     seed_initial_data()
     yield
