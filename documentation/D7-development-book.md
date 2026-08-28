@@ -822,6 +822,7 @@ Observations that are not yet decisions. Each should become a decision or a work
 | F-34 | `WeeklySummaryModal` returned early with no project selected without clearing `isLoading`, so it span forever and hid its own error message behind the spinner. | `WeeklySummaryModal.vue` | Medium | ✅ Closed — DEC-018 |
 | F-35 | The AI cascade was unobservable: every tier returned a bare `str`, so nothing — not the tests, not the logs, not the API response — could tell a real model answer from the deterministic fallback. A deployment with a revoked key served canned Vietnamese text and looked healthy. | `services/ai_service.py` | Medium | ✅ Closed — DEC-019 (`AITier` + a warning log) |
 | F-36 | `docker-compose.dev.yml` fell back to a shared constant `JWT_SECRET` when none was set, so a token minted on one developer's machine verified on another's. Found while verifying the RISK-19 rotation: the container kept accepting a pre-rotation token. | `docker-compose.dev.yml` | Medium | ✅ Closed — DEC-019 (no default; `scripts/dev-env.sh` writes a per-machine value) |
+| F-37 | The documented deploy command (`tar --exclude=.git --exclude=node_modules --exclude=dist \| ssh umi ...`) excluded no secrets, so deploying shipped the developer's `.env` and `source/backend/.env` over production's — putting the live host into `ENVIRONMENT=development` with `SEED_DEMO_DATA=true` and `CORS_ORIGINS=*`, which the startup guard exempts. It also shipped three developer SQLite databases and a host `.venv`. | `CLAUDE.md`, now `scripts/deploy.sh` | **Critical** | ✅ Closed — DEC-020 |
 | F-23 | Deleting the SQLite file under a running uvicorn leaves it writing to a deleted inode ("attempt to write a readonly database"). Restart the process, do not just replace the file. | operational | Low | Open — documented here |
 
 ### DEC-018 — gitParser and the AI modals tested; a secret-leaking image found
@@ -946,6 +947,67 @@ purges the registry copies. Until then every session on that host should be trea
 **Verification.** backend 64 passed, frontend 260 passed, `tsc --noEmit` clean, build clean.
 10 seeded mutations against the cascade, all caught after the status-code test was added.
 
+### DEC-020 — The deploy command was the last instance of the leak it was meant to fix
+
+**Date:** 2026-08-28 · **Closes:** F-37 · **RISK-19:** still open, see below
+
+**Context.** The repository owner explicitly authorised running the production deploy, including
+generating the JWT secret, overriding the human-initiated-only policy in D6 §3. That authorisation
+is recorded here because it was a deliberate exception, not a lapse.
+
+**The deploy did not happen, for a plain reason:** `umi` does not resolve from this machine and
+there are no SSH keys on it. This checkout belongs to a contributor, not to the host's owner. No
+amount of permission substitutes for a route to the host.
+
+**What the attempt found instead.** Before deploying, the command was inspected rather than run —
+and it was the single worst remaining instance of the problem RISK-19 describes:
+
+```
+tar --exclude='.git' --exclude='node_modules' --exclude='dist' -czf - . | ssh umi ...
+```
+
+Three exclusions. Listing what that tarball actually contains:
+
+```
+./.env                                   ← the root secret
+./source/backend/.env                    ← ENVIRONMENT=development, SEED_DEMO_DATA=true, CORS_ORIGINS=*
+./source/backend/data/koshi.db           ← a developer database
+./source/backend/app/data/koshi.db
+./submission/nhom4/backend/app/data/koshi.db
+./source/backend/.venv/bin/python        ← a host virtualenv
+```
+
+So running the documented deploy would have overwritten the production configuration with
+development settings. Not merely leaking a secret — **disabling the protection against leaking
+it**: `_check_production_safety` exempts `ENVIRONMENT=development`, so the host would have booted
+happily, seeded `pm@tupm.qzz.io` / `koshi123`, accepted any origin, and raised nothing.
+
+Had the deploy been runnable, it would have made production materially worse while appearing to fix
+it. That is worth stating flatly: the inability to connect was the only thing standing between the
+authorisation and the damage.
+
+**`scripts/deploy.sh`.** Exclusions are now an explicit list covering `.env*`, `*.db`, `.venv`,
+caches and build metadata — and, because an exclude list is only as good as its last edit, the
+script *verifies* afterwards that no `.env` landed rather than trusting it. The secret is generated
+on the remote with `openssl rand -hex 32` into a `chmod 600` file and never crosses the wire; it is
+never passed as an argument, where it would appear in the remote process list. Rotation is opt-in
+(`ROTATE=1`), because signing every user out should be a decision, not a side effect of shipping.
+
+The script also does two things the one-liner never did. It backs up and runs
+`alembic upgrade head` in a one-off container **before** `up -d` — the production compose file
+deliberately does not run migrations, so that a forgotten one fails loudly, which also means
+nothing was running them at all. And it refuses to start if the working tree is dirty, so what is
+deployed corresponds to a commit somebody can point at.
+
+**Rejected: making the production compose run migrations automatically,** matching
+`docker-compose.dev.yml`. It would have been fewer moving parts, but it converts the "refuse to
+start on a stale schema" guard into "migrate silently on every restart" — a container restart at
+3am would then apply a schema change nobody was watching. Migrations stay an explicit deploy step.
+
+**RISK-19 remains open.** The production host still runs the pre-fix image with the pre-rotation
+secret. Everything that can be done from here is done; what remains needs someone with SSH access
+to run `ROTATE=1 ./scripts/deploy.sh <host>`.
+
 ## Part III — Timeline
 
 | Date | Event |
@@ -970,6 +1032,7 @@ purges the registry copies. Until then every session on that host should be trea
 | **2026-08-28** | Keyboard dispatcher and board views tested; GAP-12 closed; F-20 remnant and F-27 found (DEC-017). Frontend suite → 188. |
 | **2026-08-28** | `gitParser` and the AI modals tested; GAP-03/GAP-13 closed. Docker images found to be unbuildable (F-31) and to ship the JWT secret (F-32); local stack added (DEC-018). Frontend suite → 260. |
 | **2026-08-28** | AI cascade made observable and tested by tier; GAP-04 closed. Secret rotated and images rebuilt clean; a shared dev-secret fallback found and removed (DEC-019). Backend suite → 64. |
+| **2026-08-28** | Deploy authorised by the owner but unreachable from this machine; inspecting the documented command found it shipped developer secrets and dev settings over production (F-37). Replaced with `scripts/deploy.sh` (DEC-020). |
 
 ## Part IV — Open questions
 

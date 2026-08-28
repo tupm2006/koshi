@@ -113,15 +113,22 @@ documentation/      D1–D8 — the navigation layer
 submission/         frozen coursework snapshot — read-only (D6 §3)
 ```
 
-## Deployment — human-initiated only
-
-Do **not** run this yourself. It overwrites a live production host.
+## Deployment
 
 ```bash
-tar --exclude='.git' --exclude='node_modules' --exclude='dist' -czf - . \
-  | ssh umi "tar -xzf - -C /home/tupm/docker/koshi" \
-  && ssh umi "cd /home/tupm/docker/koshi && docker compose build && docker compose up -d"
+./scripts/deploy.sh <ssh-host> [remote-dir]      # ROTATE=1 to also rotate the JWT secret
 ```
+
+The tar|ssh one-liner that used to be here **must not be used**. It excluded only `.git`,
+`node_modules` and `dist`, so it shipped `.env` and `source/backend/.env` to production —
+overwriting the live config with `ENVIRONMENT=development`, `SEED_DEMO_DATA=true` and
+`CORS_ORIGINS=*`. The startup safety guard would not have objected, because it exempts development.
+It also shipped developer databases over the production one. (F-37.)
+
+`deploy.sh` excludes secrets, databases and virtualenvs, verifies afterwards that none landed,
+generates the secret **on the remote** so none is ever transferred, backs up and migrates before
+starting, and health-checks. Still a 🔴 red-zone action: it overwrites a live host, so run it
+knowingly, not as a step in something else.
 
 ## Authorship
 

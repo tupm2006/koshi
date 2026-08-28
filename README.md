@@ -164,8 +164,10 @@ Known defects are catalogued in [D7 Part II](./documentation/D7-development-book
 in [D6 §4](./documentation/D6-risks-delegation-policies.md). Still open and worth knowing about:
 
 - **The production host still runs the pre-rotation secret** (D6 RISK-19). It was rotated locally
-  and both images rebuilt clean, but deploying is human-initiated by policy. Until it is deployed,
-  treat every session on that host as forgeable. Rotate on any deployment predating 2026-08-28, and
+  and both images rebuilt clean, but the host is not reachable from every checkout. Whoever has SSH
+  access should run `ROTATE=1 ./scripts/deploy.sh umi`. Until then, treat every session on that
+  host as forgeable. Do not use the old `tar | ssh` one-liner — it shipped developer secrets and
+  development settings over production (D7 F-37). Rotate on any deployment predating 2026-08-28, and
   again if you have ever built or pulled the backend image, which was shipping `.env` inside it
   until the `.dockerignore` was added. The old default was also published in this repo. Runbook:
   [D6 §7.1](./documentation/D6-risks-delegation-policies.md).
