@@ -7,14 +7,20 @@ services:
     restart: unless-stopped
     environment:
       - ENVIRONMENT=production
-      - DATABASE_URL=sqlite:///./data/koshi.db
-      - JWT_SECRET=${JWT_SECRET:-koshi_production_jwt_secret_secure_key_2026_9f83a21bc9e47d108f}
+      - JWT_SECRET=${JWT_SECRET:-d9a83f4b1e5c2a7f8093e614b82d3f7a1c9e8b0d4f2a6e3c5b8a1f7d9e2c4b6a}
+      - DATABASE_URL=sqlite:////app/data/koshi.db
+      - ALLOWED_ORIGINS=https://koshi.felixsu.qzz.io,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173
       - AI_API_URL=https://api.openai.com/v1/chat/completions
       - AI_API_KEY=${AI_API_KEY:-}
       - AI_MODEL_NAME=gpt-4o-mini
       - OLLAMA_URL=http://host.docker.internal:11434/v1/chat/completions
     volumes:
       - koshi-data:/app/data
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     networks:
       - koshi-internal
 
@@ -25,7 +31,8 @@ services:
     container_name: koshi
     restart: unless-stopped
     depends_on:
-      - koshi-backend
+      koshi-backend:
+        condition: service_healthy
     networks:
       - koshi-internal
       - proxy-net
