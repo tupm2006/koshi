@@ -32,6 +32,8 @@ Proceed, but state what you did and why in your summary, and update the affected
 | `source/frontend/lib/keyboard.ts` | Any binding change must also update `ShortcutsHelpModal.vue`, `README.md`, and D1 §3.1. |
 | `source/backend/app/routers/**` — logic within an existing shape | Response shape unchanged ⇒ yellow. Shape changed ⇒ 🔴. **Never remove a `require_member` / `require_project_pm` call** — that is 🔴 regardless of shape. |
 | `source/frontend/components/ProjectDashboard.vue` | UI only. Hiding or showing a control changes no permission; the server is the boundary (D3 §5b). |
+| `source/frontend/lib/translations.ts` | Adding a key requires it in **every** locale or the build fails. Pricing values are placeholders (RISK-18). |
+| `source/frontend/components/LandingPage.vue` | Marketing copy. Subject to P14 — no invented testimonials or metrics. |
 | `source/backend/app/services/ai_service.py` — prompts | Prompts are Vietnamese; keep the language. Tier-3 branches on **substring matches in the prompt text** — editing prompt wording can silently break fallback routing. |
 | Adding a dependency | Justify it; prefer zero-dependency solutions. |
 | `vite.config.ts`, `tsconfig.json`, `Dockerfile`, `docker-compose.yml`, `nginx.conf` | Path-coupled after the restructure (D3 §6). Verify `pnpm run build` afterwards. |
@@ -89,14 +91,16 @@ documentation.
 | **RISK-04** | **Duplicated status-cycle logic** client and server (D4 §3.1). Divergence silently desynchronises the UI from persisted state. | Medium | Medium | Both implementations currently agree. Any edit must change both. |
 | **RISK-05** | **`allow_origins=["*"]` with `allow_credentials=True`.** Invalid per the CORS spec and rejected by browsers; masks real origin policy. | Low | Medium | ✅ **Closed 2026-08-28.** Origins come from `CORS_ORIGINS`; `allow_credentials` is switched off automatically when the origin list is `*`, and `*` is rejected outside development. |
 | **RISK-06** | **`dagSorter.ts` has no tests** yet holds the most intricate logic in the repo. | Low | High | ✅ **Closed 2026-08-28.** 28 tests; verified by seeding 7 defects and confirming each was caught. |
-| **RISK-16** | **`taskStore.ts` has no tests** and now carries the widest blast radius in the repo — auth transitions, project selection, persistence ordering. All three DEC-012 defects lived here. | High | High | ⚠️ **Open.** D5 GAP-05; the Vitest runner now exists, so it is unblocked. |
+| **RISK-16** | **`taskStore.ts` has no tests** despite the widest blast radius in the repo. | Low | High | ✅ **Closed 2026-08-28.** 24 tests, mutation-verified against 8 seeded defects (DEC-015). |
+| **RISK-17** | **No `.vue` component has a test.** `AuthDialog` and `ProfilePage` handle credentials and account edits with no automated verification. | High | Medium | ⚠️ **Open.** D5 GAP-10 — now the largest gap. |
+| **RISK-18** | **Pricing figures on the landing page are placeholders.** Publishing them unchanged would advertise prices nobody agreed to. | Medium | Medium | ⚠️ **Open.** Replace the `pricing.*` values in `lib/translations.ts` before launch. |
 | **RISK-07** | **Documentation contradicting code.** The retired SRS/URD/README made at least seven claims the code did not support (status order, key bindings, `/api/v1`, a non-existent test file, the LLM vendor). An agent trusting prose writes wrong code. | Low | High | ✅ **Closed 2026-08-28.** Stale documents deleted; `README.md` and `CLAUDE.md` rewritten against the code; D1–D8 are the single source. Conflicts preserved for the record in D7 / DEC-005. |
 | **RISK-08** | **Dependency graph was server-side unresolvable** — dependencies were `List[str]` against `int` ids. | Low | High | ✅ **Closed 2026-08-28.** Integer ids are canonical; unresolvable, self- and cross-project dependencies are rejected (D7 / DEC-014). |
 | **RISK-09** | **Two lockfiles**, with the Dockerfile running `npm install` and copying neither, so the image resolved an untested tree. | Low | Medium | ✅ **Closed 2026-08-28.** `package-lock.json` removed; the image runs `pnpm install --frozen-lockfile`. |
 | **RISK-10** | **No DB migrations.** Schema came from `create_all`, which never alters an existing table, so a column change silently did nothing to a deployed volume. | Low | High | ✅ **Closed 2026-08-28.** Alembic adopted with a pre-roles baseline (`0001`) and the roles migration (`0002`), both reversible. Outside development the app creates no schema and refuses to start unless the DB is at head. Covered by `test_migrations.py`, including upgrade of a populated legacy database. |
 | **RISK-11** | **Seed data fires on an empty users table** in the lifespan hook, including a fixed password `koshi123` for `pm@tupm.qzz.io`. | Low | High | ✅ **Closed 2026-08-28.** Gated behind `SEED_DEMO_DATA`, and startup fails if it is enabled outside development. |
 | **RISK-12** | **Tier-3 AI output is indistinguishable from real model output** to the caller. Users may act on canned text believing it is analysis. | High | Medium | Surface the tier in the response (e.g. a `source` field). |
-| **RISK-13** | **No client/server reconciliation.** IndexedDB and SQLite diverge silently; last-write-wins. | High | Medium | ⚠️ **Open** (accepted for v1, D1 §4). **Partially reduced 2026-08-28:** the cache is now partitioned per project (`koshi_tasks_v2_p{id}`), so cross-project contamination is no longer possible. Divergence *within* a project remains unreconciled, and matters more now the app is genuinely multi-user. |
+| **RISK-13** | **No client/server reconciliation.** IndexedDB and SQLite diverge silently; last-write-wins. | Medium | Medium | ⚠️ **Open, but contained.** The cache is partitioned per project (INV-12), and since DEC-015 a **shared** project is read-only while offline (INV-15), so two members can no longer overwrite each other. The remaining exposure is a single user editing one personal project from two devices. |
 | **RISK-14** | **`_check_production_safety` is untested.** A refactor could disable the boot guard without any test failing. | Low | High | ✅ **Closed 2026-08-28.** `test_startup_safety.py` covers all four insecure defaults, the safe case, and the development exemption. |
 | **RISK-15** | **Membership grants access to the whole project.** There is no per-task or per-field permission, and a `MEMBER` may edit or delete any task in a project they belong to. | Medium | Low | Accepted for v1. Revisit if larger teams need it (D1 OQ-05). |
 
@@ -154,6 +158,10 @@ this class of mistake; never relax it to make a deployment "work".
 **P11 — The server is the security boundary, never the UI.** Hiding a button is an affordance, not
 a permission. Every rule enforced in a component must also be enforced in a router, and the router
 check is the one that counts.
+
+**P14 — No fabricated social proof.** Testimonials, customer quotes, logos and usage numbers must
+describe something real. The landing page uses use-case descriptions instead, and the demo video
+renders only when a real file is configured. Do not add invented ones to fill space.
 
 **P12 — Never edit an applied migration.** Once a revision may have run anywhere, it is immutable;
 correct it with a new revision. Editing it silently desynchronises databases that already ran it.

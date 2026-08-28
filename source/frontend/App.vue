@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useTaskStore } from './stores/taskStore';
 import { useThemeStore } from './stores/themeStore';
+import { useI18nStore } from './stores/i18nStore';
 import { createKeyboardHandler } from './lib/keyboard';
 import TaskTable from './components/TaskTable.vue';
 import KanbanBoard from './components/KanbanBoard.vue';
@@ -40,6 +41,16 @@ import type { FilterStatus } from './types/task';
 
 const taskStore = useTaskStore();
 const themeStore = useThemeStore();
+const i18n = useI18nStore();
+const t = computed(() => i18n.t);
+
+// A signed-in account with no membership has nothing to put on the board.
+const hasNoProject = computed(
+  () => taskStore.currentUser !== null && taskStore.currentProjectId === null,
+);
+const isOfflineShared = computed(
+  () => taskStore.isReadOnly && taskStore.readOnlyReason === 'OFFLINE_SHARED',
+);
 
 // Modal visibility states
 const isAIDecomposerOpen = ref(false);
@@ -396,13 +407,8 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 
     <!-- Workspace Body (Full-Viewport Docked Layout) -->
     <div class="flex-1 min-h-0 w-full max-w-[1720px] mx-auto p-4 flex flex-col overflow-hidden">
-      <!-- No project selected: a signed-in account with no membership yet has
-           nothing to show on the board, so point it at the dashboard rather
-           than rendering an empty grid with no way forward. -->
-      <div
-        v-if="taskStore.currentUser && taskStore.currentProjectId === null"
-        class="flex-1 min-h-0 flex items-center justify-center"
-      >
+      <!-- Nothing to show: point at the dashboard rather than an empty grid. -->
+      <div v-if="hasNoProject" class="flex-1 min-h-0 flex items-center justify-center">
         <div class="max-w-md text-center p-8 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
           <div class="mx-auto w-11 h-11 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
             <FolderKanban class="w-5 h-5" />
@@ -423,15 +429,23 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
         </div>
       </div>
 
-      <!-- Table View: Docked full-height table card -->
-      <div v-else-if="taskStore.viewMode === 'TABLE'" class="flex-1 min-h-0 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg shadow-xs overflow-y-auto">
-        <TaskTable :on-open-create="() => (isCreateModalOpen = true)" />
-      </div>
+      <template v-else>
+        <!-- Shared project with no connection: editing is paused. -->
+        <div
+          v-if="isOfflineShared"
+          class="mb-3 shrink-0 rounded-lg border border-rose-300 dark:border-rose-800/60 bg-rose-50 dark:bg-rose-950/40 px-4 py-2.5 text-xs text-rose-800 dark:text-rose-300"
+        >
+          {{ t('board.offlineSharedHint') }}
+        </div>
 
-      <!-- Kanban View: Docked horizontal column scroll -->
-      <div v-else class="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
-        <KanbanBoard :on-open-create="() => (isCreateModalOpen = true)" />
-      </div>
+        <div v-if="taskStore.viewMode === 'TABLE'" class="flex-1 min-h-0 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg shadow-xs overflow-y-auto">
+          <TaskTable :on-open-create="() => (isCreateModalOpen = true)" />
+        </div>
+
+        <div v-else class="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
+          <KanbanBoard :on-open-create="() => (isCreateModalOpen = true)" />
+        </div>
+      </template>
     </div>
 
     <!-- Footer (Fixed h-9) -->
@@ -451,23 +465,23 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
         </div>
 
         <div class="flex items-center gap-2.5 font-mono text-xs ml-auto">
-          <!-- Offline Warning Badge -->
+          <!-- Offline state. A shared project goes read-only while
+               disconnected; a personal one keeps accepting local edits. -->
           <span
-            v-if="!taskStore.isBackendConnected"
+            v-if="isOfflineShared"
+            class="h-6 inline-flex items-center gap-1.5 px-2 rounded-md bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950/50 dark:text-rose-300 dark:border-rose-800/60 font-semibold"
+            :title="t('board.offlineSharedHint')"
+          >
+            <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+            <span>{{ t('board.offlineShared') }}</span>
+          </span>
+          <span
+            v-else-if="!taskStore.isBackendConnected && taskStore.currentProjectId !== null"
             class="h-6 inline-flex items-center gap-1.5 px-2 rounded-md bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800/60 font-semibold"
           >
             <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-            <span>Offline (Local buffer)</span>
+            <span>{{ t('board.offlinePersonal') }}</span>
           </span>
-
-          <!-- Reset action -->
-          <button
-            type="button"
-            class="text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer font-medium"
-            @click="taskStore.resetToDefault()"
-          >
-            Reset sample
-          </button>
         </div>
       </div>
     </footer>

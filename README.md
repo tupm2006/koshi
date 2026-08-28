@@ -34,7 +34,7 @@ submission/     frozen coursework snapshot — do not edit
 ```bash
 pnpm install
 pnpm run dev            # http://localhost:5173, proxies /api → :8000
-pnpm test               # vitest run
+pnpm test               # vitest run — 61 tests
 pnpm run build          # vue-tsc -b && vite build → dist/
 ```
 
@@ -83,10 +83,15 @@ documents. Read them in order; each answers one question.
 
 ## Screens
 
-An unauthenticated visitor gets a **landing page** (sign in / create account, plus an explicit
-"explore the demo board" option that keeps the local-first promise). Signing in opens the **board**;
-signing out returns to the landing page. A dedicated **profile page** owns account details, project
-memberships and sign-out.
+An unauthenticated visitor gets a **marketing landing page** — hero, features, how-it-works,
+pricing, FAQ — with a small sign-in control in the top-right and a language picker (English /
+Tiếng Việt). There is no signed-out board: authentication is required before any project data
+loads. Signing in opens the **board**; signing out returns to the landing page. A dedicated
+**profile page** owns account details, project memberships and sign-out.
+
+**Offline.** A *personal* project (one member) stays fully editable with the backend unreachable.
+A *shared* project goes read-only while disconnected — there is no reconciliation, so two members
+editing offline would overwrite each other.
 
 ## Accounts, projects and roles
 
@@ -139,11 +144,10 @@ Tier 3 output is currently indistinguishable from real model output to the calle
 
 ## Project status
 
-The backend is covered end to end (38/38), with authorisation the best-tested area — every
-negative path is asserted. The frontend has Vitest covering the DAG engine (28/28, mutation-verified)
-but **nothing else**: the Pinia store, the keyboard dispatcher and every component are untested.
-Overall: 48% of requirements automated, 9% unverified. Full breakdown in
-[D8 §5](./documentation/D8-rtm.md).
+The backend is covered end to end (38/38), with authorisation the best-tested area. The frontend
+has 61 tests over the DAG engine, the Pinia store and localisation — both suites mutation-verified.
+**No `.vue` component has a test.** Overall: 52% of requirements automated, 8% unverified. Full
+breakdown in [D8 §5](./documentation/D8-rtm.md).
 
 Known defects are catalogued in [D7 Part II](./documentation/D7-development-book.md) and risk-rated
 in [D6 §4](./documentation/D6-risks-delegation-policies.md). Still open and worth knowing about:
@@ -154,9 +158,10 @@ in [D6 §4](./documentation/D6-risks-delegation-policies.md). Still open and wor
 - **Rotate `JWT_SECRET` on any deployment that predates 2026-08-28.** The old default was published
   in this repo; tokens signed with it remain forgeable. Runbook:
   [D6 §7.1](./documentation/D6-risks-delegation-policies.md).
-- **`stores/taskStore.ts` has no tests** — the highest-value gap: widest blast radius in the repo,
-  where the last round of auth bugs lived, and now owner of the screen state too.
-- **The landing and profile pages are manual-only** (D5 GAP-10), despite being auth-adjacent.
+- **No `.vue` component has a test** (D5 GAP-10) — including `AuthDialog` and `ProfilePage`, which
+  handle credentials and account edits.
+- **Landing-page pricing figures are placeholders** and must be replaced before publishing
+  (D6 RISK-18).
 
 ## Contributors
 

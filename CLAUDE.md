@@ -22,12 +22,12 @@ Guidance for AI agents working in this repository. **Read `documentation/` befor
 cd source/backend && pytest -q          # expect: 38 passed
 
 # Frontend
-pnpm test                               # expect: 28 passed (vitest)
+pnpm test                               # expect: 61 passed (vitest)
 pnpm run build                          # vue-tsc -b && vite build
 ```
 
-Vitest covers `lib/dagSorter.ts` only. The store, keyboard dispatcher and components have no tests —
-a green build there is a type check, not a correctness check.
+Vitest covers `lib/dagSorter.ts`, `stores/taskStore.ts` and `stores/i18nStore.ts`. **No `.vue`
+component has a test** — a green build there is a type check, not a correctness check.
 
 ## Standing rules
 
@@ -74,6 +74,12 @@ refuses to start unless the database is at head.
 **Task ids: integers are canonical.** `TSK-n` is a derived display key (`TaskOut.key`), and the
 only place the two representations convert is `taskKeyOf` / `serverIdOf` in `services/api.ts`.
 Dependencies are `List[int]` and must resolve within the same project.
+
+**Offline writes are gated.** A shared project (2+ members) is read-only while disconnected;
+a personal one stays editable. `taskStore.canMutate` is the single gate — never bypass it.
+
+**Localisation.** Any user-facing string goes in `lib/translations.ts` for **both** locales; the
+English object is the source of truth and a missing key is a compile error.
 
 **Three screens, no router.** `taskStore.appView` is `LANDING | BOARD | PROFILE`. A signed-out
 visitor must never reach the board except via explicit guest mode.

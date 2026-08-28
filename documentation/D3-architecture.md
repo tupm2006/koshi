@@ -249,10 +249,10 @@ adding one would mean a dependency plus URL state to keep in sync with a store
 that already owns the session. The trade is that screens are not addressable —
 acceptable now, and the reason to revisit if deep-linking is ever wanted.
 
-`LANDING` is the default rather than the board. Previously an unauthenticated
-visitor landed straight on a board of sample tasks, which implied the data was
-theirs. Guest mode still exists (FR-NAV-03) but is now an explicit choice, so
-local-first usage (FR-PERS-02) survives without being the accidental default.
+`LANDING` is the default and there is **no** signed-out board at all: guest mode
+was removed, so a visitor must authenticate before any project data is loaded.
+That removes the ambiguity of a sample board that looked like real data, and
+removes a second persistence path that nothing else in the system used.
 
 ## 5c. Schema ownership
 
@@ -275,6 +275,27 @@ Existing databases that predate Alembic are onboarded by stamping the baseline:
 alembic stamp 0001_initial_schema   # assert "my schema matches the pre-roles baseline"
 alembic upgrade head                # then migrate forward normally
 ```
+
+## 5d. Offline write policy
+
+Local-first means writes land in IndexedDB before the network, but "always
+writable" is only safe when there is exactly one writer:
+
+```
+project has 1 member   +  offline  ->  writable   (nobody else can conflict)
+project has 2+ members +  offline  ->  READ-ONLY  (no reconciliation exists)
+any project            +  online   ->  writable
+```
+
+`taskStore.canMutate` is the single gate; `createTask`, `updateTask` and
+`deleteTask` all consult it, and the UI surfaces the state as a badge plus a
+banner. Because there is no merge algorithm (RISK-13), two members editing the
+same task offline would silently overwrite each other on reconnect. Refusing the
+write is worse UX than accepting it and better than losing someone's work.
+
+This is a deliberate narrowing of the original FR-PERS-02, which promised the
+whole app worked offline. The promise now holds for personal projects and is
+explicitly withdrawn for shared ones.
 
 ## 6. Deployment architecture
 

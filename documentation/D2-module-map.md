@@ -57,6 +57,7 @@ koshi/
 | `keyboard.ts` | keydown dispatcher | Single global `switch` mapping keys → store actions. **The one authoritative list of key bindings.** | FR-INT-01…13 |
 | `gitParser.ts` | `parseGitDiff(diff, tasks)` | Regex extraction of `close/fix/resolve #ID`; scans added lines for TODO/FIXME, empty catch blocks, hardcoded secrets, `: any`. | FR-AI-05 |
 | `aiDecomposer.ts` | client-side goal heuristics | Tier-1 (<5 ms) local decomposition before any network call. | FR-AI-04 |
+| `translations.ts` | `MESSAGES`, `LOCALES`, `LOCALE_LABELS` | English + Vietnamese dictionary. `Translations` is derived from the English object, so a key missing elsewhere is a **compile error**, not a runtime fallback. | FR-I18N-01…05 |
 
 ### 2.2 State — `source/frontend/stores/`
 
@@ -64,6 +65,7 @@ koshi/
 |:--|:--|:--|
 | `taskStore.ts` | **The system's centre of gravity (~570 lines).** Holds `tasks`, `projects`, `currentProjectId`, selection indices (`selectedIndex`, `kanbanColIndex`, `kanbanRowIndex`), edit/detail target IDs, filter object, `currentUser`, `isBackendConnected`. Owns every mutation, IndexedDB read/write (`koshi_tasks_v1`), and the `INITIAL_TASKS` seed. | Changes here have the widest blast radius in the repo — see D8. |
 | `themeStore.ts` | Dark/light state; injects a temporary `* { transition: none !important }` element during class swap to guarantee 0 ms snapping. | NFR-02, NFR-05 |
+| `i18nStore.ts` | Active locale, persisted to `koshi_locale`; `t(key)` lookup; `detectLocale` resolves stored choice → browser language → English. **Tested.** | FR-I18N-01…05 |
 
 ### 2.3 Transport — `source/frontend/services/api.ts`
 
@@ -95,7 +97,8 @@ The frontend's contract surface: `TaskStatus`, `TaskPriority`, `Complexity`, `Ta
 | `WeeklySummaryModal.vue` | AI menu | FR-AI-01. |
 | `MeetingMinutesModal.vue` | AI menu | FR-AI-02. |
 | `WorkloadAssignModal.vue` | AI menu | FR-AI-03 / FR-AI-07. |
-| `LandingPage.vue` | `appView === 'LANDING'` | Full-screen entry point: product pitch, sign-in / create-account, guest escape hatch. Replaced `AuthModal.vue`. |
+| `LandingPage.vue` | `appView === 'LANDING'` | Public marketing page: sticky nav with language picker, hero, product preview, features, how-it-works, use cases, pricing, FAQ, CTA, footer. |
+| `AuthDialog.vue` | landing nav / any CTA | Sign-in and sign-up dialog. Kept out of the hero so the landing page reads as marketing. |
 | `ProfilePage.vue` | `appView === 'PROFILE'` | Full-page account view: identity, stat tiles, editable name/skills, project memberships with role, sign-out. |
 | `ProjectDashboard.vue` | project pill in header | Personal dashboard: project list with the caller's role in each, project creation, member roster, add-member, per-project role assignment. PM-only controls hidden for members. |
 | `ShortcutsHelpModal.vue` | `?` | Key reference. |

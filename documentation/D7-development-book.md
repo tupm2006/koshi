@@ -587,6 +587,91 @@ untested (GAP-05, RISK-16). That remains the largest gap in the project.
 
 ---
 
+### DEC-015 — Guest mode dropped, offline narrowed, marketing site, localisation, store tests
+**Date:** 2026-08-28 · **Status:** Active · **Requested by the maintainer**
+
+#### Guest mode removed
+
+A signed-out visitor previously got a board of sample tasks. That implied the data was theirs, and
+kept a second persistence path (`koshi_tasks_v2_guest`, `INITIAL_TASKS`, `resetToDefault`) that
+nothing else used. All of it is deleted: authentication is now required before any project data
+loads, and `taskStore.test.ts` asserts `continueAsGuest` and `isGuestMode` no longer exist so they
+cannot quietly return.
+
+#### Offline writes narrowed to personal projects (FR-PERS-02 / FR-PERS-06)
+
+FR-PERS-02 promised the whole app worked offline. That is only safe with one writer. There is no
+reconciliation (RISK-13), so two members editing the same task offline would silently overwrite each
+other on reconnect.
+
+```
+1 member  + offline -> writable   (nobody else can conflict)
+2+ members + offline -> READ-ONLY
+any        + online  -> writable
+```
+
+`taskStore.canMutate` is the single gate; `createTask`, `updateTask` and `deleteTask` all consult it.
+The UI shows a red "read-only" badge plus an explanatory banner for a shared project, and an amber
+"editing locally" badge for a personal one — the two states are genuinely different and were worth
+distinguishing rather than showing one generic "offline" pill.
+
+This narrows a published requirement rather than fixing a bug, so FR-PERS-02 was rewritten and
+FR-PERS-06 added. RISK-13 drops from High to Medium: the remaining exposure is one user on two
+devices, not two users on one project.
+
+#### Landing page rebuilt as a marketing site (FR-MKT)
+
+Sticky nav, hero, product preview, features, how-it-works, use cases, pricing, FAQ, closing CTA,
+footer. Sign-in is a small control in the top-right; authentication moved into `AuthDialog.vue` so
+the fold is product messaging rather than a form.
+
+**Two things deliberately not fabricated:**
+
+- **No testimonials.** Inventing quotes from users who do not exist is fabricated social proof. The
+  "who it is for" section describes use cases instead. Now D6 P14.
+- **No demo video.** No video file ships with the repo, so the player renders only when
+  `VITE_DEMO_VIDEO_URL` is set. An empty frame that says so is honest; a fake play button is not.
+
+**Pricing is placeholder.** The figures are plausible defaults, not commercial decisions, and are
+flagged in D1 §3.5b and RISK-18. They must be replaced before the page is published.
+
+#### Localisation: English + Vietnamese (FR-I18N)
+
+Hand-rolled rather than `vue-i18n`, per D6's preference for zero-dependency solutions: two locales
+and a fixed key set do not justify a runtime library.
+
+The design point is that `Translations` is *derived from the English object*, so adding a key
+without a Vietnamese counterpart is a **compile error**, not a string that silently falls back at
+runtime. A test additionally asserts no locale has empty or stale keys, and that Vietnamese actually
+differs from English on sampled copy — which catches a locale stubbed out by copying the English
+file.
+
+`detectLocale` resolves stored choice → browser language (primary subtag, so `vi-VN` counts) →
+English, and is a pure function so it is testable without a browser.
+
+#### Store tests (GAP-05 / RISK-16)
+
+24 tests over `taskStore.ts`: the screen state machine, the offline write policy, project selection
+and per-project cache partitioning, task id translation, the status cycle and filters. `idb-keyval`
+and the API client are faked via `vi.hoisted()` — `vi.mock` factories are hoisted above the file
+body, so anything they close over must be created there.
+
+Validated the same way as DEC-013: eight defects seeded one at a time — making a shared project
+writable offline, making a personal one read-only, removing each mutation guard, sending the user to
+the board on logout, skipping the dashboard for a project-less account, unpartitioning the cache key,
+and sending dependencies as raw display keys. **All eight were caught**, and the source was restored
+byte-identical.
+
+**Verification.** Frontend 28 → 61 tests; backend 38 unchanged; type-check and build clean. Verified
+in-browser: the landing page renders with a small top-right sign-in, and switching to Vietnamese
+translates the entire page including pricing and FAQ.
+
+**Gap.** Every store and pure module is now covered, so the residual risk sits entirely in `.vue`
+components, which still have no tests at all (GAP-10, RISK-17) — including `AuthDialog` and
+`ProfilePage`, which handle credentials and account edits.
+
+---
+
 ## Part II — Findings ledger
 
 Observations that are not yet decisions. Each should become a decision or a work item.
@@ -639,3 +724,4 @@ Observations that are not yet decisions. Each should become a decision or a work
 | **2026-08-28** | JWT secret rotated; three auth-UI defects fixed; RISK-02 closed for this checkout (DEC-012). Suite → 34. |
 | **2026-08-28** | Vitest adopted; `dagSorter.ts` characterised with 28 mutation-verified tests; GAP-01/RISK-06 closed, F-24 found (DEC-013). |
 | **2026-08-28** | Task identity unified and 11 further findings closed; landing + profile pages added (DEC-014). Backend suite → 38. |
+| **2026-08-28** | Guest mode removed; offline writes narrowed to personal projects; marketing landing page; en/vi localisation; store tests (DEC-015). Frontend suite → 61. |

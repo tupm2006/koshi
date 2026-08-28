@@ -13,90 +13,7 @@ import { api, taskKeyOf, serverIdOf, type UserProfile, type Project, type Projec
  * another's — and an offline edit could then be synced to the wrong project.
  * The `v2` generation marks the layout change; `v1` values are simply ignored.
  */
-const GUEST_DB_KEY = 'koshi_tasks_v2_guest';
 const tasksKey = (projectId: number) => `koshi_tasks_v2_p${projectId}`;
-
-const INITIAL_TASKS: Task[] = [
-  {
-    id: 'TSK-101',
-    title: 'Migrate reactive state to Vue 3 Composition API & Pinia',
-    description: 'Provide high-velocity reactivity with TypeScript and component modularity.',
-    status: 'IN_PROGRESS',
-    priority: 'CRITICAL',
-    assignee: 'tupm',
-    dueDate: new Date(Date.now() + 86400000 * 2).toISOString(),
-    createdAt: Date.now() - 3600000 * 8,
-    updatedAt: Date.now() - 3600000 * 2,
-    complexity: 'M',
-    acceptanceCriteria: ['Pass customer specification audit', '0 runtime memory leaks', 'Full keyboard navigation'],
-  },
-  {
-    id: 'TSK-102',
-    title: 'Implement modal-less Vim keyboard traversal engine',
-    description: 'Bind j/k navigation, Space status toggle, Enter inline rename, and / quick filtering.',
-    status: 'TODO',
-    priority: 'HIGH',
-    assignee: 'tupm',
-    dueDate: new Date(Date.now() + 86400000 * 3).toISOString(),
-    createdAt: Date.now() - 3600000 * 7,
-    updatedAt: Date.now() - 3600000 * 2,
-    dependencies: ['TSK-101'],
-    complexity: 'L',
-    acceptanceCriteria: ['Interaction latency < 50ms', 'Full keyboard navigation with active selection'],
-  },
-  {
-    id: 'TSK-103',
-    title: 'Build local-first IndexedDB persistence layer',
-    description: 'Ensure offline execution with background non-blocking persistence.',
-    status: 'DONE',
-    priority: 'HIGH',
-    assignee: 'tupm',
-    createdAt: Date.now() - 3600000 * 24,
-    updatedAt: Date.now() - 3600000 * 12,
-    complexity: 'S',
-    acceptanceCriteria: ['Tasks load instantly on startup', 'No UI thread blocking on writes'],
-  },
-  {
-    id: 'TSK-104',
-    title: 'Topological DAG dependency sorter & critical path evaluator',
-    description: 'Compute DAG order and highlight bottleneck chains for high-velocity teams.',
-    status: 'TODO',
-    priority: 'MEDIUM',
-    assignee: 'tupm',
-    createdAt: Date.now() - 3600000 * 6,
-    updatedAt: Date.now() - 3600000 * 1,
-    dependencies: ['TSK-102'],
-    complexity: 'M',
-    acceptanceCriteria: ['Cycle detection in graph', 'Critical path calculation'],
-  },
-  {
-    id: 'TSK-105',
-    title: 'Develop AI Workflow Endpoints (Summary, Minutes, Assignment)',
-    description: 'Structured heuristics and LLM endpoints for progress aggregation and meeting extraction.',
-    status: 'BLOCKED',
-    blockingReason: 'Waiting for upstream Gemini API proxy verification',
-    priority: 'HIGH',
-    assignee: 'tupm',
-    createdAt: Date.now() - 3600000 * 5,
-    updatedAt: Date.now() - 3600000 * 1,
-    dependencies: ['TSK-102'],
-    complexity: 'M',
-    acceptanceCriteria: ['Summary generation', 'Meeting action item extraction', 'Workload heuristic load-balancing'],
-  },
-  {
-    id: 'TSK-106',
-    title: 'Integrate Vue 3 Composition API with JWT Bearer Token API sync',
-    description: 'Ensure authorization headers and silent token refreshes across local-first mutations.',
-    status: 'TODO',
-    priority: 'HIGH',
-    assignee: 'tupm',
-    createdAt: Date.now() - 3600000 * 4,
-    updatedAt: Date.now() - 3600000 * 1,
-    dependencies: ['TSK-101'],
-    complexity: 'M',
-    acceptanceCriteria: ['Zero visual auth jitter', 'Local fallback on backend timeout'],
-  },
-];
 
 const STATUS_ORDER: TaskStatus[] = ['TODO', 'IN_PROGRESS', 'BLOCKED', 'DONE'];
 
@@ -127,8 +44,6 @@ export const useTaskStore = defineStore('taskStore', {
      * would buy nothing.
      */
     appView: 'LANDING' as 'LANDING' | 'BOARD' | 'PROFILE',
-    /** True once a signed-out visitor has chosen to use the local demo board. */
-    isGuestMode: false,
     filter: {
       searchQuery: '',
       status: 'ALL',
@@ -150,6 +65,39 @@ export const useTaskStore = defineStore('taskStore', {
     /** Whether the UI should offer PM-only affordances for the selected project. */
     isProjectManager(): boolean {
       return (this as any).myRole === 'PM';
+    },
+
+    /**
+     * A project with exactly one member — nobody else can be editing it.
+     */
+    isPersonalProject(): boolean {
+      return ((this as any).currentProject?.member_count ?? 0) <= 1;
+    },
+
+    /**
+     * Whether local edits are allowed right now.
+     *
+     * Offline editing is safe on a personal project: there is no second writer,
+     * so last-write-wins cannot lose anyone else's work. On a shared project it
+     * is not — two members editing the same task offline would silently
+     * overwrite each other on reconnect, and there is no reconciliation
+     * (RISK-13). Shared projects therefore go read-only while disconnected.
+     */
+    canMutate(): boolean {
+      if ((this as any).currentProjectId === null) return false;
+      if ((this as any).isBackendConnected) return true;
+      return (this as any).isPersonalProject;
+    },
+
+    isReadOnly(): boolean {
+      return !(this as any).canMutate;
+    },
+
+    /** Why editing is blocked, for display. Null when editing is allowed. */
+    readOnlyReason(): string | null {
+      if ((this as any).canMutate) return null;
+      if ((this as any).currentProjectId === null) return 'NO_PROJECT';
+      return 'OFFLINE_SHARED';
     },
 
     filteredTasks(state): Task[] {
@@ -254,7 +202,6 @@ export const useTaskStore = defineStore('taskStore', {
     async onAuthenticated(user: UserProfile) {
       this.currentUser = user;
       this.isBackendConnected = true;
-      this.isGuestMode = false;
       this.appView = 'BOARD';
 
       const projects = await this.loadProjects();
@@ -276,26 +223,12 @@ export const useTaskStore = defineStore('taskStore', {
       this.currentProjectId = null;
       this.tasks = [];
       this.isDashboardOpen = false;
-      this.isGuestMode = false;
       this.selectedIndex = 0;
       this.kanbanColIndex = 0;
       this.kanbanRowIndex = 0;
       // Signing out returns to the landing page, not to a board the user can no
       // longer act on.
       this.appView = 'LANDING';
-    },
-
-    /** Let a signed-out visitor use the local-only demo board (FR-PERS-02). */
-    async continueAsGuest() {
-      this.isGuestMode = true;
-      this.appView = 'BOARD';
-      const stored = await get<Task[]>(GUEST_DB_KEY);
-      if (stored && Array.isArray(stored) && stored.length > 0) {
-        this.tasks = stored;
-      } else {
-        this.tasks = INITIAL_TASKS;
-        await set(GUEST_DB_KEY, INITIAL_TASKS);
-      }
     },
 
     showProfile() {
@@ -367,14 +300,14 @@ export const useTaskStore = defineStore('taskStore', {
           }
         }
 
-        // No usable session: show the landing page. The sample board is still
-        // loaded behind it so "continue as guest" is instant.
+        // No usable session. There is no signed-out board any more, so there is
+        // nothing to load — the landing page is the whole screen.
         this.appView = 'LANDING';
-        const stored = await get<Task[]>(GUEST_DB_KEY);
-        this.tasks = stored && Array.isArray(stored) && stored.length > 0 ? stored : INITIAL_TASKS;
+        this.tasks = [];
       } catch (err) {
         console.error('Failed to initialize taskStore:', err);
-        this.tasks = INITIAL_TASKS;
+        this.appView = 'LANDING';
+        this.tasks = [];
       } finally {
         this.isLoaded = true;
       }
@@ -415,7 +348,8 @@ export const useTaskStore = defineStore('taskStore', {
 
     async persist() {
       const t0 = performance.now();
-      const key = this.currentProjectId === null ? GUEST_DB_KEY : tasksKey(this.currentProjectId);
+      if (this.currentProjectId === null) return;
+      const key = tasksKey(this.currentProjectId);
       try {
         await set(key, JSON.parse(JSON.stringify(this.tasks)));
         this.lastLatencyMs = Math.round((performance.now() - t0) * 10) / 10;
@@ -510,6 +444,7 @@ export const useTaskStore = defineStore('taskStore', {
     },
 
     createTask(title: string, priority: TaskPriority = 'MEDIUM', status: TaskStatus = 'TODO'): Task | null {
+      if (!this.canMutate) return null;
       if (!title.trim()) return null;
       const nextNum = this.tasks.length > 0
         ? Math.max(...this.tasks.map((t) => parseInt(t.id.replace(/\D/g, ''), 10) || 100)) + 1
@@ -546,6 +481,7 @@ export const useTaskStore = defineStore('taskStore', {
     },
 
     updateTask(id: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>) {
+      if (!this.canMutate) return;
       this.tasks = this.tasks.map((t) => {
         if (t.id === id) {
           return { ...t, ...updates, updatedAt: Date.now() };
@@ -568,6 +504,7 @@ export const useTaskStore = defineStore('taskStore', {
     },
 
     deleteTask(id: string) {
+      if (!this.canMutate) return;
       this.tasks = this.tasks.filter((t) => t.id !== id);
       this.tasks = this.tasks.map((t) => {
         if (t.dependencies && t.dependencies.includes(id)) {
@@ -663,11 +600,6 @@ export const useTaskStore = defineStore('taskStore', {
       } catch (e: any) {
         return { success: false, error: e.message || 'Invalid JSON format.' };
       }
-    },
-
-    async resetToDefault() {
-      this.tasks = INITIAL_TASKS;
-      await this.persist();
     },
   },
 });

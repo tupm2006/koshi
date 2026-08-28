@@ -1,7 +1,7 @@
 # D5 — Tests & Acceptance Criteria
 
 **Purpose:** define what "correct" means, and record honestly what is currently verified.
-**Last verified by execution:** 2026-08-28 — backend `38 passed`, frontend `28 passed`.
+**Last verified by execution:** 2026-08-28 — backend `38 passed`, frontend `61 passed`.
 
 ---
 
@@ -36,14 +36,14 @@ creates nothing and **refuses to start** unless the database is at head (D3 §5c
 
 ```bash
 pnpm install
-pnpm test                     # vitest run — 28 tests
+pnpm test                     # vitest run — 61 tests
 pnpm run test:watch           # vitest, watch mode
 pnpm run build                # vue-tsc -b && vite build
 pnpm run dev                  # manual verification at :5173
 ```
 
-Vitest covers `lib/dagSorter.ts` only. Everything else in the frontend — the store, the keyboard
-dispatcher, `gitParser.ts`, every component — remains **manually verified only**; treat the
+Vitest covers `lib/dagSorter.ts`, `stores/taskStore.ts` and `stores/i18nStore.ts`. The keyboard
+dispatcher, `gitParser.ts` and every `.vue` component remain **manually verified only**; treat the
 acceptance criteria below accordingly unless a test is named.
 
 ---
@@ -73,7 +73,8 @@ acceptance criteria below accordingly unless a test is named.
 | `dagSorter.ts` — topological sort, cycles, critical path | ✅ `dagSorter.test.ts` (28) | Good — closes GAP-01. Mutation-tested: 7 seeded defects, all caught. |
 | `gitParser.ts` — diff parsing, secret detection | ❌ **none** | The retired SRS claimed a `gitParser.test.ts`; it never existed. |
 | `keyboard.ts` — 24 bindings, input guards | ❌ **none** | Manual only |
-| `taskStore.ts` — mutations, filters, persistence | ❌ **none** | Manual only |
+| `taskStore.ts` — screen state, offline policy, project selection, id translation, mutations, filters | ✅ `taskStore.test.ts` (24) | Good — closes GAP-05. Mutation-tested: 8 seeded defects, all caught. |
+| Localisation — dictionary completeness, locale detection | ✅ `i18nStore.test.ts` (9) | Good |
 | Any Vue component | ❌ **none** | Manual only |
 | Offline / IndexedDB behaviour | ❌ **none** | Manual only |
 | Performance (NFR-01, NFR-03) | ❌ **none** | Claims are unmeasured |
@@ -232,13 +233,13 @@ loosening the assertion without reading D7 / DEC-003.
 | ~~GAP-02~~ | ~~No negative authorisation tests~~ | — | ✅ **Closed 2026-08-28.** `test_projects_and_roles.py` covers MEMBER→403 on every PM action and non-member→404 across project, task, AI and stats routes. |
 | GAP-03 | `gitParser.ts` untested | **High** | Add `gitParser.test.ts` — secret detection and close-keyword regexes are security-adjacent. |
 | GAP-04 | No test distinguishes real LLM output from Tier-3 fallback | **Medium** | Assert cascade behaviour by mocking tiers, not just response shape. |
-| GAP-05 | `taskStore` mutations and filters untested — the largest gap. Now also owns `appView`, guest mode and profile updates, all unverified. | **High** | Vitest with a fake `idb-keyval`. The runner exists, so this is unblocked. |
-| GAP-10 | `LandingPage.vue` and `ProfilePage.vue` have no tests; both are auth-adjacent and manually verified only. | **Medium** | Component tests once a DOM environment is configured. |
+| ~~GAP-05~~ | ~~`taskStore` untested~~ | — | ✅ **Closed 2026-08-28.** 24 tests over the screen state machine, offline write policy, project selection and cache partitioning, id translation, status cycle and filters. |
+| GAP-10 | No `.vue` component has a test — `LandingPage`, `AuthDialog`, `ProfilePage` and the board views are all manual-only. Now the largest gap. | **High** | Add `@vue/test-utils` and a `jsdom` environment; start with `AuthDialog` and `ProfilePage`, which are auth-adjacent. |
 | GAP-06 | No E2E keyboard coverage | **Medium** | Playwright over FR-INT-01…11. |
 | ~~GAP-08~~ | ~~`_check_production_safety` untested~~ | — | ✅ **Closed 2026-08-28.** `test_startup_safety.py` parametrises all four insecure defaults plus the safe and development cases. |
 | GAP-09 | No frontend test asserts that PM-only controls are hidden from a MEMBER | **Low** | Component test once a runner exists; the server-side refusal is already covered. |
 | GAP-07 | Performance/accessibility claims unmeasured | **Low** | Either measure them or soften NFR-01/03/04 in D1. |
 
-**Recommended next move:** GAP-05 — `taskStore.ts`. It is now the largest untested surface, has the
-widest blast radius in the repo, and is where the three DEC-012 auth defects lived. The runner
-exists, so the only remaining cost is faking `idb-keyval` and the API client.
+**Recommended next move:** GAP-10 — component tests. Every store and pure module now has coverage,
+so the remaining risk is concentrated entirely in `.vue` files. `AuthDialog` and `ProfilePage` are
+the priority: both are auth-adjacent, and the store beneath them is already verified.

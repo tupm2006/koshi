@@ -47,11 +47,31 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 
 | Req | Work item | Implementation | Verification | St |
 |:--|:--|:--|:--|:--:|
-| FR-NAV-01 | Landing page | `components/LandingPage.vue`, `taskStore.appView` | — | 🟡 |
-| FR-NAV-02 | Logout → landing | `taskStore.logout` | — | 🟡 |
-| FR-NAV-03 | Guest mode | `taskStore.continueAsGuest` | — | 🟡 |
-| FR-NAV-04 | Auth → board / dashboard | `taskStore.onAuthenticated` | — | 🟡 |
-| FR-NAV-05 | Profile navigation | `App.vue` header pill, `taskStore.showProfile` / `showBoard` | — | 🟡 |
+| FR-NAV-01 | Landing page | `components/LandingPage.vue`, `taskStore.appView` | ✅ store side | 🟡 UI |
+| FR-NAV-02 | Logout → landing | `taskStore.logout` | ✅ `taskStore.test.ts` | ✅ |
+| FR-NAV-03 | No signed-out board | guest mode removed from `taskStore` | ✅ `taskStore.test.ts` | ✅ |
+| FR-NAV-04 | Auth → board / dashboard | `taskStore.onAuthenticated` | ✅ `taskStore.test.ts` | ✅ |
+| FR-NAV-05 | Profile navigation | `App.vue` header pill, `taskStore.showProfile` / `showBoard` | ✅ store side | 🟡 UI |
+
+### 2.1c Localisation
+
+| Req | Work item | Implementation | Verification | St |
+|:--|:--|:--|:--|:--:|
+| FR-I18N-01 | en + vi | `lib/translations.ts` | ✅ `i18nStore.test.ts` | ✅ |
+| FR-I18N-02 | Locale picker | `LandingPage.vue` nav + footer | — | 🟡 |
+| FR-I18N-03 | Persistence | `i18nStore.setLocale` → `koshi_locale` | ✅ | ✅ |
+| FR-I18N-04 | Browser detection | `i18nStore.detectLocale` | ✅ `i18nStore.test.ts` | ✅ |
+| FR-I18N-05 | Dictionary completeness | `Translations` type + test | ✅ `i18nStore.test.ts` | ✅ |
+
+### 2.1d Marketing site
+
+| Req | Work item | Implementation | Verification | St |
+|:--|:--|:--|:--|:--:|
+| FR-MKT-01 | Landing sections | `LandingPage.vue` | — | 🟡 |
+| FR-MKT-02 | Small top-right sign-in | `LandingPage.vue` nav | — | 🟡 |
+| FR-MKT-03 | Auth dialog | `AuthDialog.vue` | — | 🟡 GAP-10 |
+| FR-MKT-04 | Video only when configured | `VITE_DEMO_VIDEO_URL` guard | — | 🟡 |
+| FR-MKT-05 | No fabricated testimonials | absent by design (D6 P14) | — | 🟡 |
 
 ### 2.2 Domain model
 
@@ -83,7 +103,8 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 | Req | Work item | Implementation | Verification | St |
 |:--|:--|:--|:--|:--:|
 | FR-PERS-01 | IndexedDB write | `taskStore.ts::persist` → `tasksKey(projectId)` / `GUEST_DB_KEY` via `idb-keyval` | — | 🟡 |
-| FR-PERS-02 | Offline operation | `taskStore.ts` local-first ordering (INV-03) | — | 🟡 |
+| FR-PERS-02 | Offline personal project | `taskStore.canMutate` / `isPersonalProject` | ✅ `taskStore.test.ts` | ✅ |
+| FR-PERS-06 | Offline shared project read-only | `taskStore.canMutate` + guards on create/update/delete | ✅ `taskStore.test.ts` | ✅ |
 | FR-PERS-03 | Passive offline badge | `taskStore.ts::isBackendConnected`, `App.vue` | — | 🟡 |
 | FR-PERS-04 | Token persistence | `services/api.ts::setToken` → `localStorage['koshi_jwt_token']` | — | 🟡 |
 | FR-PERS-05 | JSON export/import | `taskStore.ts` | — | ❌ |
@@ -160,7 +181,8 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | `lib/dagSorter.ts` | FR-GRAPH-01…04 | ✅ `dagSorter.test.ts` (28, mutation-verified) | 🟡 |
 | `lib/gitParser.ts` | FR-AI-05 (now actually wired up) | **none** | 🟡 GAP-03 |
 | `lib/aiDecomposer.ts` | FR-AI-04 (tier 1) | none | 🟡 |
-| `stores/taskStore.ts` | FR-INT-02…09, FR-DOM-02, FR-PERS-01…03, FR-PERS-05, FR-PROJ-01…03, FR-PROJ-08 | **none** | 🟡 **widest blast radius — now the top gap (GAP-05)** |
+| `stores/taskStore.ts` | FR-INT-02…09, FR-DOM-02, FR-PERS-01…06, FR-PROJ-01…03, FR-NAV-01…05 | ✅ `taskStore.test.ts` (24, mutation-verified) | 🟡 **widest blast radius** |
+| `stores/i18nStore.ts` · `lib/translations.ts` | FR-I18N-01…05 · contract C10 | ✅ `i18nStore.test.ts` (9) | 🟡 |
 | `stores/themeStore.ts` | FR-INT-12, NFR-02, NFR-05 | none | 🟢 |
 | `services/api.ts` | FR-AUTH-01…03, FR-PROJ-01…07, FR-PERS-04, FR-AI-01…05 · **contract C1↔C3** | backend side only | 🔴 for shapes |
 | `types/task.ts` | **contract C3** — every component | `pnpm run build` | 🔴 |
@@ -171,7 +193,8 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | `components/TaskDetailModal.vue` | FR-DOM-06, FR-DOM-09, FR-INT-07 | none | 🟡 |
 | `components/*Modal.vue` (AI) | FR-AI-01…05 | none | 🟢 styling / 🟡 logic |
 | `components/ProjectDashboard.vue` | FR-PROJ-01…08, FR-AUTH-06 | server side only | 🟡 |
-| `components/LandingPage.vue` | FR-NAV-01…04, FR-AUTH-01, 02 | server side only | 🟡 GAP-10 |
+| `components/LandingPage.vue` | FR-NAV-01, FR-MKT-01…05, FR-I18N-02 | **none** | 🟡 GAP-10 |
+| `components/AuthDialog.vue` | FR-AUTH-01, 02, FR-MKT-03 | server side only | 🟡 GAP-10 |
 | `components/ProfilePage.vue` | FR-NAV-05, FR-PROJ-09…11 | server side only | 🟡 GAP-10 |
 
 ### 3.2 Backend
@@ -231,21 +254,22 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 
 | Area | Requirements | ✅ | 🟡 | ❌ |
 |:--|:--:|:--:|:--:|:--:|
-| Navigation (FR-NAV) | 5 | 0 | 5 | 0 |
+| Navigation (FR-NAV) | 5 | 3 | 2 | 0 |
+| Localisation (FR-I18N) | 5 | 4 | 1 | 0 |
+| Marketing (FR-MKT) | 5 | 0 | 5 | 0 |
 | Interaction (FR-INT) | 14 | 0 | 13 | 1 |
 | Domain (FR-DOM) | 10 | 9 | 0 | 1 |
 | Graph (FR-GRAPH) | 5 | 4 | 1 | 0 |
-| Persistence (FR-PERS) | 5 | 0 | 4 | 1 |
+| Persistence (FR-PERS) | 6 | 2 | 3 | 1 |
 | Auth (FR-AUTH) | 10 | 10 | 0 | 0 |
 | AI (FR-AI) | 8 | 6 | 1 | 1 |
 | Projects (FR-PROJ) | 12 | 5 | 6 | 1 |
 | Non-functional (NFR) | 10 | 3 | 3 | 4 |
-| **Total** | **79** | **38** | **34** | **7** |
+| **Total** | **90** | **47** | **36** | **7** |
 
-**Reading.** 48% automated, 43% manual-only, 9% unverified. The absolute automated count rose
-(36 → 38) but the share dipped, because the landing and profile pages added eight requirements that
-are manual-only. Unverified fell from 13% to 9%: almost nothing is now completely unchecked, but a
-lot rests on manual verification. Authorisation is now the
+**Reading.** 52% automated, 40% manual-only, 8% unverified. Every store and every pure module now
+has coverage; the residual risk is concentrated almost entirely in `.vue` components, which have
+none at all. Authorisation is now the
 **best-covered area in the repository** — all ten FR-AUTH rows are automated, including every
 negative path, which is the reverse of its position in rev 1.
 
@@ -253,8 +277,7 @@ The imbalance is unchanged in shape though: automation is still almost entirely 
 frontend carries the product's distinguishing logic (graph engine, keyboard model, local-first
 store, and now the dashboard) with **no automated verification at all**.
 
-**Highest-leverage next work item:** D5 GAP-05 — `stores/taskStore.ts`. It is the largest untested
-surface, has the widest blast radius in the repo, is where all three DEC-012 auth defects lived, and
-now additionally owns `appView`, guest mode and profile updates. The Vitest runner exists, so the
-remaining cost is faking `idb-keyval` and the API client. GAP-10 (landing/profile components) is a
-close second — both are auth-adjacent and manual-only.
+**Highest-leverage next work item:** D5 GAP-10 — component tests. With the stores covered, `.vue`
+files are the only untested layer left. `AuthDialog` and `ProfilePage` come first: both are
+auth-adjacent, and the store beneath them is already verified, so the tests only need to cover
+rendering and event wiring.

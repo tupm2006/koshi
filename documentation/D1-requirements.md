@@ -57,6 +57,16 @@ Status reflects what is actually implemented in the code, not what is aspiration
 > (n/Enter/i/Esc)"); the older docs were never updated and have since been retired. The
 > authoritative list is `source/frontend/lib/keyboard.ts`. See D7 / DEC-005.
 
+### 3.1a Functional — Localisation (FR-I18N)
+
+| ID | Requirement | Priority | Status |
+|:--|:--|:--|:--|
+| FR-I18N-01 | The interface is available in English and Vietnamese. | Must | Implemented |
+| FR-I18N-02 | The locale is selectable from the landing page navigation and footer. | Must | Implemented |
+| FR-I18N-03 | The choice persists across sessions and is restored before first paint. | Should | Implemented |
+| FR-I18N-04 | With no stored choice the browser's language is used, matched on its primary subtag; English otherwise. | Should | Implemented |
+| FR-I18N-05 | Every key defined in English exists and is non-empty in every other locale. | Must | Implemented — enforced by test |
+
 ### 3.1b Functional — Navigation & entry (FR-NAV)
 
 The app has three top-level screens driven by `taskStore.appView`, not a router.
@@ -65,7 +75,7 @@ The app has three top-level screens driven by `taskStore.appView`, not a router.
 |:--|:--|:--|:--|
 | FR-NAV-01 | An unauthenticated visitor is shown a landing page explaining the product, with sign-in and create-account as the primary actions. | Must | Implemented |
 | FR-NAV-02 | Signing out returns to the landing page, never to a board the user can no longer act on. | Must | Implemented |
-| FR-NAV-03 | A signed-out visitor may explicitly choose a local-only demo board, preserving FR-PERS-02. | Should | Implemented |
+| FR-NAV-03 | There is **no** signed-out board. A visitor must authenticate to reach any project data. | Must | Implemented |
 | FR-NAV-04 | Authenticating moves to the board; an account with no projects opens the dashboard instead. | Must | Implemented |
 | FR-NAV-05 | The profile page is reachable from the board header and returns to the board. | Must | Implemented |
 
@@ -103,7 +113,8 @@ The app has three top-level screens driven by `taskStore.appView`, not a router.
 | ID | Requirement | Priority | Status |
 |:--|:--|:--|:--|
 | FR-PERS-01 | Every mutation is committed to client IndexedDB before any network call. | Must | Implemented |
-| FR-PERS-02 | The app is fully usable (read + write) with the backend unreachable. | Must | Implemented |
+| FR-PERS-02 | A **personal** project (one member) is fully usable read+write with the backend unreachable. | Must | Implemented |
+| FR-PERS-06 | A **shared** project (more than one member) becomes read-only while the backend is unreachable, so concurrent offline edits cannot overwrite each other. | Must | Implemented |
 | FR-PERS-03 | Backend unavailability is surfaced as a passive badge, never a blocking dialog. | Must | Implemented |
 | FR-PERS-04 | The JWT is persisted in `localStorage` under `koshi_jwt_token` and re-attached on boot. | Must | Implemented |
 | FR-PERS-05 | The full task set can be exported and re-imported as JSON. | Could | Implemented |
@@ -125,6 +136,19 @@ project it belongs to, and may be `PM` of one project while being `MEMBER` of an
 | FR-AUTH-08 | The last `PM` of a project cannot be demoted or removed, so a project is never left unadministered. | Should | Implemented |
 | FR-AUTH-09 | Every project-scoped endpoint refuses non-members. Non-membership returns `404`, not `403`, so project existence is not disclosed. | Must | Implemented |
 | FR-AUTH-10 | A user may edit only their own profile; roles are not editable through the profile endpoint. | Must | Implemented |
+
+### 3.5b Functional — Marketing site (FR-MKT)
+
+| ID | Requirement | Priority | Status |
+|:--|:--|:--|:--|
+| FR-MKT-01 | The landing page presents the product: hero, product preview, features, how-it-works, use cases, pricing, FAQ and a closing call to action. | Must | Implemented |
+| FR-MKT-02 | Sign-in is a small control in the top-right navigation, not a form occupying the fold. | Must | Implemented |
+| FR-MKT-03 | Authentication opens in a dialog from the navigation or any call-to-action. | Must | Implemented |
+| FR-MKT-04 | A demo video renders **only** when `VITE_DEMO_VIDEO_URL` is configured, so the page never implies a tour that does not exist. | Should | Implemented |
+| FR-MKT-05 | The page carries no testimonials or customer quotes. Inventing them would be fabricated social proof. | Must | Implemented — use cases are used instead |
+
+> ⚠️ Pricing figures in `lib/translations.ts` are **placeholders**. They are plausible defaults, not
+> commercial decisions, and must be replaced before the page is published.
 
 ### 3.6 Functional — Projects & dashboard (FR-PROJ)
 
@@ -169,7 +193,7 @@ generator. No endpoint may return free-form text where a schema is declared.
 | NFR-05 | Theme initialises before first paint (no FOUC). | — | Implemented via synchronous `<head>` script |
 | NFR-06 | AI tier-1 timeout 10 s; tier-2 timeout 4 s; tier-3 is synchronous. | — | Implemented |
 | NFR-07 | Backend test suite passes on a clean checkout. | 100% | Implemented (29/29) — was broken until D7 / DEC-004 |
-| NFR-08 | Frontend has automated tests. | — | Partially met — Vitest covers `lib/dagSorter.ts` (28 tests); the store and components remain untested. |
+| NFR-08 | Frontend has automated tests. | — | Partially met — Vitest covers `lib/dagSorter.ts`, `stores/taskStore.ts` and `stores/i18nStore.ts` (61 tests). Components remain untested. |
 | NFR-09 | The service refuses to start in a non-development environment while any insecure default is in force. | — | Implemented & tested — `main.py::_check_production_safety` |
 | NFR-10 | Schema changes are delivered by versioned, reversible migrations; outside development the app refuses to start against a database that is not at head. | — | Implemented & tested — Alembic + `main.py::_check_migrations_current` |
 

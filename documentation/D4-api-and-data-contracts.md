@@ -21,6 +21,7 @@ these shapes, so changing one without changing every consumer is a defect, not a
 | C5 | JWT claims | `security.py` | `get_current_user` |
 | C8 | Authorisation model — `project_members` | `entities.py::ProjectMember` + `security.py` guards | every project-scoped router |
 | C9 | Schema version | `migrations/versions/` (Alembic head) | `main.py::_check_migrations_current` |
+| C10 | Translation dictionary | `lib/translations.ts` (`en` is the source of truth) | every localised component |
 | C6 | AI structured outputs | `app/schemas/ai.py` | AI modals |
 | C7 | Environment variables | `app/config.py` + `docker-compose.yml` | deployment |
 
@@ -150,6 +151,8 @@ code. Do not "harmonise" them without reading D7 / DEC-002.
 | INV-11 | A `(project_id, user_id)` pair is unique — a user holds exactly one role per project. | `uq_project_member` constraint |
 | INV-13 | Every dependency id resolves to a task in the same project; self-dependency is rejected. | `routers/tasks.py::_validate_dependencies` |
 | INV-14 | The integer id is canonical; `TSK-n` is a derived label. Conversion happens only in `taskKeyOf` / `serverIdOf`. | `services/api.ts` |
+| INV-15 | Writes are refused when `canMutate` is false — a shared project with no connection. | `taskStore.ts` |
+| INV-16 | Every key in the English dictionary exists and is non-empty in every other locale. | `translations.ts` types + `i18nStore.test.ts` |
 
 ---
 
@@ -313,8 +316,12 @@ Adding a typed adapter is the recommended fix (D7 / DEC-006 follow-up).
 
 ## 6. Storage contracts
 
-**C4 — IndexedDB.** Keys `koshi_tasks_v2_p{projectId}` (one per project) and `koshi_tasks_v2_guest`
-(the unauthenticated sample board), via `idb-keyval`. Value is `Task[]` in C3 shape.
+**C4 — IndexedDB.** Keys `koshi_tasks_v2_p{projectId}`, one per project, via `idb-keyval`. Value is
+`Task[]` in C3 shape. The `koshi_tasks_v2_guest` key was retired with guest mode; stale values are
+simply ignored.
+
+**Locale.** `localStorage['koshi_locale']` holds `"en"` or `"vi"`. An unrecognised value falls back
+to browser detection rather than failing.
 
 The version segment is the migration mechanism: **any breaking change to `Task` must bump it**,
 since no migration code exists and stale values are read back unvalidated. `v1` used a single
