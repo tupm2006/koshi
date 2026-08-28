@@ -17,7 +17,7 @@ services:
     volumes:
       - koshi-data:/app/data
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     deploy:
       resources:
         limits:
@@ -27,6 +27,7 @@ services:
           cpus: '0.25'
           memory: 256M
     networks:
+      - koshi-internal
       - proxy-net
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')"]
@@ -42,7 +43,7 @@ services:
     container_name: koshi
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "${FRONTEND_PORT:-3000}:80"
     depends_on:
       koshi-backend:
         condition: service_healthy
@@ -52,12 +53,15 @@ services:
           cpus: '1.0'
           memory: 512M
     networks:
+      - koshi-internal
       - proxy-net
 
 volumes:
   koshi-data:
 
 networks:
+  koshi-internal:
+    driver: bridge
   proxy-net:
     name: proxy-net
     driver: bridge
