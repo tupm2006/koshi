@@ -3,7 +3,7 @@
 > **High-Velocity, Local-First Project Management System**  
 > *Deterministic State Machines • Vue 3 Composition API & Pinia • 2D Spatial Vim Navigation • Topological DAG Prioritization • Schema-Constrained AI Execution*
 
-[![Live Demo](https://img.shields.io/badge/Live%20Production-koshi.tupm.qzz.io-emerald?style=flat-square)](https://koshi.tupm.qzz.io)
+[![Live Demo](https://img.shields.io/badge/Live%20Production-koshi.felixsu.qzz.io-emerald?style=flat-square)](https://koshi.felixsu.qzz.io)
 [![Runtime](https://img.shields.io/badge/Runtime-Vue%203%20Composition%20API-42b883?style=flat-square)](https://vuejs.org)
 [![Backend](https://img.shields.io/badge/Backend-FastAPI%20%2B%20SQLite-009688?style=flat-square)](https://fastapi.tiangolo.com)
 [![Memory Footprint](https://img.shields.io/badge/Idle%20RAM-%3C15MB-blue?style=flat-square)](#)

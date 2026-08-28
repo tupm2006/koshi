@@ -9,8 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
     full_name VARCHAR(255) NOT NULL,
     google_id VARCHAR(255) UNIQUE,
     avatar_url VARCHAR(500),
-    role VARCHAR(20) NOT NULL DEFAULT 'MEMBER' CHECK (role IN ('PM', 'MEMBER')),
-    skills VARCHAR(500) DEFAULT 'frontend,vue,typescript,python',
+    skills VARCHAR(500) DEFAULT '',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -20,6 +19,15 @@ CREATE TABLE IF NOT EXISTS projects (
     description TEXT,
     owner_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS project_members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role VARCHAR(20) NOT NULL DEFAULT 'MEMBER' CHECK (role IN ('OWNER', 'PM', 'MEMBER', 'VIEWER')),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(project_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS sprints (

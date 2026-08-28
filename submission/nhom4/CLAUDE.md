@@ -6,7 +6,7 @@
 - **Lead Architect & Developer**: Phạm Minh Tú
 - **Fullstack Contributor & Testing**: Phạm Văn Huynh
 - **Frontend Contributor & Documentation**: Đàm Đức Đôn
-- **Live Production URL**: `https://koshi.tupm.qzz.io`
+- **Live Production URL**: `https://koshi.felixsu.qzz.io`
 
 ---
 

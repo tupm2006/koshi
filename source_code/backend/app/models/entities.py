@@ -1,13 +1,19 @@
 import enum
 import json
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, Enum, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, Enum, DateTime, Boolean, UniqueConstraint
 from sqlalchemy.orm import relationship
 from app.database import Base
 
 class RoleEnum(str, enum.Enum):
     PM = "PM"
     MEMBER = "MEMBER"
+
+class ProjectMemberRoleEnum(str, enum.Enum):
+    OWNER = "OWNER"
+    PM = "PM"
+    MEMBER = "MEMBER"
+    VIEWER = "VIEWER"
 
 class TaskStatusEnum(str, enum.Enum):
     TODO = "TODO"
@@ -30,12 +36,13 @@ class User(Base):
     google_id = Column(String(255), unique=True, index=True, nullable=True)
     avatar_url = Column(String(500), nullable=True)
     role = Column(Enum(RoleEnum), default=RoleEnum.MEMBER, nullable=False)
-    skills = Column(String(255), default="frontend,backend,general")  # Comma-separated
+    skills = Column(String(255), default="")
     created_at = Column(DateTime, default=datetime.utcnow)
     
     assigned_tasks = relationship("Task", back_populates="assignee")
     comments = relationship("Comment", back_populates="author")
     owned_projects = relationship("Project", back_populates="owner")
+    project_memberships = relationship("ProjectMember", back_populates="user", cascade="all, delete-orphan")
 
 class Project(Base):
     __tablename__ = "projects"
@@ -48,6 +55,20 @@ class Project(Base):
     owner = relationship("User", back_populates="owned_projects")
     sprints = relationship("Sprint", back_populates="project", cascade="all, delete-orphan")
     tasks = relationship("Task", back_populates="project", cascade="all, delete-orphan")
+    members = relationship("ProjectMember", back_populates="project", cascade="all, delete-orphan")
+
+class ProjectMember(Base):
+    __tablename__ = "project_members"
+    __table_args__ = (UniqueConstraint("project_id", "user_id", name="uq_project_user"),)
+    
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    role = Column(Enum(ProjectMemberRoleEnum), default=ProjectMemberRoleEnum.MEMBER, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="project_memberships")
+    project = relationship("Project", back_populates="members")
 
 class Sprint(Base):
     __tablename__ = "sprints"

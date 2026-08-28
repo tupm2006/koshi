@@ -4,7 +4,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
 from app.config import settings
 from app.database import engine, Base, SessionLocal
-from app.models.entities import User, Project, Sprint, Task, RoleEnum, TaskStatusEnum, TaskPriorityEnum
+from app.models.entities import (
+    User,
+    Project,
+    ProjectMember,
+    ProjectMemberRoleEnum,
+    Sprint,
+    Task,
+    RoleEnum,
+    TaskStatusEnum,
+    TaskPriorityEnum,
+)
 from app.security import get_password_hash
 from app.routers import auth, users, projects, sprints, tasks, stats, ai
 
@@ -42,6 +52,11 @@ def seed_initial_data():
             db.add(default_proj)
             db.commit()
             db.refresh(default_proj)
+
+            # Assign project members
+            db.add(ProjectMember(project_id=default_proj.id, user_id=pm_user.id, role=ProjectMemberRoleEnum.OWNER))
+            db.add(ProjectMember(project_id=default_proj.id, user_id=member_user.id, role=ProjectMemberRoleEnum.MEMBER))
+            db.commit()
             
             # Create default Sprint
             now = datetime.utcnow()
@@ -133,6 +148,17 @@ def migrate_database():
                     conn.execute(text("ALTER TABLE users ADD COLUMN google_id VARCHAR(255)"))
                 if "avatar_url" not in columns:
                     conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(500)"))
+            # Ensure project_members table exists
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS project_members (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                    role VARCHAR(20) NOT NULL DEFAULT 'MEMBER' CHECK (role IN ('OWNER', 'PM', 'MEMBER', 'VIEWER')),
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(project_id, user_id)
+                )
+            """))
     except Exception as e:
         print("Migration notice:", e)
 
@@ -177,4 +203,3 @@ def health_check():
         "service": settings.PROJECT_NAME,
         "version": settings.VERSION
     }
-

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
@@ -7,6 +7,19 @@ from app.schemas.auth import UserOut, UserWithWIPOut, UserUpdate
 from app.security import get_current_user, require_role
 
 router = APIRouter(prefix="/users", tags=["Users Management"])
+
+@router.get("/search", response_model=List[UserOut])
+def search_users(
+    q: str = Query(..., min_length=1),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Search registered users by name or email for project invitations."""
+    search = f"%{q.strip()}%"
+    users = db.query(User).filter(
+        (User.full_name.ilike(search)) | (User.email.ilike(search))
+    ).limit(10).all()
+    return users
 
 @router.get("", response_model=List[UserWithWIPOut])
 def get_all_users(
@@ -31,7 +44,7 @@ def get_all_users(
             google_id=u.google_id,
             avatar_url=u.avatar_url,
             role=u.role,
-            skills=u.skills or "general",
+            skills=u.skills or "",
             created_at=u.created_at,
             active_tasks_count=len(active_tasks),
             wip_points=wip_pts

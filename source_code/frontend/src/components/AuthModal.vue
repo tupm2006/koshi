@@ -13,9 +13,7 @@ const taskStore = useTaskStore();
 const mode = ref<'LOGIN' | 'REGISTER'>('LOGIN');
 const email = ref('pm@tupm.qzz.io');
 const password = ref('koshi123');
-const fullName = ref('Phạm Minh Tú');
-const role = ref<'PM' | 'MEMBER'>('PM');
-const skills = ref('architecture,fastapi,vue');
+const fullName = ref('');
 const errorMsg = ref<string | null>(null);
 const isSubmitting = ref(false);
 
@@ -27,7 +25,7 @@ async function handleSubmit() {
       const res = await api.login(email.value, password.value);
       taskStore.currentUser = res.user;
     } else {
-      const res = await api.register(email.value, password.value, fullName.value, role.value);
+      const res = await api.register(email.value, password.value, fullName.value);
       taskStore.currentUser = res.user;
     }
     await taskStore.syncWithBackend();
@@ -152,31 +150,9 @@ async function handleGoogleLogin() {
             v-model="fullName"
             type="text"
             required
+            placeholder="e.g., Jane Doe"
             class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 font-sans"
           />
-        </div>
-        <div v-if="mode === 'REGISTER'" class="grid grid-cols-2 gap-2">
-          <div>
-            <label for="vue-reg-role" class="block font-mono text-slate-700 dark:text-slate-300 mb-1 font-medium">Role</label>
-            <select
-              id="vue-reg-role"
-              v-model="role"
-              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 font-mono"
-            >
-              <option value="PM">Project Manager (PM)</option>
-              <option value="MEMBER">Team Member</option>
-            </select>
-          </div>
-          <div>
-            <label for="vue-reg-skills" class="block font-mono text-slate-700 dark:text-slate-300 mb-1 font-medium">Skills</label>
-            <input
-              id="vue-reg-skills"
-              v-model="skills"
-              type="text"
-              placeholder="e.g. python,vue"
-              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 font-sans"
-            />
-          </div>
         </div>
 
         <div>
@@ -186,6 +162,7 @@ async function handleGoogleLogin() {
             v-model="email"
             type="email"
             required
+            placeholder="e.g., developer@example.com"
             class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 font-mono"
           />
         </div>
@@ -197,6 +174,7 @@ async function handleGoogleLogin() {
             v-model="password"
             type="password"
             required
+            placeholder="••••••••"
             class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 font-mono"
           />
         </div>

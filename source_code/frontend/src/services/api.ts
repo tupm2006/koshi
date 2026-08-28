@@ -11,8 +11,17 @@ export interface UserProfile {
   full_name: string;
   google_id?: string;
   avatar_url?: string;
-  role: 'PM' | 'MEMBER';
-  skills: string;
+  role?: string;
+  skills?: string;
+}
+
+export interface ProjectMember {
+  id: number;
+  project_id: number;
+  user_id: number;
+  role: 'OWNER' | 'PM' | 'MEMBER' | 'VIEWER';
+  created_at: string;
+  user?: UserProfile;
 }
 
 export interface AuthResponse {
@@ -71,10 +80,10 @@ export class ApiClient {
   }
 
   // Auth Endpoints
-  async register(email: string, password: string, full_name: string, role: string = 'MEMBER'): Promise<AuthResponse> {
+  async register(email: string, password: string, full_name: string): Promise<AuthResponse> {
     const data = await this.request<AuthResponse>('/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password, full_name, role }),
+      body: JSON.stringify({ email, password, full_name }),
     });
     this.setToken(data.access_token);
     return data;
@@ -106,8 +115,37 @@ export class ApiClient {
     return this.request<UserProfile[]>('/users');
   }
 
+  async searchUsers(query: string): Promise<UserProfile[]> {
+    return this.request<UserProfile[]>(`/users/search?q=${encodeURIComponent(query)}`);
+  }
+
   logout() {
     this.setToken(null);
+  }
+
+  // Project Members Endpoints
+  async getProjectMembers(projectId: number = 1): Promise<ProjectMember[]> {
+    return this.request<ProjectMember[]>(`/projects/${projectId}/members`);
+  }
+
+  async addProjectMember(projectId: number, userId: number, role: string = 'MEMBER'): Promise<ProjectMember> {
+    return this.request<ProjectMember>(`/projects/${projectId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, role }),
+    });
+  }
+
+  async updateProjectMemberRole(projectId: number, userId: number, role: string): Promise<ProjectMember> {
+    return this.request<ProjectMember>(`/projects/${projectId}/members/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    });
+  }
+
+  async removeProjectMember(projectId: number, userId: number): Promise<void> {
+    return this.request<void>(`/projects/${projectId}/members/${userId}`, {
+      method: 'DELETE',
+    });
   }
 
   // Task Endpoints

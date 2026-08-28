@@ -15,6 +15,7 @@ import DAGVisualizerModal from './components/DAGVisualizerModal.vue';
 import ShortcutsHelpModal from './components/ShortcutsHelpModal.vue';
 import CreateTaskModal from './components/CreateTaskModal.vue';
 import TaskDetailModal from './components/TaskDetailModal.vue';
+import ProjectMembersModal from './components/ProjectMembersModal.vue';
 import MobileBottomNav from './components/MobileBottomNav.vue';
 import {
   Sparkles,
@@ -44,6 +45,7 @@ const isWeeklySummaryOpen = ref(false);
 const isMeetingMinutesOpen = ref(false);
 const isWorkloadAssignOpen = ref(false);
 const isAuthModalOpen = ref(false);
+const isProjectMembersOpen = ref(false);
 const isGitDiffOpen = ref(false);
 const isDAGOpen = ref(false);
 const isShortcutsHelpOpen = ref(false);
@@ -90,6 +92,7 @@ function closeAllModals() {
   isMeetingMinutesOpen.value = false;
   isWorkloadAssignOpen.value = false;
   isAuthModalOpen.value = false;
+  isProjectMembersOpen.value = false;
   isGitDiffOpen.value = false;
   isDAGOpen.value = false;
   isShortcutsHelpOpen.value = false;
@@ -229,6 +232,17 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 
         <!-- Header Action Controls -->
         <div class="flex items-center gap-1.5 md:gap-2">
+          <!-- Team Collaborators Button -->
+          <button
+            type="button"
+            class="h-8 inline-flex items-center gap-1.5 px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-mono text-slate-800 dark:text-slate-200 cursor-pointer shadow-2xs font-medium"
+            @click="isProjectMembersOpen = true"
+            title="Project Team Members & Roles"
+          >
+            <Users class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            <span class="hidden sm:inline">Team</span>
+          </button>
+
           <!-- Consolidated AI Tools Dropdown -->
           <div id="ai-menu-container" class="relative">
             <button
@@ -470,6 +484,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
     <DAGVisualizerModal v-if="isDAGOpen" @close="isDAGOpen = false" />
     <ShortcutsHelpModal v-if="isShortcutsHelpOpen" @close="isShortcutsHelpOpen = false" />
     <CreateTaskModal v-if="isCreateModalOpen" @close="isCreateModalOpen = false" />
+    <ProjectMembersModal v-if="isProjectMembersOpen" @close="isProjectMembersOpen = false" />
     <TaskDetailModal
       v-if="taskStore.activeDetailTaskId"
       :task-id="taskStore.activeDetailTaskId"
