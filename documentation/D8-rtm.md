@@ -47,18 +47,18 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 
 | Req | Work item | Implementation | Verification | St |
 |:--|:--|:--|:--|:--:|
-| FR-NAV-01 | Landing page | `components/LandingPage.vue`, `taskStore.appView` | ✅ store side | 🟡 UI |
+| FR-NAV-01 | Landing page | `components/LandingPage.vue`, `taskStore.appView` | ✅ both sides | ✅ |
 | FR-NAV-02 | Logout → landing | `taskStore.logout` | ✅ `taskStore.test.ts` | ✅ |
 | FR-NAV-03 | No signed-out board | guest mode removed from `taskStore` | ✅ `taskStore.test.ts` | ✅ |
 | FR-NAV-04 | Auth → board / dashboard | `taskStore.onAuthenticated` | ✅ `taskStore.test.ts` | ✅ |
-| FR-NAV-05 | Profile navigation | `App.vue` header pill, `taskStore.showProfile` / `showBoard` | ✅ store side | 🟡 UI |
+| FR-NAV-05 | Profile navigation | `App.vue` header pill, `taskStore.showProfile` / `showBoard` | ✅ both sides | ✅ |
 
 ### 2.1c Localisation
 
 | Req | Work item | Implementation | Verification | St |
 |:--|:--|:--|:--|:--:|
 | FR-I18N-01 | en + vi | `lib/translations.ts` | ✅ `i18nStore.test.ts` | ✅ |
-| FR-I18N-02 | Locale picker | `LandingPage.vue` nav + footer | — | 🟡 |
+| FR-I18N-02 | Locale picker | `LandingPage.vue` nav + footer | ✅ `LandingPage.test.ts` | ✅ |
 | FR-I18N-03 | Persistence | `i18nStore.setLocale` → `koshi_locale` | ✅ | ✅ |
 | FR-I18N-04 | Browser detection | `i18nStore.detectLocale` | ✅ `i18nStore.test.ts` | ✅ |
 | FR-I18N-05 | Dictionary completeness | `Translations` type + test | ✅ `i18nStore.test.ts` | ✅ |
@@ -67,11 +67,11 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 
 | Req | Work item | Implementation | Verification | St |
 |:--|:--|:--|:--|:--:|
-| FR-MKT-01 | Landing sections | `LandingPage.vue` | — | 🟡 |
-| FR-MKT-02 | Small top-right sign-in | `LandingPage.vue` nav | — | 🟡 |
-| FR-MKT-03 | Auth dialog | `AuthDialog.vue` | — | 🟡 GAP-10 |
-| FR-MKT-04 | Video only when configured | `VITE_DEMO_VIDEO_URL` guard | — | 🟡 |
-| FR-MKT-05 | No fabricated testimonials | absent by design (D6 P14) | — | 🟡 |
+| FR-MKT-01 | Landing sections | `LandingPage.vue` | ✅ | ✅ |
+| FR-MKT-02 | Small top-right sign-in | `LandingPage.vue` nav | ✅ | ✅ |
+| FR-MKT-03 | Auth dialog | `AuthDialog.vue` | ✅ | ✅ |
+| FR-MKT-04 | Video only when configured | `VITE_DEMO_VIDEO_URL` guard | ✅ | ✅ |
+| FR-MKT-05 | No fabricated testimonials | absent by design (D6 P14) | ✅ asserted | ✅ |
 
 ### 2.2 Domain model
 
@@ -133,12 +133,12 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 | FR-PROJ-03 | Project switching | `taskStore.selectProject`, `App.vue` header pill | — | 🟡 |
 | FR-PROJ-04 | Add member by email | `routers/projects.py::add_member`, `ProjectDashboard.vue` | ✅ | ✅ |
 | FR-PROJ-05 | Roster with workload | `routers/projects.py::_member_out` | ✅ (shape) | 🟡 display |
-| FR-PROJ-06 | PM-only controls | `taskStore.isProjectManager` (UI) + `require_project_pm` (server) | ✅ server side | 🟡 UI — GAP-09 |
+| FR-PROJ-06 | PM-only controls | `taskStore.isProjectManager` (UI) + `require_project_pm` (server) | ✅ both sides | ✅ |
 | FR-PROJ-07 | Delete project | `routers/projects.py::delete_project` | — | ❌ |
 | FR-PROJ-08 | Empty account opens dashboard | `taskStore.onAuthenticated`, `App.vue` empty state | — | 🟡 verified by hand (DEC-012) |
-| FR-PROJ-09 | Profile page | `components/ProfilePage.vue` | — | 🟡 |
-| FR-PROJ-10 | Edit name / skills | `ProfilePage.vue`, `taskStore.updateProfile`, `PATCH /users/{id}` | server side ✅ | 🟡 |
-| FR-PROJ-11 | Membership list | `ProfilePage.vue`, `routers/projects.py::list_my_projects` | server side ✅ | 🟡 |
+| FR-PROJ-09 | Profile page | `components/ProfilePage.vue` | ✅ | ✅ |
+| FR-PROJ-10 | Edit name / skills | `ProfilePage.vue`, `taskStore.updateProfile`, `PATCH /users/{id}` | ✅ both sides | ✅ |
+| FR-PROJ-11 | Membership list | `ProfilePage.vue`, `routers/projects.py::list_my_projects` | ✅ both sides | ✅ |
 | — | Roles independent across projects | `entities.py::ProjectMember` | ✅ `test_roles_are_independent_across_projects` | ✅ |
 
 ### 2.6 AI workflows
@@ -192,10 +192,10 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 | `components/KanbanBoard.vue` | FR-INT-03, FR-INT-05, INV-01 | none | 🟢 styling / 🟡 logic |
 | `components/TaskDetailModal.vue` | FR-DOM-06, FR-DOM-09, FR-INT-07 | none | 🟡 |
 | `components/*Modal.vue` (AI) | FR-AI-01…05 | none | 🟢 styling / 🟡 logic |
-| `components/ProjectDashboard.vue` | FR-PROJ-01…08, FR-AUTH-06 | server side only | 🟡 |
-| `components/LandingPage.vue` | FR-NAV-01, FR-MKT-01…05, FR-I18N-02 | **none** | 🟡 GAP-10 |
-| `components/AuthDialog.vue` | FR-AUTH-01, 02, FR-MKT-03 | server side only | 🟡 GAP-10 |
-| `components/ProfilePage.vue` | FR-NAV-05, FR-PROJ-09…11 | server side only | 🟡 GAP-10 |
+| `components/ProjectDashboard.vue` | FR-PROJ-01…08, FR-AUTH-06 | ✅ `ProjectDashboard.test.ts` (14) + server tests | 🟡 |
+| `components/LandingPage.vue` | FR-NAV-01, FR-MKT-01…05, FR-I18N-02 | ✅ `LandingPage.test.ts` (14) | 🟡 |
+| `components/AuthDialog.vue` | FR-AUTH-01, 02, FR-MKT-03 | ✅ `AuthDialog.test.ts` (16) | 🟡 |
+| `components/ProfilePage.vue` | FR-NAV-05, FR-PROJ-09…11 | ✅ `ProfilePage.test.ts` (17) | 🟡 |
 
 ### 3.2 Backend
 
@@ -254,22 +254,24 @@ Use this before editing. "Zone" is the D6 §1 autonomy level.
 
 | Area | Requirements | ✅ | 🟡 | ❌ |
 |:--|:--:|:--:|:--:|:--:|
-| Navigation (FR-NAV) | 5 | 3 | 2 | 0 |
-| Localisation (FR-I18N) | 5 | 4 | 1 | 0 |
-| Marketing (FR-MKT) | 5 | 0 | 5 | 0 |
+| Navigation (FR-NAV) | 5 | 5 | 0 | 0 |
+| Localisation (FR-I18N) | 5 | 5 | 0 | 0 |
+| Marketing (FR-MKT) | 5 | 5 | 0 | 0 |
 | Interaction (FR-INT) | 14 | 0 | 13 | 1 |
 | Domain (FR-DOM) | 10 | 9 | 0 | 1 |
 | Graph (FR-GRAPH) | 5 | 4 | 1 | 0 |
 | Persistence (FR-PERS) | 6 | 2 | 3 | 1 |
 | Auth (FR-AUTH) | 10 | 10 | 0 | 0 |
 | AI (FR-AI) | 8 | 6 | 1 | 1 |
-| Projects (FR-PROJ) | 12 | 5 | 6 | 1 |
+| Projects (FR-PROJ) | 12 | 9 | 2 | 1 |
 | Non-functional (NFR) | 10 | 3 | 3 | 4 |
-| **Total** | **90** | **47** | **36** | **7** |
+| **Total** | **90** | **62** | **21** | **7** |
 
-**Reading.** 52% automated, 40% manual-only, 8% unverified. Every store and every pure module now
-has coverage; the residual risk is concentrated almost entirely in `.vue` components, which have
-none at all. Authorisation is now the
+**Reading.** 69% automated, 23% manual-only, 8% unverified — up from 33% automated at rev 1. Both
+stores, every pure module and the four highest-risk components are covered.
+
+What remains manual is concentrated in one place: the **board interaction layer** — `lib/keyboard.ts`
+and the table/kanban/detail components. That is all fourteen FR-INT requirements. Authorisation is now the
 **best-covered area in the repository** — all ten FR-AUTH rows are automated, including every
 negative path, which is the reverse of its position in rev 1.
 
@@ -277,7 +279,6 @@ The imbalance is unchanged in shape though: automation is still almost entirely 
 frontend carries the product's distinguishing logic (graph engine, keyboard model, local-first
 store, and now the dashboard) with **no automated verification at all**.
 
-**Highest-leverage next work item:** D5 GAP-10 — component tests. With the stores covered, `.vue`
-files are the only untested layer left. `AuthDialog` and `ProfilePage` come first: both are
-auth-adjacent, and the store beneath them is already verified, so the tests only need to cover
-rendering and event wiring.
+**Highest-leverage next work item:** D5 GAP-12 — `lib/keyboard.ts`. Fourteen requirements rest on
+manual verification alone, and the dispatcher is a pure function over an already-covered store, so
+it needs no DOM. The board components come after.

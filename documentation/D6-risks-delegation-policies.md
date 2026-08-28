@@ -92,7 +92,7 @@ documentation.
 | **RISK-05** | **`allow_origins=["*"]` with `allow_credentials=True`.** Invalid per the CORS spec and rejected by browsers; masks real origin policy. | Low | Medium | ✅ **Closed 2026-08-28.** Origins come from `CORS_ORIGINS`; `allow_credentials` is switched off automatically when the origin list is `*`, and `*` is rejected outside development. |
 | **RISK-06** | **`dagSorter.ts` has no tests** yet holds the most intricate logic in the repo. | Low | High | ✅ **Closed 2026-08-28.** 28 tests; verified by seeding 7 defects and confirming each was caught. |
 | **RISK-16** | **`taskStore.ts` has no tests** despite the widest blast radius in the repo. | Low | High | ✅ **Closed 2026-08-28.** 24 tests, mutation-verified against 8 seeded defects (DEC-015). |
-| **RISK-17** | **No `.vue` component has a test.** `AuthDialog` and `ProfilePage` handle credentials and account edits with no automated verification. | High | Medium | ⚠️ **Open.** D5 GAP-10 — now the largest gap. |
+| **RISK-17** | **No `.vue` component has a test.** | Low | Medium | ✅ **Closed 2026-08-28.** 61 component tests across `AuthDialog`, `ProfilePage`, `ProjectDashboard` and `LandingPage`, mutation-verified (DEC-016). The board components remain uncovered — D5 GAP-12. |
 | **RISK-18** | **Pricing figures on the landing page are placeholders.** Publishing them unchanged would advertise prices nobody agreed to. | Medium | Medium | ⚠️ **Open.** Replace the `pricing.*` values in `lib/translations.ts` before launch. |
 | **RISK-07** | **Documentation contradicting code.** The retired SRS/URD/README made at least seven claims the code did not support (status order, key bindings, `/api/v1`, a non-existent test file, the LLM vendor). An agent trusting prose writes wrong code. | Low | High | ✅ **Closed 2026-08-28.** Stale documents deleted; `README.md` and `CLAUDE.md` rewritten against the code; D1–D8 are the single source. Conflicts preserved for the record in D7 / DEC-005. |
 | **RISK-08** | **Dependency graph was server-side unresolvable** — dependencies were `List[str]` against `int` ids. | Low | High | ✅ **Closed 2026-08-28.** Integer ids are canonical; unresolvable, self- and cross-project dependencies are rejected (D7 / DEC-014). |
@@ -136,8 +136,13 @@ above all — write the characterisation test first, confirm it passes against c
 then change the code.
 
 **P13 — A test that has never failed proves nothing.** After writing tests for previously-untested
-code, seed a deliberate defect and confirm the suite catches it, then revert. `dagSorter.test.ts`
-was validated this way against seven separate mutations.
+code, seed a deliberate defect and confirm the suite catches it, then revert. Every suite in this
+repo was validated this way.
+
+When a mutation appears to survive, check whether it actually ran: a mutation that breaks template
+compilation produces "no tests" rather than a failure, which reads as a false pass. Two mutations
+looked like they survived for exactly that reason, and one was a genuinely weak assertion — see
+DEC-016.
 
 **P5 — Never weaken a test to make it pass.** A failing test is a finding. Report it. The one test
 that encodes a defect is flagged in D5 §5.

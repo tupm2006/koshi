@@ -16,9 +16,11 @@ export default defineConfig({
     tailwindcss()
   ],
   test: {
-    // lib/ is pure and framework-free, so no DOM environment is needed.
+    // Default to node; component tests opt into jsdom with a
+    // `// @vitest-environment jsdom` docblock.
     environment: 'node',
     include: ['**/*.test.ts'],
+    setupFiles: ['./test-setup.ts'],
   },
   server: {
     host: '0.0.0.0',

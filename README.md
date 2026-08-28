@@ -34,7 +34,7 @@ submission/     frozen coursework snapshot — do not edit
 ```bash
 pnpm install
 pnpm run dev            # http://localhost:5173, proxies /api → :8000
-pnpm test               # vitest run — 61 tests
+pnpm test               # vitest run — 122 tests
 pnpm run build          # vue-tsc -b && vite build → dist/
 ```
 
@@ -145,9 +145,9 @@ Tier 3 output is currently indistinguishable from real model output to the calle
 ## Project status
 
 The backend is covered end to end (38/38), with authorisation the best-tested area. The frontend
-has 61 tests over the DAG engine, the Pinia store and localisation — both suites mutation-verified.
-**No `.vue` component has a test.** Overall: 52% of requirements automated, 8% unverified. Full
-breakdown in [D8 §5](./documentation/D8-rtm.md).
+has 122 tests over the DAG engine, both stores, and the four highest-risk components — every suite
+mutation-verified. Overall: 69% of requirements automated, 8% unverified. Full breakdown in
+[D8 §5](./documentation/D8-rtm.md).
 
 Known defects are catalogued in [D7 Part II](./documentation/D7-development-book.md) and risk-rated
 in [D6 §4](./documentation/D6-risks-delegation-policies.md). Still open and worth knowing about:
@@ -158,8 +158,8 @@ in [D6 §4](./documentation/D6-risks-delegation-policies.md). Still open and wor
 - **Rotate `JWT_SECRET` on any deployment that predates 2026-08-28.** The old default was published
   in this repo; tokens signed with it remain forgeable. Runbook:
   [D6 §7.1](./documentation/D6-risks-delegation-policies.md).
-- **No `.vue` component has a test** (D5 GAP-10) — including `AuthDialog` and `ProfilePage`, which
-  handle credentials and account edits.
+- **The board interaction layer is untested** (D5 GAP-12) — `lib/keyboard.ts` and the
+  table/kanban/detail components, which is all fourteen FR-INT requirements.
 - **Landing-page pricing figures are placeholders** and must be replaced before publishing
   (D6 RISK-18).
 

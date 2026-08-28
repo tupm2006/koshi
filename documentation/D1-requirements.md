@@ -193,7 +193,7 @@ generator. No endpoint may return free-form text where a schema is declared.
 | NFR-05 | Theme initialises before first paint (no FOUC). | — | Implemented via synchronous `<head>` script |
 | NFR-06 | AI tier-1 timeout 10 s; tier-2 timeout 4 s; tier-3 is synchronous. | — | Implemented |
 | NFR-07 | Backend test suite passes on a clean checkout. | 100% | Implemented (29/29) — was broken until D7 / DEC-004 |
-| NFR-08 | Frontend has automated tests. | — | Partially met — Vitest covers `lib/dagSorter.ts`, `stores/taskStore.ts` and `stores/i18nStore.ts` (61 tests). Components remain untested. |
+| NFR-08 | Frontend has automated tests. | — | Met — 122 Vitest tests over the pure modules, both stores, and the four highest-risk components. |
 | NFR-09 | The service refuses to start in a non-development environment while any insecure default is in force. | — | Implemented & tested — `main.py::_check_production_safety` |
 | NFR-10 | Schema changes are delivered by versioned, reversible migrations; outside development the app refuses to start against a database that is not at head. | — | Implemented & tested — Alembic + `main.py::_check_migrations_current` |
 

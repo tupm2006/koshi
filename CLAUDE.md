@@ -22,12 +22,13 @@ Guidance for AI agents working in this repository. **Read `documentation/` befor
 cd source/backend && pytest -q          # expect: 38 passed
 
 # Frontend
-pnpm test                               # expect: 61 passed (vitest)
+pnpm test                               # expect: 122 passed (vitest)
 pnpm run build                          # vue-tsc -b && vite build
 ```
 
-Vitest covers `lib/dagSorter.ts`, `stores/taskStore.ts` and `stores/i18nStore.ts`. **No `.vue`
-component has a test** — a green build there is a type check, not a correctness check.
+Vitest covers both stores, the pure modules, and four components (`AuthDialog`, `ProfilePage`,
+`ProjectDashboard`, `LandingPage`). Component tests opt into jsdom with a
+`// @vitest-environment jsdom` docblock. **Untested:** `lib/keyboard.ts` and the board components.
 
 ## Standing rules
 
@@ -35,10 +36,11 @@ component has a test** — a green build there is a type check, not a correctnes
   set exists because the previous docs confidently described behaviour the code did not have.
 - **Scope discipline.** Fix what was asked. A drive-by fix of a known critical risk while doing
   something else is still a red-zone violation.
-- **Test before touching untested logic.** For any 🟡 file with no coverage — `stores/taskStore.ts`
-  above all — write the characterisation test first, confirm it passes against current behaviour,
-  then change the code. A suite that has never failed proves nothing: seed a defect, confirm it is
-  caught, revert.
+- **Test before touching untested logic.** For any 🟡 file with no coverage — `lib/keyboard.ts` and
+  the board components — write the characterisation test first, confirm it passes against current
+  behaviour, then change the code. A suite that has never failed proves nothing: seed a defect,
+  confirm it is caught, revert. If a mutation seems to survive, check it actually ran — one that
+  breaks template compilation reports "no tests", which reads as a false pass.
 - **Never weaken a test to make it pass.** A failing test is a finding; report it. One test
   deliberately encodes a defect — see D5 §5.
 - **Preserve the local-first ordering.** IndexedDB write precedes the network call, and neither

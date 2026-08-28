@@ -15,7 +15,7 @@ koshi/
 │   │   ├── main.ts              ← Vue + Pinia bootstrap
 │   │   ├── App.vue              ← Root shell, layout, capture-phase Escape handler
 │   │   ├── app.css              ← Tailwind v4 entry + global surface rules
-│   │   ├── components/          ← 15 presentational / modal components
+│   │   ├── components/          ← 15 components (+ *.test.ts, testing.ts helpers)
 │   │   ├── lib/                 ← Pure, framework-free algorithms (+ *.test.ts)
 │   │   ├── stores/              ← Pinia state
 │   │   ├── services/            ← Backend HTTP client
@@ -40,6 +40,7 @@ koshi/
 ├── scripts/                     ← Packaging / report generation helpers
 ├── submission/                  ← Frozen coursework snapshot — DO NOT EDIT (D6 §3)
 ├── vite.config.ts               ← root='source/frontend', outDir='../../dist', vitest config
+├── source/frontend/test-setup.ts ← jsdom polyfills applied to every test
 ├── tsconfig.json                ← includes source/frontend/**
 ├── package.json                 ← Frontend scripts & deps
 ├── Dockerfile                   ← Frontend build → nginx

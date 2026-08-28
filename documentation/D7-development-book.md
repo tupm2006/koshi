@@ -672,6 +672,61 @@ components, which still have no tests at all (GAP-10, RISK-17) — including `Au
 
 ---
 
+### DEC-016 — Component tests; the last untested layer
+**Date:** 2026-08-28 · **Status:** Active · **Requested by the maintainer**
+
+**Context.** With both stores and every pure module covered, `.vue` files were the only layer with
+no automated verification at all (GAP-10 / RISK-17) — including the two that handle credentials and
+account edits.
+
+**Decision.** Add `@vue/test-utils` + `jsdom` and cover the four highest-risk components, in
+descending order of what a defect would cost:
+
+| Component | Tests | Focus |
+|:--|--:|:--|
+| `AuthDialog` | 16 | Sends exactly what was typed, no role field, failure surfaced rather than a silent non-login, password cleared on success but kept after a failure. |
+| `ProfilePage` | 17 | Shows the signed-in account (not a stale one), dirty-state editing, email and role not editable, memberships, sign-out clears the session. |
+| `ProjectDashboard` | 14 | PM affordances present, MEMBER restrictions absent, rejected actions surfaced. |
+| `LandingPage` | 14 | Sections render, sign-in is in the nav not the hero, locale switching translates the whole page, and the two content commitments hold. |
+
+**Environment.** Vitest stays on `node` by default; component files opt in with a
+`// @vitest-environment jsdom` docblock, so the pure-module suites keep running without a DOM.
+`test-setup.ts` supplies `matchMedia`, which jsdom does not implement and `themeStore` calls — a
+harness gap, not something the component should have to defend against.
+
+**Two content commitments are now asserted, not just intended.** `LandingPage.test.ts` fails if a
+`<video>` element appears without `VITE_DEMO_VIDEO_URL`, and fails if the copy starts claiming
+"trusted by", "loved by", "customers say" and similar. Those were decisions in DEC-015 that nothing
+enforced; a future copy edit would have quietly undone them.
+
+**Mutation testing — and two false passes.** Nine defects were seeded. Six failed immediately. The
+other three needed investigation rather than being written off:
+
+1. *Removing `v-if="isPM"` from the role select* reported "0 failed". The mutation made `v-else`
+   invalid on the sibling, so the template failed to **compile** and Vitest reported "no tests" —
+   which the measuring script counted as zero failures. Re-run as `v-if="true"`, it was caught.
+2. *Removing the `isDirty` guard in `ProfilePage`* genuinely survived: the test only asserted the
+   Save button was `disabled`, which does not exercise the handler a form can still reach via
+   Enter. A test for the guard itself was added, and the mutation is now caught.
+3. *Removing `.trim()` from the email* genuinely survived, and the test was **wrong rather than the
+   code**: an `<input type="email">` applies the HTML value-sanitisation algorithm, so jsdom strips
+   surrounding whitespace before the component ever sees it. The assertion could never have failed.
+   It was rewritten to state what is actually true, with the reason in a comment, rather than left
+   as a green test that verified nothing.
+
+That third case is the point of P13. A suite that passes first time on untested code is a claim, not
+evidence — and here the evidence showed one assertion was theatre. D6 P13 now also warns that a
+mutation which breaks compilation reads as a false pass.
+
+**Verification.** Frontend 61 → 122 tests; backend 38 unchanged; type-check and build clean.
+
+**Gap.** Coverage is no longer absent anywhere, but it is uneven: the **board interaction layer** —
+`lib/keyboard.ts`, `TaskTable`, `KanbanBoard`, `TaskDetailModal` — is still manual-only, and that is
+all fourteen FR-INT requirements (GAP-12). `lib/keyboard.ts` is the obvious next target: a pure
+function over a store that is already covered, needing no DOM.
+
+---
+
 ## Part II — Findings ledger
 
 Observations that are not yet decisions. Each should become a decision or a work item.
@@ -725,3 +780,4 @@ Observations that are not yet decisions. Each should become a decision or a work
 | **2026-08-28** | Vitest adopted; `dagSorter.ts` characterised with 28 mutation-verified tests; GAP-01/RISK-06 closed, F-24 found (DEC-013). |
 | **2026-08-28** | Task identity unified and 11 further findings closed; landing + profile pages added (DEC-014). Backend suite → 38. |
 | **2026-08-28** | Guest mode removed; offline writes narrowed to personal projects; marketing landing page; en/vi localisation; store tests (DEC-015). Frontend suite → 61. |
+| **2026-08-28** | Component tests for the four highest-risk `.vue` files; GAP-10/RISK-17 closed; two false-pass tests corrected (DEC-016). Frontend suite → 122. |
