@@ -268,6 +268,16 @@ export class ApiClient {
     });
   }
 
+  async uploadAvatar(file: File): Promise<UserProfile> {
+    const body = new FormData();
+    body.append('file', file);
+    return this.request<UserProfile>('/users/me/avatar', { method: 'POST', body });
+  }
+
+  async removeAvatar(): Promise<UserProfile> {
+    return this.request<UserProfile>('/users/me/avatar', { method: 'DELETE' });
+  }
+
   async listComments(taskId: number): Promise<TaskComment[]> {
     return this.request<TaskComment[]>(`/tasks/${taskId}/comments`);
   }

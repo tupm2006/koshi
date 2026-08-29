@@ -321,7 +321,13 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
 
           <!-- Col 7: Actions -->
           <div class="flex items-center justify-end">
-            <div class="opacity-0 group-hover:opacity-100 flex items-center gap-1">
+            <!-- Also shown on the selected row, not hover alone: hover does not
+                 exist on touch, and the keyboard cursor is the other way people
+                 reach a row. -->
+            <div
+              class="flex items-center gap-1 group-hover:opacity-100"
+              :class="idx === taskStore.selectedIndex ? 'opacity-100' : 'opacity-0'"
+            >
               <button
                 type="button"
                 class="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer"

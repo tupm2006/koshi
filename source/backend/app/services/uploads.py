@@ -35,6 +35,10 @@ ALLOWED_TYPES = {
     "video/quicktime": ".mov",
 }
 
+#: Avatars are displayed, never played. Excluding video also keeps a profile
+#: picture from being a multi-megabyte upload on every page that renders a card.
+AVATAR_TYPES = {k: v for k, v in ALLOWED_TYPES.items() if k.startswith("image/")}
+
 CHUNK = 1024 * 1024
 
 
@@ -56,25 +60,37 @@ def path_for(stored_name: str) -> str:
     return os.path.join(upload_dir(), stored_name)
 
 
-async def save_upload(file: UploadFile) -> Tuple[str, str, int]:
+async def save_upload(
+    file: UploadFile,
+    allowed: dict[str, str] | None = None,
+    max_bytes: int | None = None,
+) -> Tuple[str, str, int]:
     """
     Stream an upload to disk.
 
     Returns (stored_name, content_type, size_bytes). Raises 400 on a type that
     is not allowed and 413 on one that is too large; a partial file is removed
     rather than left as an orphan.
+
+    `allowed` narrows the type set for a particular caller — avatars take
+    images only. It can only ever be a subset of what this module permits;
+    passing something wider would not make a type servable, because the
+    extension table is the same one.
     """
+    allowed = allowed or ALLOWED_TYPES
+    limit = max_bytes if max_bytes is not None else settings.MAX_UPLOAD_BYTES
+
     content_type = (file.content_type or "").split(";")[0].strip().lower()
-    if content_type not in ALLOWED_TYPES:
+    if content_type not in allowed:
         raise HTTPException(
             status_code=400,
             detail=(
                 f"Unsupported file type '{content_type or 'unknown'}'. "
-                f"Allowed: {', '.join(sorted(ALLOWED_TYPES))}"
+                f"Allowed: {', '.join(sorted(allowed))}"
             ),
         )
 
-    stored_name = f"{secrets.token_hex(16)}{ALLOWED_TYPES[content_type]}"
+    stored_name = f"{secrets.token_hex(16)}{ALLOWED_TYPES[content_type]}"  # extension always ours
     target = path_for(stored_name)
 
     size = 0
@@ -82,13 +98,10 @@ async def save_upload(file: UploadFile) -> Tuple[str, str, int]:
         with open(target, "wb") as out:
             while chunk := await file.read(CHUNK):
                 size += len(chunk)
-                if size > settings.MAX_UPLOAD_BYTES:
+                if size > limit:
                     raise HTTPException(
                         status_code=413,
-                        detail=(
-                            "File is larger than the "
-                            f"{settings.MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit"
-                        ),
+                        detail=f"File is larger than the {limit // (1024 * 1024)} MB limit",
                     )
                 out.write(chunk)
     except Exception:

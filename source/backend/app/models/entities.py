@@ -48,6 +48,9 @@ class User(Base):
     full_name = Column(String(100), nullable=False)
     google_id = Column(String(255), unique=True, index=True, nullable=True)
     avatar_url = Column(String(500), nullable=True)
+    # The name on disk. Separate from avatar_url so the served path can carry a
+    # cache-busting segment without the filesystem name changing meaning.
+    avatar_file = Column(String(255), nullable=True)
     skills = Column(String(255), default="frontend,backend,general")  # Comma-separated
     created_at = Column(DateTime, default=utcnow)
 

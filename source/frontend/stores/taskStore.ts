@@ -325,6 +325,25 @@ export const useTaskStore = defineStore('taskStore', {
       return updated;
     },
 
+    /**
+     * Replace the signed-in user's picture.
+     *
+     * The whole user comes back, so `currentUser` is reassigned rather than
+     * patched — one shape, from one source, with no chance of the avatar and
+     * the rest of the profile disagreeing.
+     */
+    async uploadAvatar(file: File) {
+      if (!this.currentUser) throw new Error('Not signed in');
+      this.currentUser = await api.uploadAvatar(file);
+      return this.currentUser;
+    },
+
+    async removeAvatar() {
+      if (!this.currentUser) throw new Error('Not signed in');
+      this.currentUser = await api.removeAvatar();
+      return this.currentUser;
+    },
+
     async loadProjects() {
       try {
         const projects = await api.listProjects();

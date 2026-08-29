@@ -356,3 +356,95 @@ def test_an_oversize_upload_leaves_no_file_behind(client: TestClient, pm_auth_he
     _upload(client, pm_auth_headers, comment["id"], data=b"\x89PNG\r\n\x1a\n" + b"\x00" * 4096)
 
     assert set(os.listdir(upload_dir())) == before
+
+
+# ---------------------------------------------------------------------------
+# Profile avatars
+# ---------------------------------------------------------------------------
+
+def _put_avatar(client, headers, data=PNG, ctype="image/png", name="face.png"):
+    return client.post(
+        "/api/users/me/avatar",
+        files={"file": (name, io.BytesIO(data), ctype)},
+        headers=headers,
+    )
+
+
+def test_uploading_an_avatar_sets_it_on_the_profile(client: TestClient, pm_auth_headers):
+    res = _put_avatar(client, pm_auth_headers)
+    assert res.status_code == 200, res.text
+    assert res.json()["avatar_url"].startswith("/api/users/")
+
+
+def test_you_can_fetch_your_own_avatar(client: TestClient, pm_auth_headers):
+    url = _put_avatar(client, pm_auth_headers).json()["avatar_url"]
+    fetched = client.get(url, headers=pm_auth_headers)
+
+    assert fetched.status_code == 200
+    assert fetched.content == PNG
+    assert fetched.headers["x-content-type-options"] == "nosniff"
+
+
+def test_a_teammate_can_see_your_avatar(client: TestClient, pm_auth_headers, member_auth_headers, project_with_member):
+    # Faces are rendered on task cards, so people who share a project must be
+    # able to load each other's.
+    url = _put_avatar(client, pm_auth_headers).json()["avatar_url"]
+    assert client.get(url, headers=member_auth_headers).status_code == 200
+
+
+def test_a_stranger_cannot(client: TestClient, pm_auth_headers, member_auth_headers):
+    # 404, not 403: the reply must not confirm the account exists.
+    url = _put_avatar(client, pm_auth_headers).json()["avatar_url"]
+    assert client.get(url, headers=member_auth_headers).status_code == 404
+
+
+def test_an_anonymous_request_cannot(client: TestClient, pm_auth_headers):
+    url = _put_avatar(client, pm_auth_headers).json()["avatar_url"]
+    assert client.get(url).status_code == 401
+
+
+def test_a_video_is_refused_as_an_avatar(client: TestClient, pm_auth_headers):
+    # Attachments allow video; avatars deliberately do not — a profile picture
+    # is re-fetched on every board that renders a card.
+    res = _put_avatar(client, pm_auth_headers, data=b"\x00" * 128,
+                      ctype="video/mp4", name="clip.mp4")
+    assert res.status_code == 400
+
+
+def test_an_oversized_avatar_is_refused(client: TestClient, pm_auth_headers):
+    from app.routers.users import AVATAR_MAX_BYTES
+    res = _put_avatar(client, pm_auth_headers, data=b"\x89PNG\r\n\x1a\n" + b"\x00" * (AVATAR_MAX_BYTES + 1))
+    assert res.status_code == 413
+
+
+def test_replacing_an_avatar_removes_the_old_file(client: TestClient, pm_auth_headers):
+    import os
+    from app.services.uploads import upload_dir
+
+    _put_avatar(client, pm_auth_headers)
+    after_first = set(os.listdir(upload_dir()))
+    _put_avatar(client, pm_auth_headers, data=PNG + b"\x01")
+    after_second = set(os.listdir(upload_dir()))
+
+    # One replaced the other rather than accumulating.
+    assert len(after_second) == len(after_first)
+
+
+def test_removing_an_avatar_clears_the_profile(client: TestClient, pm_auth_headers):
+    _put_avatar(client, pm_auth_headers)
+    res = client.delete("/api/users/me/avatar", headers=pm_auth_headers)
+
+    assert res.status_code == 200
+    assert res.json()["avatar_url"] is None
+
+
+def test_there_is_no_way_to_set_somebody_elses_avatar(client: TestClient, pm_auth_headers, member_auth_headers, project_with_member):
+    # The route takes no user id, so this is structural rather than a check that
+    # could be forgotten. Asserted so a future signature change is noticed.
+    _, member_id = project_with_member
+    res = client.post(
+        f"/api/users/{member_id}/avatar",
+        files={"file": ("face.png", io.BytesIO(PNG), "image/png")},
+        headers=pm_auth_headers,
+    )
+    assert res.status_code in (404, 405)

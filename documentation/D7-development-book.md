@@ -828,6 +828,8 @@ Observations that are not yet decisions. Each should become a decision or a work
 | F-40 | `POST /tasks/{id}/comments` checked only that the task existed — no `require_member` — so any authenticated user could post into any project they had never been invited to. Dormant only because no UI had ever called the endpoint. | `routers/tasks.py` | **High** | ✅ Closed — DEC-023 |
 | F-41 | The inspector's assignee selector was a hardcoded list of four team members storing strings (`"tupm"`, `"dev"`) that matched no user id, so choosing one assigned nobody. | `TaskDetailModal.vue` | Medium | ✅ Closed — DEC-023 (real project roster) |
 | F-42 | `CommentThread.post()` set the "these files did not upload" message *before* `load()`, whose first act is to clear `errorMsg` — so a failed upload reported nothing and the user believed their evidence had attached. | `CommentThread.vue` | Medium | ✅ Closed — DEC-023 |
+| F-43 | The task inspector had no visible way to start editing — only the `i` shortcut and clicking the title text, neither of which announces itself. Users discovered editing by clicking the description field. Entering edit mode on a read-only project was also possible, where every write is then silently refused. | `TaskDetailModal.vue` | Medium | ✅ Closed — DEC-024 |
+| F-44 | The avatar replace path read the outgoing filename back *after* committing the new one, so the comparison always matched and the previous file was never unlinked. | `routers/users.py` | Low | ✅ Closed — DEC-024 |
 | F-23 | Deleting the SQLite file under a running uvicorn leaves it writing to a deleted inode ("attempt to write a readonly database"). Restart the process, do not just replace the file. | operational | Low | Open — documented here |
 
 ### DEC-018 — gitParser and the AI modals tested; a secret-leaking image found
@@ -1204,6 +1206,48 @@ for the task. Scoped to exclude `#comment-draft` with the reason stated, rather 
 under both filters; a member's comment is readable by the PM; evidence uploads and renders; and the
 same file returns 200 to a member, 401 anonymous, 404 to a non-member, while a `.sh` is refused 400.
 
+### DEC-024 — A visible Edit button, and profile pictures
+
+**Date:** 2026-08-29 · **Tests:** backend 107 → 117, frontend 323 → 334 · **Migration:** 0005
+
+**F-43 was a discoverability failure, not a missing feature.** Editing a task already worked three
+ways — press `i`, click the title, click the description — and none of them announced itself. The
+footer showed a `i Edit` keycap, but a keycap is a hint, not a button. The user found the
+description field by accident and reasonably concluded that was the only way in.
+
+The fix is an explicit `Edit` button in the inspector header, which becomes `Done` while editing.
+The row actions in `TaskTable` had the same shape — `opacity-0 group-hover:opacity-100`, invisible
+on touch and to anyone navigating by keyboard — so they now also show on the selected row.
+
+Entering edit mode on a **read-only** project was possible, and every keystroke was then silently
+discarded by the store: the F-33 shape once more. `enterEditMode` now refuses, and the button is
+disabled with the reason in its tooltip. That is the third instance of the same bug class, which is
+why it is now a standing rule in `CLAUDE.md` rather than a note on one component: *the store
+refuses silently, so any control that writes must check `canMutate` itself.*
+
+**Avatars** reuse the attachment writer with a narrower allowlist — images only, 2 MB — so there is
+one place that decides what a stored file may be. Video is excluded deliberately: a profile picture
+is re-fetched by every board that renders a card.
+
+`POST /users/me/avatar` takes **no user id**. That is structural rather than a check somebody could
+forget to write: there is no request shape that aims it at another profile. A test asserts the
+absence of `/users/{id}/avatar` as a write route, so a future signature change is noticed.
+
+Reading is narrower than "any authenticated user": **yourself, or anyone you share a project with**,
+which is exactly where the app renders a face. Everyone else gets 404 rather than 403 — the reply
+must not confirm the account exists. `avatar_file` is a separate column from `avatar_url` because
+the served URL carries a cache-busting segment and cannot double as the filesystem name without the
+two meanings drifting.
+
+**F-44, mine.** The replace path read the outgoing filename back from the database *after*
+committing the new one, so the comparison always matched and the old file was never removed — every
+change would have leaked a file. Found by the test asserting the directory does not grow.
+
+**The user's data was live during this work.** The local production instance had two real accounts
+by the time migration 0005 ran; it was applied to that database rather than a reset one, and both
+rows survived with `avatar_file` added. Worth recording because the instinct after a schema change
+is to reset the volume, and here that would have destroyed somebody's actual project.
+
 ## Part III — Timeline
 
 | Date | Event |
@@ -1232,6 +1276,7 @@ same file returns 200 to a member, 401 anonymous, 404 to a non-member, while a `
 | **2026-08-28** | Production-configured instance stood up locally on :8090 and verified end to end; compose project-name collision (F-38) and a false-passing image check (F-39) found and fixed (DEC-021). |
 | **2026-08-28** | Deadlines on the create form, deadline-first board ordering, PM/member default scope, and membership invitations requiring acceptance (DEC-022, migration 0003). Backend → 80, frontend → 292. |
 | **2026-08-29** | Multiple assignees, per-member filtering, comments, completion evidence with uploads, assignee avatars (DEC-023, migration 0004). An unguarded comment endpoint found (F-40). Backend → 107, frontend → 323. |
+| **2026-08-29** | Explicit Edit button; profile picture upload (DEC-024, migration 0005). Read-only edit mode closed — third instance of the silent-refusal class. Backend → 117, frontend → 334. |
 
 ## Part IV — Open questions
 

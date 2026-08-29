@@ -221,3 +221,67 @@ describe('missing task', () => {
     expect(w.text()).not.toContain('Design the schema');
   });
 });
+
+describe('the Edit button', () => {
+  it('offers a visible way in, not only the `i` shortcut', async () => {
+    // F-43: the only affordances were the shortcut and clicking the title
+    // text. Users found the description field by accident.
+    const { w } = open();
+    await w.vm.$nextTick();
+
+    expect(w.find('#task-edit').exists()).toBe(true);
+  });
+
+  it('enters edit mode when clicked', async () => {
+    const { w } = open();
+    await w.vm.$nextTick();
+
+    await w.find('#task-edit').trigger('click');
+    await w.vm.$nextTick();
+
+    expect(w.find('input[type="text"]').exists()).toBe(true);
+    expect(w.find('#task-edit').exists()).toBe(false);
+  });
+
+  it('turns into Done, which saves and leaves edit mode', async () => {
+    const { w, store, taskId } = open();
+    await w.vm.$nextTick();
+    await w.find('#task-edit').trigger('click');
+    await w.vm.$nextTick();
+
+    await w.find('input[type="text"]').setValue('Renamed via the button');
+    await w.find('#task-done-editing').trigger('click');
+    await w.vm.$nextTick();
+
+    expect(store.tasks.find((t) => t.id === taskId)!.title).toBe('Renamed via the button');
+    expect(w.find('#task-edit').exists()).toBe(true);
+    expect(w.emitted('close')).toBeFalsy();
+  });
+
+  it('is disabled on a read-only project, and says why', async () => {
+    // Without this you could enter edit mode, type, and watch the store
+    // silently refuse every write — the F-33 shape again.
+    const { w } = open((s) => {
+      s.projects = [fakeProject({ member_count: 4 })] as any;
+      s.isBackendConnected = false;
+    });
+    await w.vm.$nextTick();
+
+    const button = w.find('#task-edit');
+    expect(button.attributes('disabled')).toBeDefined();
+    expect(button.attributes('title')).toMatch(/read-only/i);
+  });
+
+  it('will not enter edit mode on a read-only project even via the shortcut', async () => {
+    const { w } = open((s) => {
+      s.projects = [fakeProject({ member_count: 4 })] as any;
+      s.isBackendConnected = false;
+    });
+    await w.vm.$nextTick();
+
+    press(w, 'i');
+    await w.vm.$nextTick();
+
+    expect(w.find('input[type="text"]').exists()).toBe(false);
+  });
+});

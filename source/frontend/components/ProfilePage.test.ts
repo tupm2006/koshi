@@ -16,6 +16,8 @@ const { apiMock } = vi.hoisted(() => ({
     listProjects: vi.fn(async () => [] as any[]),
     getTasks: vi.fn(async () => [] as any[]),
     updateProfile: vi.fn(),
+    uploadAvatar: vi.fn(),
+    removeAvatar: vi.fn(),
   },
 }));
 
@@ -214,5 +216,75 @@ describe('session', () => {
 
     expect(store.appView).toBe('BOARD');
     expect(store.currentUser).not.toBeNull();
+  });
+});
+
+describe('profile picture', () => {
+  const pick = async (w: any, file: File) => {
+    const input = w.find('#avatar-upload input[type="file"]').element as HTMLInputElement;
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+    await w.find('#avatar-upload input[type="file"]').trigger('change');
+    await flushPromises();
+  };
+
+  it('offers an upload control on the picture itself', async () => {
+    // One thing, one place: a separate upload button elsewhere would make you
+    // look in two places for the same action.
+    const { w } = await open();
+    expect(w.find('#avatar-upload').exists()).toBe(true);
+  });
+
+  it('uploads the chosen image and shows it', async () => {
+    apiMock.uploadAvatar.mockResolvedValue(fakeUser({ avatar_url: '/api/users/1/avatar?v=abc' }));
+    const { w } = await open();
+
+    await pick(w, new File(['x'], 'face.png', { type: 'image/png' }));
+
+    expect(apiMock.uploadAvatar).toHaveBeenCalled();
+    expect(w.find('img').attributes('src')).toBe('/api/users/1/avatar?v=abc');
+  });
+
+  it('refuses an oversized file without calling the server', async () => {
+    // A courtesy, not a substitute for the server check — it fails instantly
+    // rather than after uploading two megabytes.
+    const { w } = await open();
+    const big = new File([new Uint8Array(3 * 1024 * 1024)], 'huge.png', { type: 'image/png' });
+
+    await pick(w, big);
+
+    expect(apiMock.uploadAvatar).not.toHaveBeenCalled();
+    expect(w.find('#avatar-error').text()).toMatch(/2 MB/);
+  });
+
+  it('surfaces a server rejection', async () => {
+    apiMock.uploadAvatar.mockRejectedValue(new Error('Unsupported file type'));
+    const { w } = await open();
+
+    await pick(w, new File(['x'], 'clip.mp4', { type: 'video/mp4' }));
+
+    expect(w.find('#avatar-error').text()).toContain('Unsupported file type');
+  });
+
+  it('offers removal only when there is a picture to remove', async () => {
+    const { w } = await open();
+    expect(w.find('#avatar-remove').exists()).toBe(false);
+
+    apiMock.uploadAvatar.mockResolvedValue(fakeUser({ avatar_url: '/api/users/1/avatar?v=abc' }));
+    await pick(w, new File(['x'], 'face.png', { type: 'image/png' }));
+
+    expect(w.find('#avatar-remove').exists()).toBe(true);
+  });
+
+  it('removing falls back to initials', async () => {
+    apiMock.uploadAvatar.mockResolvedValue(fakeUser({ avatar_url: '/api/users/1/avatar?v=abc' }));
+    apiMock.removeAvatar.mockResolvedValue(fakeUser({ avatar_url: null }));
+    const { w } = await open();
+    await pick(w, new File(['x'], 'face.png', { type: 'image/png' }));
+
+    await w.find('#avatar-remove').trigger('click');
+    await flushPromises();
+
+    expect(w.find('img').exists()).toBe(false);
+    expect(w.text()).toContain('AL');  // Ada Lovelace
   });
 });

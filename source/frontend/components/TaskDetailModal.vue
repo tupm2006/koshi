@@ -10,6 +10,8 @@ import {
   Flame,
   Layers,
   ChevronDown,
+  Edit3,
+  Check,
 } from 'lucide-vue-next';
 
 const props = defineProps<{
@@ -70,6 +72,9 @@ watch(
 );
 
 async function enterEditMode() {
+  // Same shape as F-33: the store refuses every write on a read-only project,
+  // so without this you could enter edit mode, type, and watch nothing persist.
+  if (taskStore.isReadOnly) return;
   initBuffers();
   isEditing.value = true;
   await nextTick();
@@ -231,15 +236,46 @@ function getStatusBadge(s: TaskStatus) {
           </span>
         </div>
 
-        <!-- Right: Single Close Button -->
-        <button
-          type="button"
-          class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer shrink-0"
-          @click="emit('close')"
-          title="Close (Esc)"
-        >
-          <X class="w-5 h-5 shrink-0" />
-        </button>
+        <!-- Right: Edit / Done, then Close -->
+        <div class="flex items-center gap-1.5 shrink-0">
+          <!-- There was no visible way to start editing: only the `i` shortcut
+               and clicking the title text, neither of which announces itself.
+               Users found the description field by accident (F-43). -->
+          <button
+            v-if="!isEditing"
+            id="task-edit"
+            type="button"
+            :disabled="taskStore.isReadOnly"
+            class="h-7 px-2.5 inline-flex items-center gap-1.5 rounded-md border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-mono text-[11px] font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+            :title="taskStore.isReadOnly
+              ? 'Read-only: this project has other members and you are offline'
+              : 'Edit this task (i)'"
+            @click="enterEditMode"
+          >
+            <Edit3 class="w-3.5 h-3.5" />
+            <span>Edit</span>
+          </button>
+          <button
+            v-else
+            id="task-done-editing"
+            type="button"
+            class="h-7 px-2.5 inline-flex items-center gap-1.5 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-mono text-[11px] font-medium cursor-pointer"
+            title="Finish editing (Esc)"
+            @click="saveAndExit"
+          >
+            <Check class="w-3.5 h-3.5" />
+            <span>Done</span>
+          </button>
+
+          <button
+            type="button"
+            class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer shrink-0"
+            @click="emit('close')"
+            title="Close (Esc)"
+          >
+            <X class="w-5 h-5 shrink-0" />
+          </button>
+        </div>
       </div>
 
       <!-- Modal Body -->
@@ -253,7 +289,7 @@ function getStatusBadge(s: TaskStatus) {
             <h3
               class="text-base md:text-lg font-semibold text-slate-950 dark:text-slate-50 leading-snug hover:bg-slate-100 dark:hover:bg-slate-800/60 p-1 -m-1 rounded cursor-text"
               @click="enterEditMode"
-              title="Click to edit"
+              :title="taskStore.isReadOnly ? 'Read-only' : 'Click, or use the Edit button'"
             >
               {{ task.title }}
             </h3>

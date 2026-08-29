@@ -19,10 +19,10 @@ Guidance for AI agents working in this repository. **Read `documentation/` befor
 
 ```bash
 # Backend — must stay green
-cd source/backend && pytest -q          # expect: 107 passed
+cd source/backend && pytest -q          # expect: 117 passed
 
 # Frontend
-pnpm test                               # expect: 323 passed (vitest)
+pnpm test                               # expect: 334 passed (vitest)
 pnpm run build                          # vue-tsc -b && vite build
 ```
 
@@ -112,6 +112,13 @@ visitor must never reach the board except via explicit guest mode.
 `services/uploads.py` generates `stored_name`; `filename` is a label. The stored content type comes
 from our table, not the request — a browser sniffing an "image" into HTML would give the uploader
 script execution on this origin. Widening `ALLOWED_TYPES` is 🔴 RED.
+
+**Avatars are visible to yourself and to people you share a project with**, because faces are
+rendered on task cards. Anyone else gets 404, not 403. `POST /users/me/avatar` takes no user id, so
+there is no request shape that aims it at somebody else's profile.
+
+**Every affordance that writes must check `canMutate` or `isReadOnly` itself.** The store refuses
+silently, so a control that does not check reports success having written nothing (F-33, F-43).
 
 **Attachment URLs are not capabilities.** `download_attachment` re-checks membership on every
 fetch; the id is a small integer anyone could guess.

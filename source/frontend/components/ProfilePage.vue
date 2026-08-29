@@ -11,7 +11,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useTaskStore } from '../stores/taskStore';
 import {
   ArrowLeft, Mail, Wrench, Shield, User as UserIcon, LogOut, Save,
-  AlertCircle, Check, CalendarDays, FolderKanban, Loader2,
+  AlertCircle, Check, CalendarDays, FolderKanban, Loader2, Camera,
 } from 'lucide-vue-next';
 
 const taskStore = useTaskStore();
@@ -21,6 +21,49 @@ const skills = ref('');
 const errorMsg = ref<string | null>(null);
 const noticeMsg = ref<string | null>(null);
 const isSaving = ref(false);
+const isUploadingAvatar = ref(false);
+const avatarError = ref<string | null>(null);
+
+/** Matches the server ceiling, so an oversized file is refused before upload. */
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+
+async function onPickAvatar(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = '';  // so re-picking the same file fires `change` again
+  if (!file) return;
+
+  avatarError.value = null;
+
+  // Checked here as well as server-side. Not a substitute for the server check
+  // — it is a courtesy, so a 5 MB photo fails instantly instead of after the
+  // upload.
+  if (file.size > AVATAR_MAX_BYTES) {
+    avatarError.value = 'That image is over 2 MB. Please pick a smaller one.';
+    return;
+  }
+
+  isUploadingAvatar.value = true;
+  try {
+    await taskStore.uploadAvatar(file);
+  } catch (err: any) {
+    avatarError.value = err?.message || 'Could not upload that picture.';
+  } finally {
+    isUploadingAvatar.value = false;
+  }
+}
+
+async function removeAvatar() {
+  avatarError.value = null;
+  isUploadingAvatar.value = true;
+  try {
+    await taskStore.removeAvatar();
+  } catch (err: any) {
+    avatarError.value = err?.message || 'Could not remove the picture.';
+  } finally {
+    isUploadingAvatar.value = false;
+  }
+}
 
 const user = computed(() => taskStore.currentUser);
 
@@ -102,19 +145,52 @@ onMounted(() => {
       <!-- Identity -->
       <section class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl p-6">
         <div class="flex items-center gap-4">
-          <img
-            v-if="user?.avatar_url"
-            :src="user.avatar_url"
-            alt=""
-            class="w-16 h-16 rounded-full border border-slate-300 dark:border-slate-700 object-cover"
-          />
-          <div
-            v-else
-            class="w-16 h-16 rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-lg font-semibold font-sans"
-          >{{ initials }}</div>
+          <!-- The picture is also the control. A separate "upload" button
+               elsewhere on the page would make you look in two places for one
+               thing. -->
+          <div class="relative shrink-0 group">
+            <img
+              v-if="user?.avatar_url"
+              :src="user.avatar_url"
+              alt=""
+              class="w-16 h-16 rounded-full border border-slate-300 dark:border-slate-700 object-cover"
+            />
+            <div
+              v-else
+              class="w-16 h-16 rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-lg font-semibold font-sans"
+            >{{ initials }}</div>
+
+            <label
+              id="avatar-upload"
+              class="absolute inset-0 rounded-full flex items-center justify-center bg-slate-900/60 text-white opacity-0 group-hover:opacity-100 focus-within:opacity-100 cursor-pointer transition-opacity"
+              :class="isUploadingAvatar && 'opacity-100'"
+              title="Change your picture"
+            >
+              <Loader2 v-if="isUploadingAvatar" class="w-5 h-5 animate-spin" />
+              <Camera v-else class="w-5 h-5" />
+              <span class="sr-only">Change profile picture</span>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                class="hidden"
+                :disabled="isUploadingAvatar"
+                @change="onPickAvatar"
+              />
+            </label>
+          </div>
 
           <div class="min-w-0">
             <h2 class="text-lg font-semibold font-sans truncate">{{ user?.full_name }}</h2>
+            <p v-if="avatarError" id="avatar-error" class="text-[11px] font-mono text-rose-700 dark:text-rose-300">
+              {{ avatarError }}
+            </p>
+            <button
+              v-if="user?.avatar_url && !isUploadingAvatar"
+              id="avatar-remove"
+              type="button"
+              class="text-[11px] font-mono text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 underline cursor-pointer"
+              @click="removeAvatar"
+            >Remove picture</button>
             <p class="flex items-center gap-1.5 text-xs font-mono text-slate-500 dark:text-slate-400 truncate">
               <Mail class="w-3.5 h-3.5 shrink-0" />
               {{ user?.email }}
