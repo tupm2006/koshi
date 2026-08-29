@@ -2,6 +2,8 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useTaskStore } from '../stores/taskStore';
 import type { Task, TaskPriority, TaskStatus, Complexity } from '../types/task';
+import CommentThread from './CommentThread.vue';
+import AssigneeAvatars from './AssigneeAvatars.vue';
 import {
   X,
   AlertCircle,
@@ -40,7 +42,7 @@ const editTitle = ref('');
 const editStatus = ref<TaskStatus>('TODO');
 const editPriority = ref<TaskPriority>('MEDIUM');
 const editComplexity = ref<Complexity>('M');
-const editAssignee = ref<string>('');
+const editAssigneeIds = ref<number[]>([]);
 const editDueDate = ref<string>('');
 const editDescription = ref('');
 const editBlockingReason = ref('');
@@ -51,7 +53,7 @@ function initBuffers() {
     editStatus.value = task.value.status;
     editPriority.value = task.value.priority;
     editComplexity.value = (task.value.complexity as Complexity) || 'M';
-    editAssignee.value = task.value.assignee || '';
+    editAssigneeIds.value = (task.value.assignees ?? []).map((a) => a.id);
     editDueDate.value = task.value.dueDate ? task.value.dueDate.slice(0, 10) : '';
     editDescription.value = task.value.description || '';
     editBlockingReason.value = task.value.blockingReason || '';
@@ -85,7 +87,10 @@ function saveAndExit() {
       status: editStatus.value,
       priority: editPriority.value,
       complexity: editComplexity.value,
-      assignee: editAssignee.value.trim() || undefined,
+      assignees: editAssigneeIds.value.map((id) => {
+        const m = taskStore.members.find((x) => x.user_id === id);
+        return { id, full_name: m?.full_name ?? '', avatar_url: m?.avatar_url ?? null };
+      }),
       dueDate: editDueDate.value ? new Date(editDueDate.value).toISOString() : undefined,
       description: editDescription.value.trim() || undefined,
       blockingReason: editStatus.value === 'BLOCKED' ? editBlockingReason.value.trim() || undefined : undefined,
@@ -102,7 +107,10 @@ function onFieldChange() {
       status: editStatus.value,
       priority: editPriority.value,
       complexity: editComplexity.value,
-      assignee: editAssignee.value.trim() || undefined,
+      assignees: editAssigneeIds.value.map((id) => {
+        const m = taskStore.members.find((x) => x.user_id === id);
+        return { id, full_name: m?.full_name ?? '', avatar_url: m?.avatar_url ?? null };
+      }),
       dueDate: editDueDate.value ? new Date(editDueDate.value).toISOString() : undefined,
       description: editDescription.value.trim() || undefined,
       blockingReason: editStatus.value === 'BLOCKED' ? editBlockingReason.value.trim() || undefined : undefined,
@@ -315,21 +323,34 @@ function getStatusBadge(s: TaskStatus) {
           <div>
             <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">Assignee</span>
             <div v-if="!isEditing" class="flex items-center gap-1.5 text-xs font-mono text-slate-700 dark:text-slate-300 truncate">
-              <span>{{ task.assignee || 'Unassigned' }}</span>
+              <AssigneeAvatars v-if="task.assignees?.length" :assignees="task.assignees" :max="4" size="xs" />
+              <span>{{ task.assignees?.length ? task.assignees.map((a) => a.full_name).join(', ') : 'Unassigned' }}</span>
             </div>
-            <div v-else class="relative">
-              <select
-                v-model="editAssignee"
-                class="w-full h-7 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md pl-2 pr-6 text-xs font-mono text-slate-900 dark:text-slate-100 focus:outline-none appearance-none cursor-pointer"
-                @change="onFieldChange"
+            <!-- Was a hardcoded list of four team members storing strings that
+                 matched no user id, so the field never actually assigned
+                 anything (F-41). Now the project's real roster. -->
+            <div v-else-if="taskStore.members.length === 0" class="text-[11px] font-mono text-slate-500">
+              No roster loaded for this project.
+            </div>
+            <div v-else class="max-h-28 overflow-y-auto rounded-md border border-slate-300 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-800">
+              <label
+                v-for="m in taskStore.members"
+                :key="m.user_id"
+                :data-detail-assignee="m.user_id"
+                class="flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60"
               >
-                <option value="">Unassigned</option>
-                <option value="tupm">Phạm Minh Tú (PM)</option>
-                <option value="dev">Dev Member</option>
-                <option value="huynh">Phạm Văn Huynh</option>
-                <option value="don">Đàm Đức Đôn</option>
-              </select>
-              <ChevronDown class="w-3 h-3 absolute right-1.5 top-2 pointer-events-none opacity-60" />
+                <input
+                  type="checkbox"
+                  :checked="editAssigneeIds.includes(m.user_id)"
+                  class="w-3 h-3 accent-indigo-600 cursor-pointer"
+                  @change="() => {
+                    const at = editAssigneeIds.indexOf(m.user_id);
+                    if (at === -1) editAssigneeIds.push(m.user_id); else editAssigneeIds.splice(at, 1);
+                    onFieldChange();
+                  }"
+                />
+                <span class="text-[11px] font-mono truncate">{{ m.full_name }}</span>
+              </label>
             </div>
           </div>
 
@@ -436,6 +457,26 @@ function getStatusBadge(s: TaskStatus) {
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Assignees -->
+        <div v-if="task.assignees && task.assignees.length > 0">
+          <label class="block font-mono text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
+            Assigned to
+          </label>
+          <div class="flex items-center gap-2 flex-wrap">
+            <AssigneeAvatars :assignees="task.assignees" :max="8" />
+            <span class="text-xs text-slate-700 dark:text-slate-300">
+              {{ task.assignees.map((a) => a.full_name).join(', ') }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Discussion. The inspector is the natural home: it is already the
+             per-task view, opened with `i` or Enter, and a comment belongs to a
+             task rather than to the board. -->
+        <div class="pt-2 border-t border-slate-200 dark:border-slate-800">
+          <CommentThread :task-id="task.id" />
         </div>
       </div>
 

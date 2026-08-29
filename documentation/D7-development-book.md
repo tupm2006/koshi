@@ -825,6 +825,9 @@ Observations that are not yet decisions. Each should become a decision or a work
 | F-37 | The documented deploy command (`tar --exclude=.git --exclude=node_modules --exclude=dist \| ssh umi ...`) excluded no secrets, so deploying shipped the developer's `.env` and `source/backend/.env` over production's — putting the live host into `ENVIRONMENT=development` with `SEED_DEMO_DATA=true` and `CORS_ORIGINS=*`, which the startup guard exempts. It also shipped three developer SQLite databases and a host `.venv`. | `CLAUDE.md`, now `scripts/deploy.sh` | **Critical** | ✅ Closed — DEC-020 |
 | F-38 | Three compose files in one directory all defaulted to project name `koshi` (from the directory), so `up` on one treated the others' containers as orphans and removed them. Bringing up the local production stack destroyed the running dev stack. | `docker-compose*.yml` | Medium | ✅ Closed — DEC-021 (explicit top-level `name:`) |
 | F-39 | The "image contains no secret" check ran via `docker compose run`, which **mounts the data volume** — so it inspected image *plus* volume. It reported the runtime database as a leak, and worse, it passed on an empty volume, which is exactly when reassurance is least warranted. Written by me in DEC-020 and DEC-019. | `scripts/deploy.sh`, `scripts/local-prod.sh` | Medium | ✅ Closed — DEC-021 (`docker run` against the image, nothing mounted) |
+| F-40 | `POST /tasks/{id}/comments` checked only that the task existed — no `require_member` — so any authenticated user could post into any project they had never been invited to. Dormant only because no UI had ever called the endpoint. | `routers/tasks.py` | **High** | ✅ Closed — DEC-023 |
+| F-41 | The inspector's assignee selector was a hardcoded list of four team members storing strings (`"tupm"`, `"dev"`) that matched no user id, so choosing one assigned nobody. | `TaskDetailModal.vue` | Medium | ✅ Closed — DEC-023 (real project roster) |
+| F-42 | `CommentThread.post()` set the "these files did not upload" message *before* `load()`, whose first act is to clear `errorMsg` — so a failed upload reported nothing and the user believed their evidence had attached. | `CommentThread.vue` | Medium | ✅ Closed — DEC-023 |
 | F-23 | Deleting the SQLite file under a running uvicorn leaves it writing to a deleted inode ("attempt to write a readonly database"). Restart the process, do not just replace the file. | operational | Low | Open — documented here |
 
 ### DEC-018 — gitParser and the AI modals tested; a secret-leaking image found
@@ -1136,6 +1139,71 @@ fixture now mirrors the server default.
 `member_count` stays 1 while pending, accepting grants access and returns the
 project, and a PM-created task carries both its deadline and its assignee.
 
+### DEC-023 — Collaboration: several assignees, discussion, and proof of completion
+
+**Date:** 2026-08-29 · **Tests:** backend 80 → 107, frontend 292 → 323 · **Migration:** 0004
+
+**One instance, not three.** Ports 5173 (Vite dev server), 8080 (docker dev) and 8090 (local
+production) were all running, and the first two shared a backend — so "it works on 8080" said
+nothing about the production configuration. Only 8090 is kept.
+
+**Assignees became plural.** `tasks.assignee_id` is now the `task_assignees` join table: the same
+attributive-to-relational move 0002 made for roles, for the same reason. The column could represent
+exactly one fact and the fact is not always one; the workaround — duplicating a task so two people
+can own it — loses that it is one piece of work. Backfill copies every existing assignment across.
+
+Every assignee must be an **accepted** member of the project. Assigning to a pending invitation
+would produce work its owner cannot open, and would confirm a user id exists for a project they
+cannot see.
+
+**Filtering** is now ALL / MINE / one named person, for everyone. Not a PM-only control: knowing
+what a teammate is carrying is how you know who to ask, and it reveals nothing "All tasks" does not.
+MINE resolves to the signed-in user at read time rather than storing an id, so it stays correct if
+the session changes underneath it.
+
+**Comments and evidence share one thread.** Evidence is a comment that happens to justify a
+transition; two feeds would mean reading two places to follow one task. `kind` changes the label,
+not the plumbing. The inspector is the home — it is already the per-task view.
+
+The evidence prompt opens from the store on **any** path a task reaches DONE by, so no caller has
+to remember to ask, and it is **never a gate**: the transition is already committed, skipping is
+one click, and offline it does not appear at all because there is nowhere to upload to. A modal
+that could strand a task in IN_PROGRESS because an upload failed would cost more than the evidence
+is worth.
+
+The thread is server-only and says so offline. A conversation cannot be reconciled by
+last-write-wins the way a task field can, so rather than invent a merge strategy it declines.
+
+**Uploads.** The rules are narrow because this is the one place a user hands us bytes we later hand
+to another user's browser:
+
+- An **allowlist** of image and video types, not a blocklist. Unknown is refused.
+- The client's filename **never touches the filesystem** — `stored_name` is generated. That is what
+  makes traversal impossible rather than merely filtered; the test uploads
+  `../../../../etc/passwd.png` and asserts the stored label is `passwd.png`.
+- The stored content type comes from **our table**, not the request. A browser sniffing an
+  "image/png" upload into HTML would give the uploader script execution on this origin. Served with
+  `nosniff` and a sandbox CSP.
+- The size limit is enforced **while streaming**. Trusting `Content-Length`, or measuring after
+  reading, both let a large upload exhaust memory before the check runs. A partial file is removed.
+- Membership is checked **before a byte is written**, and again on every download. An attachment URL
+  is not a capability — the id is a small integer anyone could guess.
+
+**Three defects found, all pre-existing or mine.** `POST /comments` had no `require_member` at all
+(F-40) — the one route in the codebase that had escaped the rule D6 states, dormant because no UI
+called it. The inspector's assignee selector was a hardcoded list of four names storing strings that
+matched no user id, so it had never assigned anyone (F-41). And my own `CommentThread.post()` set
+the "these files did not upload" message before `load()`, whose first act is to clear it — so a
+failed upload reported success (F-42). The test for it failed for the right reason on the first run.
+
+**A test narrowed rather than deleted.** `TaskDetailModal`'s "renders no edit fields until edit mode"
+started failing because the modal now hosts a comment composer, whose textarea is not an edit field
+for the task. Scoped to exclude `#comment-draft` with the reason stated, rather than dropped.
+
+**Verified end to end** on the local production instance: a task assigned to two people appears
+under both filters; a member's comment is readable by the PM; evidence uploads and renders; and the
+same file returns 200 to a member, 401 anonymous, 404 to a non-member, while a `.sh` is refused 400.
+
 ## Part III — Timeline
 
 | Date | Event |
@@ -1163,6 +1231,7 @@ project, and a PM-created task carries both its deadline and its assignee.
 | **2026-08-28** | Deploy authorised by the owner but unreachable from this machine; inspecting the documented command found it shipped developer secrets and dev settings over production (F-37). Replaced with `scripts/deploy.sh` (DEC-020). |
 | **2026-08-28** | Production-configured instance stood up locally on :8090 and verified end to end; compose project-name collision (F-38) and a false-passing image check (F-39) found and fixed (DEC-021). |
 | **2026-08-28** | Deadlines on the create form, deadline-first board ordering, PM/member default scope, and membership invitations requiring acceptance (DEC-022, migration 0003). Backend → 80, frontend → 292. |
+| **2026-08-29** | Multiple assignees, per-member filtering, comments, completion evidence with uploads, assignee avatars (DEC-023, migration 0004). An unguarded comment endpoint found (F-40). Backend → 107, frontend → 323. |
 
 ## Part IV — Open questions
 

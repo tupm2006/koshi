@@ -4,6 +4,7 @@ import { useTaskStore } from '../stores/taskStore';
 import type { Task, TaskPriority, TaskStatus } from '../types/task';
 import TaskContextMenu from './TaskContextMenu.vue';
 import { Flame, Plus, Check, Edit3, Trash2 } from 'lucide-vue-next';
+import AssigneeAvatars from './AssigneeAvatars.vue';
 import { urgencyOf, dueLabel } from '../lib/urgency';
 
 /**
@@ -271,6 +272,13 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
                 {{ task.title }}
               </span>
             </button>
+            <AssigneeAvatars
+              v-if="taskStore.editingTaskId !== task.id"
+              :assignees="task.assignees"
+              :max="3"
+              size="xs"
+              class="ml-2 shrink-0"
+            />
           </div>
 
           <!-- Col 4: Priority -->

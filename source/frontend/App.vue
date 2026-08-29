@@ -17,6 +17,7 @@ import GitDiffModal from './components/GitDiffModal.vue';
 import DAGVisualizerModal from './components/DAGVisualizerModal.vue';
 import ShortcutsHelpModal from './components/ShortcutsHelpModal.vue';
 import CreateTaskModal from './components/CreateTaskModal.vue';
+import EvidenceModal from './components/EvidenceModal.vue';
 import TaskDetailModal from './components/TaskDetailModal.vue';
 import MobileBottomNav from './components/MobileBottomNav.vue';
 import {
@@ -397,6 +398,29 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           >
             {{ s === 'ALL' ? 'All tasks' : 'My tasks' }}
           </button>
+
+          <!-- Anyone else. Not a PM-only control: knowing what a teammate is
+               carrying is how you know who to ask, and it reveals nothing that
+               "All tasks" does not already show. -->
+          <select
+            id="scope-member"
+            :value="typeof taskStore.scope === 'number' ? taskStore.scope : ''"
+            class="h-6 rounded bg-transparent px-1.5 text-[11px] cursor-pointer focus:outline-none max-w-[9rem]"
+            :class="typeof taskStore.scope === 'number'
+              ? 'bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-100 font-semibold'
+              : 'text-slate-600 dark:text-slate-400'"
+            @change="(e) => {
+              const v = (e.target as HTMLSelectElement).value;
+              taskStore.setScope(v === '' ? 'ALL' : Number(v));
+            }"
+          >
+            <option value="">Someone else…</option>
+            <option
+              v-for="m in taskStore.members.filter((m) => m.user_id !== taskStore.currentUser?.id)"
+              :key="m.user_id"
+              :value="m.user_id"
+            >{{ m.full_name }}</option>
+          </select>
         </div>
 
         <!-- Status Tabs (h-6 Compact) -->
@@ -531,6 +555,9 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
     <DAGVisualizerModal v-if="isDAGOpen" @close="isDAGOpen = false" />
     <ShortcutsHelpModal v-if="isShortcutsHelpOpen" @close="isShortcutsHelpOpen = false" />
     <CreateTaskModal v-if="isCreateModalOpen" @close="isCreateModalOpen = false" />
+    <!-- Opened by the store from every path a task can reach DONE by, so no
+         caller has to remember to ask. -->
+    <EvidenceModal v-if="taskStore.evidenceForTaskId" />
     <TaskDetailModal
       v-if="taskStore.activeDetailTaskId"
       :task-id="taskStore.activeDetailTaskId"

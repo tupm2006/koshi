@@ -51,7 +51,9 @@ class User(Base):
     skills = Column(String(255), default="frontend,backend,general")  # Comma-separated
     created_at = Column(DateTime, default=utcnow)
 
-    assigned_tasks = relationship("Task", back_populates="assignee")
+    # Tasks this user is on, through the join table. viewonly: TaskAssignee owns
+    # the association, and two writable paths to the same rows is how they drift.
+    task_assignments = relationship("TaskAssignee", back_populates="user", viewonly=True)
     comments = relationship("Comment", back_populates="author")
     owned_projects = relationship("Project", back_populates="owner")
     memberships = relationship(
@@ -145,7 +147,6 @@ class Task(Base):
     id = Column(Integer, primary_key=True, index=True)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
     sprint_id = Column(Integer, ForeignKey("sprints.id"), nullable=True)
-    assignee_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     
     title = Column(String(255), nullable=False)
     description = Column(Text, default="")
@@ -161,7 +162,9 @@ class Task(Base):
 
     project = relationship("Project", back_populates="tasks")
     sprint = relationship("Sprint", back_populates="tasks")
-    assignee = relationship("User", back_populates="assigned_tasks")
+    assignees = relationship(
+        "TaskAssignee", back_populates="task", cascade="all, delete-orphan"
+    )
     comments = relationship("Comment", back_populates="task", cascade="all, delete-orphan")
 
     @property
@@ -207,13 +210,75 @@ class Task(Base):
     def acceptance_criteria(self, value):
         self.acceptance_criteria_json = json.dumps(value if isinstance(value, list) else [])
 
+class TaskAssignee(Base):
+    """
+    A person working on a task.
+
+    Replaces `Task.assignee_id` (migration 0004). One task can need two people;
+    an attributive column could not say so, and the workaround — duplicate
+    tasks — loses the fact that it is one piece of work. Same relational shape
+    as ProjectMember replacing User.role in 0002, for the same reason.
+    """
+    __tablename__ = "task_assignees"
+    __table_args__ = (UniqueConstraint("task_id", "user_id", name="uq_task_assignee"),)
+
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, default=utcnow)
+
+    task = relationship("Task", back_populates="assignees")
+    user = relationship("User", back_populates="task_assignments")
+
+
+class CommentKindEnum(str, enum.Enum):
+    """
+    COMMENT is ordinary discussion. EVIDENCE is proof of completion, captured
+    when a task moves to DONE.
+
+    Both live in the same thread deliberately: evidence is a comment that
+    happens to justify a transition, and splitting them into two feeds would
+    mean reading two places to follow one task.
+    """
+    COMMENT = "COMMENT"
+    EVIDENCE = "EVIDENCE"
+
+
+class Attachment(Base):
+    """
+    A file attached to a comment.
+
+    `stored_name` is generated server-side and is the only name ever touched by
+    the filesystem — `filename` is the client's, kept for display and never
+    used to build a path. Content type is pinned from an allowlist rather than
+    echoed back from the upload, so nothing can be served as HTML.
+    """
+    __tablename__ = "attachments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    comment_id = Column(Integer, ForeignKey("comments.id", ondelete="CASCADE"), nullable=False, index=True)
+    uploader_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    filename = Column(String(255), nullable=False)
+    stored_name = Column(String(255), nullable=False, unique=True)
+    content_type = Column(String(100), nullable=False)
+    size_bytes = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=utcnow)
+
+    comment = relationship("Comment", back_populates="attachments")
+    uploader = relationship("User")
+
+
 class Comment(Base):
     __tablename__ = "comments"
     id = Column(Integer, primary_key=True, index=True)
     task_id = Column(Integer, ForeignKey("tasks.id"), nullable=False)
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     content = Column(Text, nullable=False)
+    kind = Column(Enum(CommentKindEnum), default=CommentKindEnum.COMMENT, nullable=False)
     created_at = Column(DateTime, default=utcnow)
 
     task = relationship("Task", back_populates="comments")
     author = relationship("User", back_populates="comments")
+    attachments = relationship(
+        "Attachment", back_populates="comment", cascade="all, delete-orphan"
+    )

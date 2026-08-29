@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useTaskStore } from '../stores/taskStore';
-import { api, type ProjectMember } from '../services/api';
 import type { TaskPriority, TaskStatus } from '../types/task';
 import { Plus, X, CalendarDays, UserPlus } from 'lucide-vue-next';
 
@@ -15,9 +14,11 @@ const title = ref('');
 const priority = ref<TaskPriority>('MEDIUM');
 const status = ref<TaskStatus>('TODO');
 const dueDate = ref('');
-const assigneeId = ref<number | ''>('');
-const members = ref<ProjectMember[]>([]);
+const assigneeIds = ref<number[]>([]);
 const inputRef = ref<HTMLInputElement | null>(null);
+
+/** Accepted members of the current project, from the store. */
+const members = computed(() => taskStore.members);
 
 /**
  * Assigning work is a PM affordance. A member creating a task gets it in their
@@ -28,37 +29,36 @@ const inputRef = ref<HTMLInputElement | null>(null);
  */
 const canAssign = computed(() => taskStore.isProjectManager && members.value.length > 1);
 
+function toggleAssignee(id: number) {
+  const at = assigneeIds.value.indexOf(id);
+  if (at === -1) assigneeIds.value.push(id);
+  else assigneeIds.value.splice(at, 1);
+}
+
 /** Today, as the `min` for the date input — a deadline in the past is a typo. */
 const today = new Date().toISOString().slice(0, 10);
 
 function handleCreate() {
   if (!title.value.trim()) return;
 
-  const chosen = assigneeId.value === '' ? null : Number(assigneeId.value);
   taskStore.createTask(title.value.trim(), priority.value, status.value, {
     // <input type="date"> gives YYYY-MM-DD with no time. Pin it to end of day
     // local: a task due "the 30th" is not late at 00:01 on the 30th.
     dueDate: dueDate.value ? new Date(`${dueDate.value}T23:59:59`).toISOString() : undefined,
-    assigneeId: chosen,
-    assignee: members.value.find((m) => m.user_id === chosen)?.full_name,
+    assignees: assigneeIds.value.map((id) => {
+      const m = members.value.find((x) => x.user_id === id);
+      return { id, full_name: m?.full_name ?? '', avatar_url: m?.avatar_url ?? null };
+    }),
   });
   emit('close');
 }
 
-onMounted(async () => {
+onMounted(() => {
   inputRef.value?.focus();
-
-  // Only a PM needs the roster, and only for a project that has one.
-  if (taskStore.isProjectManager && taskStore.currentProjectId !== null) {
-    try {
-      const roster = await api.listMembers(taskStore.currentProjectId);
-      // Pending invitations cannot be assigned work — they have no access to
-      // the project yet and may never accept.
-      members.value = roster.filter((m) => m.status === 'ACCEPTED');
-    } catch (e) {
-      console.warn('Could not load members for assignment:', e);
-    }
-  }
+  // The roster is loaded with the project (taskStore.loadMembers), so the
+  // picker never waits on a request here. Pending invitations are already
+  // filtered out there — assigning work to somebody who cannot open the
+  // project produces work nobody receives.
 });
 </script>
 
@@ -152,18 +152,35 @@ onMounted(async () => {
             <UserPlus class="w-3.5 h-3.5" />
             <span>Assign to</span>
           </label>
-          <select
+          <!-- Checkboxes, not a multi-select: a <select multiple> requires
+               ctrl-click to pick a second person, which nobody discovers. -->
+          <div
             id="vue-create-task-assignee"
-            v-model="assigneeId"
-            class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-indigo-500 min-h-[40px]"
+            class="max-h-40 overflow-y-auto rounded-lg border border-slate-300 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-800"
           >
-            <option value="">Unassigned</option>
-            <option v-for="m in members" :key="m.user_id" :value="m.user_id">
-              {{ m.full_name }} — {{ m.active_tasks_count }} active
-            </option>
-          </select>
+            <label
+              v-for="m in members"
+              :key="m.user_id"
+              :data-assignee-option="m.user_id"
+              class="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60"
+            >
+              <input
+                type="checkbox"
+                :checked="assigneeIds.includes(m.user_id)"
+                class="w-3.5 h-3.5 accent-indigo-600 cursor-pointer"
+                @change="toggleAssignee(m.user_id)"
+              />
+              <span class="min-w-0 flex-1">
+                <span class="block text-xs font-medium truncate">{{ m.full_name }}</span>
+                <span class="block text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                  {{ m.active_tasks_count }} active · {{ m.wip_points }} pts
+                </span>
+              </span>
+            </label>
+          </div>
           <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            Current load is shown so you can spread work rather than stack it.
+            Pick more than one when a task genuinely needs two people. Current
+            load is shown so you can spread work rather than stack it.
           </p>
         </div>
 

@@ -1,20 +1,38 @@
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
-from app.models.entities import TaskStatusEnum, TaskPriorityEnum
+from app.models.entities import TaskStatusEnum, TaskPriorityEnum, CommentKindEnum
 from app.schemas.auth import UserOut
+
+class AttachmentOut(BaseModel):
+    id: int
+    filename: str
+    content_type: str
+    size_bytes: int
+    # Where to fetch the bytes. Membership is re-checked on that route — a URL
+    # is not a capability.
+    url: str = ""
+
+    class Config:
+        from_attributes = True
+
 
 class CommentBase(BaseModel):
     content: str
 
 class CommentCreate(CommentBase):
-    pass
+    # EVIDENCE is written when a task moves to DONE. Clients may set it, and
+    # nothing is enforced by it — it changes how the entry is labelled, not
+    # what it can do.
+    kind: CommentKindEnum = CommentKindEnum.COMMENT
 
 class CommentOut(CommentBase):
     id: int
     task_id: int
     author_id: int
     author: Optional[UserOut] = None
+    kind: CommentKindEnum = CommentKindEnum.COMMENT
+    attachments: List[AttachmentOut] = []
     created_at: datetime
 
     class Config:
@@ -36,7 +54,9 @@ class TaskBase(BaseModel):
 class TaskCreate(TaskBase):
     project_id: int
     sprint_id: Optional[int] = None
-    assignee_id: Optional[int] = None
+    # Plural. Every id must belong to the project (checked server-side) — you
+    # cannot assign work to somebody who cannot see it.
+    assignee_ids: Optional[List[int]] = None
 
 class TaskUpdate(BaseModel):
     title: Optional[str] = None
@@ -49,7 +69,9 @@ class TaskUpdate(BaseModel):
     due_date: Optional[datetime] = None
     blocking_reason: Optional[str] = None
     sprint_id: Optional[int] = None
-    assignee_id: Optional[int] = None
+    # None means "leave alone"; [] means "unassign everybody". The distinction
+    # matters — a PATCH that touches only the title must not clear assignees.
+    assignee_ids: Optional[List[int]] = None
     dependencies: Optional[List[int]] = None
     acceptance_criteria: Optional[List[str]] = None
 
@@ -60,8 +82,7 @@ class TaskOut(BaseModel):
     key: str = ""
     project_id: int
     sprint_id: Optional[int] = None
-    assignee_id: Optional[int] = None
-    assignee: Optional[UserOut] = None
+    assignees: List[UserOut] = []
     title: str
     description: str
     status: TaskStatusEnum

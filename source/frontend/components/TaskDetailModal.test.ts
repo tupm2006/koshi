@@ -14,6 +14,9 @@ const { apiMock } = vi.hoisted(() => ({
     logout: vi.fn(),
     listProjects: vi.fn(async () => [] as any[]),
     getTasks: vi.fn(async () => [] as any[]),
+    listComments: vi.fn(async () => [] as any[]),
+    addComment: vi.fn(),
+    uploadAttachment: vi.fn(),
     createTask: vi.fn(async () => ({})),
     updateTask: vi.fn(async () => ({})),
     deleteTask: vi.fn(async () => undefined),
@@ -72,7 +75,11 @@ describe('view mode', () => {
     await w.vm.$nextTick();
 
     expect(w.find('input[type="text"]').exists()).toBe(false);
-    expect(w.find('textarea').exists()).toBe(false);
+    // Scoped to the task's own fields. The modal also hosts the comment
+    // composer, whose textarea is not an edit field for the task and is
+    // present in view mode by design.
+    const taskTextareas = w.findAll('textarea').filter((t: any) => t.attributes('id') !== 'comment-draft');
+    expect(taskTextareas).toHaveLength(0);
   });
 
   it('shows a blocking reason when the task is blocked', async () => {

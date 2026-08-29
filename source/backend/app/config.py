@@ -8,6 +8,14 @@ class Settings(BaseSettings):
     
     # Database configuration (SQLite default, can be Postgres)
     DATABASE_URL: str = "sqlite:///./data/koshi.db"
+
+    # ---- Attachments --------------------------------------------------------
+    # Where uploaded evidence is written. Inside the data volume, so it survives
+    # a rebuild and is excluded from the image by .dockerignore.
+    UPLOAD_DIR: str = "./data/uploads"
+    # Per-file ceiling. Enforced while streaming, not after — reading an
+    # unbounded body into memory to measure it is the denial of service.
+    MAX_UPLOAD_BYTES: int = 25 * 1024 * 1024
     
     # Deployment environment. Anything other than "development" is treated as
     # production for the purposes of the startup safety checks in main.py.

@@ -7,7 +7,7 @@ from app.config import settings
 from app.database import engine, Base, SessionLocal
 from app.models.entities import (
     User, Project, ProjectMember, Sprint, Task,
-    ProjectRoleEnum, TaskStatusEnum, TaskPriorityEnum,
+    ProjectRoleEnum, TaskAssignee, TaskStatusEnum, TaskPriorityEnum,
 )
 from app.security import get_password_hash
 from app.routers import auth, users, projects, sprints, tasks, stats, ai
@@ -71,7 +71,6 @@ def seed_initial_data():
                 Task(
                     project_id=default_proj.id,
                     sprint_id=default_sprint.id,
-                    assignee_id=pm_user.id,
                     title="Implement FastAPI backend with SQLAlchemy & SQLite",
                     description="Build complete REST APIs for auth, tasks, sprints, workload stats, and AI.",
                     status=TaskStatusEnum.DONE,
@@ -82,7 +81,6 @@ def seed_initial_data():
                 Task(
                     project_id=default_proj.id,
                     sprint_id=default_sprint.id,
-                    assignee_id=member_user.id,
                     title="Integrate Vue 3 Composition API with JWT Bearer Token API sync",
                     description="Connect frontend task store with backend authentication and CRUD endpoints.",
                     status=TaskStatusEnum.IN_PROGRESS,
@@ -93,7 +91,6 @@ def seed_initial_data():
                 Task(
                     project_id=default_proj.id,
                     sprint_id=default_sprint.id,
-                    assignee_id=pm_user.id,
                     title="Develop AI Workflow Endpoints (Summary, Minutes, Assignment)",
                     description="Implement OpenAI API cascade with local Ollama fallback and deterministic safety.",
                     status=TaskStatusEnum.IN_PROGRESS,
@@ -104,7 +101,6 @@ def seed_initial_data():
                 Task(
                     project_id=default_proj.id,
                     sprint_id=default_sprint.id,
-                    assignee_id=member_user.id,
                     title="Design Interactive Kanban Board View in Frontend",
                     description="Provide board view alongside table view with drag-to-status capabilities.",
                     status=TaskStatusEnum.TODO,
@@ -115,7 +111,6 @@ def seed_initial_data():
                 Task(
                     project_id=default_proj.id,
                     sprint_id=default_sprint.id,
-                    assignee_id=member_user.id,
                     title="Deploy multi-container setup with Docker Compose on umi",
                     description="Orchestrate frontend and backend containers behind Caddy reverse proxy.",
                     status=TaskStatusEnum.BLOCKED,
@@ -127,6 +122,13 @@ def seed_initial_data():
             ]
             for st in sample_tasks:
                 db.add(st)
+            db.flush()
+
+            # Assignment is relational now (migration 0004), so seeding it means
+            # rows rather than a column. Positional: one owner per sample task.
+            seed_owners = [pm_user, member_user, pm_user, member_user, member_user]
+            for st, owner in zip(sample_tasks, seed_owners):
+                db.add(TaskAssignee(task_id=st.id, user_id=owner.id))
             db.commit()
     finally:
         db.close()

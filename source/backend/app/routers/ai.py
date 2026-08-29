@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.entities import Task, User, Project, ProjectMember, TaskStatusEnum
+from app.models.entities import Task, TaskAssignee, User, Project, ProjectMember, TaskStatusEnum
 from app.schemas.ai import (
     MeetingNotesRequest, MeetingMinutesResponse,
     AssignmentRecommendRequest, AssignmentRecommendResponse, AssignmentRecommendation,
@@ -37,7 +37,7 @@ async def generate_weekly_summary(
                 "title": t.title,
                 "status": t.status.value,
                 "priority": t.priority.value,
-                "assignee": t.assignee.full_name if t.assignee else "Unassigned",
+                "assignee": ", ".join(a.user.full_name for a in t.assignees if a.user) or "Unassigned",
                 "blocking_reason": t.blocking_reason,
                 "due_date": t.due_date.isoformat() if t.due_date else None,
                 "complexity": t.complexity_points
@@ -89,7 +89,7 @@ async def recommend_assignment(
 
     for u in users:
         active_tasks = db.query(Task).filter(
-            Task.assignee_id == u.id,
+            Task.assignees.any(TaskAssignee.user_id == u.id),
             Task.project_id == project_id,
             Task.status.in_([TaskStatusEnum.TODO, TaskStatusEnum.IN_PROGRESS, TaskStatusEnum.BLOCKED])
         ).all()

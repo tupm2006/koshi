@@ -2,14 +2,25 @@ export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'BLOCKED' | 'DONE';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type Complexity = 'S' | 'M' | 'L' | 'XL';
 
+/** A person on a task. `id` is the server user id. */
+export interface TaskAssignee {
+  id: number;
+  full_name: string;
+  avatar_url?: string | null;
+}
+
 export interface Task {
   id: string;
   title: string;
   description?: string;
   status: TaskStatus;
   priority: TaskPriority;
-  assignee?: string;        // display name, for rendering
-  assigneeId?: number | null; // server id, for filtering and writes
+  /**
+   * Everyone working on this task. Plural since DEC-023 — one piece of work can
+   * need two people, and duplicating the task to say so loses the fact that it
+   * is one piece of work.
+   */
+  assignees?: TaskAssignee[];
   dueDate?: string; // ISO 8601
   blockingReason?: string;
   createdAt: number;

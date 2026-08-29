@@ -4,7 +4,7 @@ from typing import List
 from app.database import get_db
 from app.models.entities import (
     MembershipStatusEnum, Project, ProjectMember, ProjectRoleEnum, Task,
-    TaskStatusEnum, User,
+    TaskAssignee, TaskStatusEnum, User,
 )
 from app.schemas.project import (
     InvitationOut,
@@ -130,7 +130,10 @@ def delete_project(
 def _member_out(db: Session, m: ProjectMember) -> ProjectMemberOut:
     active = (
         db.query(Task)
-        .filter(Task.assignee_id == m.user_id, Task.project_id == m.project_id)
+        .filter(
+            Task.assignees.any(TaskAssignee.user_id == m.user_id),
+            Task.project_id == m.project_id,
+        )
         .filter(Task.status.in_(ACTIVE_STATUSES))
         .all()
     )

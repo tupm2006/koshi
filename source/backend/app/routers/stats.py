@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List
 from datetime import datetime
 from app.database import get_db
-from app.models.entities import User, Task, ProjectMember, TaskStatusEnum
+from app.models.entities import User, Task, TaskAssignee, ProjectMember, TaskStatusEnum
 from app.schemas.stats import MemberWorkloadOut, DelayedTaskOut
 from app.security import get_current_user, require_member
 from app.utils.time import utcnow
@@ -22,7 +22,7 @@ def get_member_workloads(project_id: int, db: Session = Depends(get_db), current
 
     for u in users:
         active_tasks = db.query(Task).filter(
-            Task.assignee_id == u.id,
+            Task.assignees.any(TaskAssignee.user_id == u.id),
             Task.project_id == project_id,
             Task.status.in_([TaskStatusEnum.TODO, TaskStatusEnum.IN_PROGRESS, TaskStatusEnum.BLOCKED])
         ).all()
@@ -60,7 +60,10 @@ def get_delayed_tasks(project_id: int, db: Session = Depends(get_db), current_us
     results = []
     for t in tasks:
         days_overdue = (now - t.due_date).days if t.due_date else 0
-        assignee_name = t.assignee.full_name if t.assignee else "Unassigned"
+        # Several people can own one task now; name them all rather than
+        # picking one and implying sole responsibility.
+        names = [a.user.full_name for a in t.assignees if a.user]
+        assignee_name = ", ".join(names) if names else "Unassigned"
         results.append(DelayedTaskOut(
             task_id=t.id,
             title=t.title,

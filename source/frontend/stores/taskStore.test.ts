@@ -29,6 +29,7 @@ const { idb, apiMock } = vi.hoisted(() => ({
     deleteTask: vi.fn(async () => undefined),
     updateProfile: vi.fn(),
     listInvitations: vi.fn(async () => [] as any[]),
+    listMembers: vi.fn(async () => [] as any[]),
     acceptInvitation: vi.fn(),
     declineInvitation: vi.fn(async () => undefined),
   },
@@ -387,11 +388,13 @@ describe('creating a task with a deadline and an assignee', () => {
     apiMock.createTask.mockClear();
 
     const due = '2026-09-30T23:59:59.000Z';
-    const t = s.createTask('Ship it', 'HIGH', 'TODO', { dueDate: due, assigneeId: 4 })!;
+    const t = s.createTask('Ship it', 'HIGH', 'TODO', {
+      dueDate: due, assignees: [{ id: 4, full_name: 'Dev' }],
+    })!;
 
     expect(t.dueDate).toBe(due);
     expect(apiMock.createTask).toHaveBeenCalledWith(
-      expect.objectContaining({ due_date: due, assignee_id: 4 }),
+      expect.objectContaining({ due_date: due, assignee_ids: [4] }),
     );
   });
 
@@ -404,7 +407,7 @@ describe('creating a task with a deadline and an assignee', () => {
 
     expect(t.dueDate).toBeUndefined();
     expect(apiMock.createTask).toHaveBeenCalledWith(
-      expect.objectContaining({ due_date: null, assignee_id: null }),
+      expect.objectContaining({ due_date: null, assignee_ids: [] }),
     );
   });
 });
@@ -443,13 +446,36 @@ describe('scope', () => {
 
   it('MINE shows only the caller\'s tasks', async () => {
     const s = await shared('MEMBER');
-    s.createTask('Mine', 'MEDIUM', 'TODO', { assigneeId: 1 });
-    s.createTask('Someone else\'s', 'MEDIUM', 'TODO', { assigneeId: 2 });
+    s.createTask('Mine', 'MEDIUM', 'TODO', { assignees: [{ id: 1, full_name: 'Ada' }] });
+    s.createTask('Someone else\'s', 'MEDIUM', 'TODO', { assignees: [{ id: 2, full_name: 'Bob' }] });
 
     expect(s.filteredTasks.map((t) => t.title)).toEqual(['Mine']);
 
     s.setScope('ALL');
     expect(s.filteredTasks).toHaveLength(2);
+  });
+
+  it('filters to one named person', async () => {
+    // The member view needs this: seeing what a teammate is carrying is how you
+    // know who to ask, and it is not a permission question.
+    const s = await shared('MEMBER');
+    s.createTask('Mine', 'MEDIUM', 'TODO', { assignees: [{ id: 1, full_name: 'Ada' }] });
+    s.createTask('Bob\'s', 'MEDIUM', 'TODO', { assignees: [{ id: 2, full_name: 'Bob' }] });
+
+    s.setScope(2);
+    expect(s.filteredTasks.map((t) => t.title)).toEqual(['Bob\'s']);
+  });
+
+  it('shows a shared task under every one of its assignees', async () => {
+    const s = await shared('PM');
+    s.createTask('Pair work', 'MEDIUM', 'TODO', {
+      assignees: [{ id: 1, full_name: 'Ada' }, { id: 2, full_name: 'Bob' }],
+    });
+
+    s.setScope('MINE');
+    expect(s.filteredTasks).toHaveLength(1);
+    s.setScope(2);
+    expect(s.filteredTasks).toHaveLength(1);
   });
 
   it('MINE hides unassigned work rather than claiming it', async () => {

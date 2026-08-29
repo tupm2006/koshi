@@ -2,6 +2,11 @@
 import { useTaskStore } from '../stores/taskStore';
 import type { Task, TaskPriority, TaskStatus } from '../types/task';
 import { Flame, Clock, Plus, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-vue-next';
+import AssigneeAvatars from './AssigneeAvatars.vue';
+import { urgencyOf, dueLabel } from '../lib/urgency';
+
+/** Read once per render — see TaskTable for why. */
+const now = Date.now();
 
 defineProps<{
   onOpenCreate: () => void;
@@ -150,6 +155,7 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
           <div class="flex items-center justify-between gap-1 mb-1.5 text-xs font-mono">
             <span class="text-slate-500 dark:text-slate-400 font-semibold">{{ task.id }}</span>
             <div class="flex items-center gap-1.5">
+              <AssigneeAvatars :assignees="task.assignees" :max="3" size="xs" />
               <span v-if="taskStore.criticalPathIds.has(task.id) && task.status !== 'DONE'" title="Critical Path" class="text-rose-600 dark:text-rose-400">
                 <Flame class="w-3.5 h-3.5" />
               </span>
@@ -173,8 +179,17 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
           <!-- Footer Row -->
           <div class="flex items-center justify-between text-xs font-mono text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
             <div class="flex items-center gap-1">
-              <Clock v-if="task.dueDate" class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-              <span v-if="task.dueDate">{{ new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) }}</span>
+              <Clock v-if="task.dueDate" class="w-3.5 h-3.5" :class="urgencyOf(task, now) === 'OVERDUE' ? 'text-rose-500' : 'text-slate-400 dark:text-slate-500'" />
+              <span
+                v-if="task.dueDate"
+                :data-urgency="urgencyOf(task, now)"
+                class="font-medium"
+                :class="{
+                  'text-rose-700 dark:text-rose-400': urgencyOf(task, now) === 'OVERDUE',
+                  'text-amber-700 dark:text-amber-400': urgencyOf(task, now) === 'TODAY',
+                  'text-yellow-700 dark:text-yellow-500': urgencyOf(task, now) === 'SOON',
+                }"
+              >{{ dueLabel(task, now) }}</span>
               <span v-else>-</span>
             </div>
 

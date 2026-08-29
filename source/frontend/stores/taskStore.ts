@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia';
 import { nextTick } from 'vue';
 import { get, set } from 'idb-keyval';
-import type { Task, TaskStatus, TaskPriority, TaskFilter, FilterStatus, FilterPriority, Complexity } from '../types/task';
+import type { Task, TaskAssignee, TaskStatus, TaskPriority, TaskFilter, FilterStatus, FilterPriority, Complexity } from '../types/task';
 import { topologicalSort, computeCriticalPath } from '../lib/dagSorter';
 import { sortByUrgency } from '../lib/urgency';
-import { api, taskKeyOf, serverIdOf, type UserProfile, type Project, type ProjectRole, type Invitation } from '../services/api';
+import { api, taskKeyOf, serverIdOf, type UserProfile, type Project, type ProjectRole, type Invitation, type ProjectMember } from '../services/api';
 
 /**
  * IndexedDB keys are partitioned per project.
@@ -52,12 +52,25 @@ export const useTaskStore = defineStore('taskStore', {
       onlyCriticalPath: false,
     } as TaskFilter,
     /**
-     * Whose tasks the board shows. A PM opens on ALL because their job is the
-     * whole project; a member opens on MINE because theirs is their own queue.
-     * Set from the project's role on selection, and overridable either way —
-     * the default is about attention, not permission.
+     * Whose tasks the board shows: everyone, me, or one named person.
+     *
+     * A PM opens on ALL because their job is the whole project; a member opens
+     * on MINE because theirs is their own queue. Either can switch to anybody —
+     * this is about attention, not permission, and a member seeing what a
+     * teammate is carrying is how they know who to ask.
      */
-    scope: 'ALL' as 'ALL' | 'MINE',
+    scope: 'ALL' as 'ALL' | 'MINE' | number,
+    /** Roster of the selected project, for the assignee picker and filter. */
+    members: [] as ProjectMember[],
+    /**
+     * Task awaiting completion evidence, or null.
+     *
+     * Set when a task enters DONE. The transition itself is never blocked on
+     * it — the work is finished whether or not proof gets attached, and a
+     * dialog that could strand a task in IN_PROGRESS because a network call
+     * failed would be worse than no dialog.
+     */
+    evidenceForTaskId: null as string | null,
     /** Pending project invitations awaiting this user's answer. */
     invitations: [] as Invitation[],
   }),
@@ -136,11 +149,16 @@ export const useTaskStore = defineStore('taskStore', {
         result = result.filter((t) => critSet.has(t.id));
       }
 
-      if (state.scope === 'MINE' && state.currentUser) {
-        const me = state.currentUser;
-        result = result.filter(
-          (t) => t.assigneeId === me.id || (!!t.assignee && t.assignee === me.full_name),
-        );
+      // ALL means no filter. MINE resolves to the signed-in user; a number is
+      // a specific person. Resolving MINE here rather than storing the id keeps
+      // the filter correct if the session changes underneath it.
+      const wantedId =
+        state.scope === 'ALL' ? null
+        : state.scope === 'MINE' ? (state.currentUser?.id ?? null)
+        : state.scope;
+
+      if (wantedId !== null) {
+        result = result.filter((t) => (t.assignees ?? []).some((a) => a.id === wantedId));
       }
 
       // Deadline-first ordering (see lib/urgency.ts). `Date.now()` is read here
@@ -265,7 +283,11 @@ export const useTaskStore = defineStore('taskStore', {
       this.invitations = this.invitations.filter((i) => i.project_id !== projectId);
     },
 
-    setScope(scope: 'ALL' | 'MINE') {
+    dismissEvidencePrompt() {
+      this.evidenceForTaskId = null;
+    },
+
+    setScope(scope: 'ALL' | 'MINE' | number) {
       this.scope = scope;
       this.selectedIndex = 0;
     },
@@ -339,6 +361,25 @@ export const useTaskStore = defineStore('taskStore', {
       this.tasks = cached && Array.isArray(cached) ? cached : [];
 
       await this.syncWithBackend(projectId);
+      await this.loadMembers(projectId);
+    },
+
+    /**
+     * Roster for the assignee picker and the "whose tasks" filter.
+     *
+     * Accepted members only: somebody who was merely invited cannot open the
+     * project, so offering them as an assignee would produce work nobody
+     * receives (the server refuses it too — DEC-022).
+     */
+    async loadMembers(projectId: number) {
+      if (!this.isBackendConnected) return;
+      try {
+        const roster = await api.listMembers(projectId);
+        this.members = roster.filter((m) => m.status === 'ACCEPTED');
+      } catch (e) {
+        console.warn('Could not load members:', e);
+        this.members = [];
+      }
     },
 
     async createProject(name: string, description = '') {
@@ -390,9 +431,9 @@ export const useTaskStore = defineStore('taskStore', {
             priority: t.priority as TaskPriority,
             complexity: t.complexity_points === 1 ? 'S' : t.complexity_points === 2 ? 'M' : t.complexity_points === 3 ? 'L' : 'XL',
             dueDate: t.due_date,
-            // TaskOut nests the whole user, not a flat name.
-            assignee: t.assignee?.full_name || undefined,
-            assigneeId: t.assignee_id ?? null,
+            assignees: (t.assignees || []).map((a: any) => ({
+              id: a.id, full_name: a.full_name, avatar_url: a.avatar_url ?? null,
+            })),
             blockingReason: t.blocking_reason,
             // Server sends integer ids; the board works in display keys.
             dependencies: (t.dependencies || []).map((d: number) => taskKeyOf(d)),
@@ -511,7 +552,7 @@ export const useTaskStore = defineStore('taskStore', {
       title: string,
       priority: TaskPriority = 'MEDIUM',
       status: TaskStatus = 'TODO',
-      extra: { dueDate?: string; assignee?: string; assigneeId?: number | null } = {},
+      extra: { dueDate?: string; assignees?: TaskAssignee[] } = {},
     ): Task | null {
       if (!this.canMutate) return null;
       if (!title.trim()) return null;
@@ -530,11 +571,10 @@ export const useTaskStore = defineStore('taskStore', {
         // Undefined rather than empty string when absent: `dueDate` is optional
         // in the contract and '' would sort as an unparseable date.
         dueDate: extra.dueDate || undefined,
-        assignee: extra.assignee || undefined,
         // Kept locally too, not just sent. Without it a task you just assigned
         // vanishes from your own "My tasks" view until the next server sync —
         // local-first means the local copy is complete (INV-03).
-        assigneeId: extra.assigneeId ?? null,
+        assignees: extra.assignees ?? [],
         createdAt: now,
         updatedAt: now,
         dependencies: [],
@@ -552,7 +592,7 @@ export const useTaskStore = defineStore('taskStore', {
           priority: newTask.priority,
           complexity_points: 2,
           due_date: newTask.dueDate ?? null,
-          assignee_id: extra.assigneeId ?? null,
+          assignee_ids: (extra.assignees ?? []).map((a) => a.id),
         }).catch((e) => console.warn('Background API create failed:', e));
       }
 
@@ -561,6 +601,12 @@ export const useTaskStore = defineStore('taskStore', {
 
     updateTask(id: string, updates: Partial<Omit<Task, 'id' | 'createdAt'>>) {
       if (!this.canMutate) return;
+
+      // Every status change funnels through here, so this is the one place that
+      // needs to notice a task being completed.
+      const before = this.tasks.find((t) => t.id === id);
+      const enteringDone =
+        updates.status === 'DONE' && !!before && before.status !== 'DONE';
       this.tasks = this.tasks.map((t) => {
         if (t.id === id) {
           return { ...t, ...updates, updatedAt: Date.now() };
@@ -569,10 +615,22 @@ export const useTaskStore = defineStore('taskStore', {
       });
       this.persist();
 
+      // Ask after the write, not before: the task is DONE either way.
+      // Offline there is nowhere to upload to, so do not offer.
+      if (enteringDone && this.isBackendConnected) {
+        this.evidenceForTaskId = id;
+      }
+
       const numId = serverIdOf(id);
       if (this.isBackendConnected && numId !== null) {
         // Translate any dependency keys back to the server's integer ids.
         const payload: Record<string, unknown> = { ...updates };
+        if (Array.isArray(updates.assignees)) {
+          // The contract takes ids; the board carries whole people so it can
+          // render a name and an avatar without a second lookup.
+          payload.assignee_ids = updates.assignees.map((a) => a.id);
+          delete payload.assignees;
+        }
         if (Array.isArray(updates.dependencies)) {
           payload.dependencies = updates.dependencies
             .map((d) => serverIdOf(d))

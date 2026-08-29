@@ -54,6 +54,7 @@ Do **not** proceed on your own initiative, even if the change looks obviously co
 | **Deleting or rewriting `submission/**`** | Frozen coursework artefact — see §3. |
 | **Rotating or hardcoding secrets; touching CORS** | RISK-02, RISK-05. |
 | **Deploying** (`scripts/deploy.sh`) | Overwrites a live production host. Human-initiated only. The tar\|ssh one-liner it replaced was itself a critical defect — F-37. |
+| **Widening `ALLOWED_TYPES` in `services/uploads.py`** | Uploaded bytes are served back to other users' browsers. Adding a type a browser will execute (HTML, SVG) turns an upload into stored XSS on this origin. |
 | **Changing what `get_membership` counts as a membership** | It is the single point that decides whether a PENDING invitation confers access. Widening it silently grants project access to everyone who was ever invited. |
 | **`git push`, force-push, branch deletion, history rewriting** | Never without an explicit instruction. |
 | **Deleting `source/backend/app/data/koshi.db`** | Committed binary; may hold data someone wants. |

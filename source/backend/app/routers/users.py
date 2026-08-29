@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 from app.database import get_db
-from app.models.entities import User, Task, TaskStatusEnum
+from app.models.entities import User, Task, TaskAssignee, TaskStatusEnum
 from app.schemas.auth import UserOut, UserWithWIPOut, UserUpdate
 from app.security import get_current_user
 
@@ -18,7 +18,7 @@ def get_all_users(
 
     for u in users:
         active_tasks = db.query(Task).filter(
-            Task.assignee_id == u.id,
+            Task.assignees.any(TaskAssignee.user_id == u.id),
             Task.status.in_([TaskStatusEnum.TODO, TaskStatusEnum.IN_PROGRESS, TaskStatusEnum.BLOCKED])
         ).all()
 

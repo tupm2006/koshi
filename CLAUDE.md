@@ -19,10 +19,10 @@ Guidance for AI agents working in this repository. **Read `documentation/` befor
 
 ```bash
 # Backend — must stay green
-cd source/backend && pytest -q          # expect: 80 passed
+cd source/backend && pytest -q          # expect: 107 passed
 
 # Frontend
-pnpm test                               # expect: 292 passed (vitest)
+pnpm test                               # expect: 323 passed (vitest)
 pnpm run build                          # vue-tsc -b && vite build
 ```
 
@@ -107,6 +107,17 @@ English object is the source of truth and a missing key is a compile error.
 
 **Three screens, no router.** `taskStore.appView` is `LANDING | BOARD | PROFILE`. A signed-out
 visitor must never reach the board except via explicit guest mode.
+
+**Uploads are an allowlist, and the client's filename never touches the filesystem.**
+`services/uploads.py` generates `stored_name`; `filename` is a label. The stored content type comes
+from our table, not the request — a browser sniffing an "image" into HTML would give the uploader
+script execution on this origin. Widening `ALLOWED_TYPES` is 🔴 RED.
+
+**Attachment URLs are not capabilities.** `download_attachment` re-checks membership on every
+fetch; the id is a small integer anyone could guess.
+
+**A task has assignees (plural), through `task_assignees`.** `Task.assignee_id` is gone (migration
+0004). Everyone assigned must be an accepted member of the project.
 
 **A PENDING membership grants nothing.** Adding somebody to a project creates an invitation;
 `get_membership` returns None until they accept, so every existing guard inherits the rule. Only the
