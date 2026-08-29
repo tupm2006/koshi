@@ -33,11 +33,37 @@ async function onPickAvatar(e: Event) {
   input.value = '';  // so re-picking the same file fires `change` again
   if (!file) return;
 
+  // The size check lives in uploadAvatarFile, shared with the paste path.
+  // Checked here as well as server-side: a courtesy, so a 5 MB photo fails
+  // instantly instead of after the upload.
+  await uploadAvatarFile(file);
+}
+
+/**
+ * Paste a picture straight onto the profile.
+ *
+ * Bound to the whole page rather than an input, because there is no obvious
+ * field to focus first — you copy an image and press Ctrl+V. Ignored while a
+ * name or skills field has focus, where a paste means text.
+ */
+async function onPagePaste(e: ClipboardEvent) {
+  const target = e.target as HTMLElement | null;
+  if (target && /^(INPUT|TEXTAREA)$/.test(target.tagName)) return;
+
+  const file = Array.from(e.clipboardData?.items ?? [])
+    .filter((it) => it.kind === 'file')
+    .map((it) => it.getAsFile())
+    .find((f): f is File => f !== null && f.type.startsWith('image/'));
+
+  if (!file) return;
+  e.preventDefault();
+  await uploadAvatarFile(file);
+}
+
+/** Shared by the file picker and the paste handler. */
+async function uploadAvatarFile(file: File) {
   avatarError.value = null;
 
-  // Checked here as well as server-side. Not a substitute for the server check
-  // — it is a courtesy, so a 5 MB photo fails instantly instead of after the
-  // upload.
   if (file.size > AVATAR_MAX_BYTES) {
     avatarError.value = 'That image is over 2 MB. Please pick a smaller one.';
     return;
@@ -127,7 +153,10 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen min-h-[100dvh] bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col">
+  <div
+    class="min-h-screen min-h-[100dvh] bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col"
+    @paste="onPagePaste"
+  >
     <!-- Header -->
     <header class="h-12 shrink-0 px-4 md:px-6 flex items-center justify-between border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900">
       <button
@@ -164,7 +193,7 @@ onMounted(() => {
               id="avatar-upload"
               class="absolute inset-0 rounded-full flex items-center justify-center bg-slate-900/60 text-white opacity-0 group-hover:opacity-100 focus-within:opacity-100 cursor-pointer transition-opacity"
               :class="isUploadingAvatar && 'opacity-100'"
-              title="Change your picture"
+              title="Change your picture — or paste an image anywhere on this page"
             >
               <Loader2 v-if="isUploadingAvatar" class="w-5 h-5 animate-spin" />
               <Camera v-else class="w-5 h-5" />

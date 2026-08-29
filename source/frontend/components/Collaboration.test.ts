@@ -51,10 +51,29 @@ const comment = (over: Record<string, unknown> = {}) => ({
   author: { id: 1, full_name: 'Ada Lovelace', email: 'a@b.c', skills: '' },
   content: 'Looks fine to me',
   kind: 'COMMENT',
+  // Mirrors the server, which always sends these. Without parent_id the
+  // threading filter treats every comment as a reply to nothing and drops it.
+  parent_id: null,
+  mentions: [],
   attachments: [],
   created_at: '2026-08-28T10:00:00Z',
   ...over,
 });
+
+const roster = (over: Record<string, unknown> = {}) => ({
+  user_id: 2, project_id: 1, role: 'MEMBER', status: 'ACCEPTED',
+  full_name: 'Grace Hopper', email: 'grace@navy.mil', skills: '',
+  avatar_url: null, active_tasks_count: 0, wip_points: 0, ...over,
+});
+
+/** A clipboard event carrying files, as jsdom does not construct one. */
+function pasteEvent(files: File[]): any {
+  const ev: any = new Event('paste', { bubbles: true, cancelable: true });
+  ev.clipboardData = {
+    items: files.map((f) => ({ kind: 'file', getAsFile: () => f })),
+  };
+  return ev;
+}
 
 const attachment = (over: Record<string, unknown> = {}) => ({
   id: 5, filename: 'shot.png', content_type: 'image/png',
@@ -209,7 +228,8 @@ describe('CommentThread', () => {
     await w.findAll('button').find((b: any) => /post/i.test(b.text()))!.trigger('click');
     await flushPromises();
 
-    expect(apiMock.addComment).toHaveBeenCalledWith(10, 'Ready for review', 'COMMENT');
+    // Fourth argument is the reply target: null for a top-level comment.
+    expect(apiMock.addComment).toHaveBeenCalledWith(10, 'Ready for review', 'COMMENT', null);
   });
 
   it('will not post an empty comment with no files', async () => {
@@ -329,7 +349,7 @@ describe('EvidenceModal', () => {
     await flushPromises();
 
     expect(apiMock.addComment).toHaveBeenCalledWith(
-      expect.any(Number), 'Deployed and verified', 'EVIDENCE',
+      expect.any(Number), 'Deployed and verified', 'EVIDENCE', null,
     );
     expect(store.evidenceForTaskId).toBeNull();
   });
@@ -400,5 +420,287 @@ describe('completing a task asks for evidence', () => {
     expect(s.evidenceForTaskId).toBeNull();
     // And the transition still happened — the prompt is not a gate.
     expect(s.tasks.find((x) => x.id === t.id)!.status).toBe('DONE');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Mentions and replies in the thread
+// ---------------------------------------------------------------------------
+
+describe('CommentThread — mentions', () => {
+  function open(members: any[] = [roster()]) {
+    let store!: Store;
+    const w = mountWithPinia(CommentThread, {
+      props: { taskId: 'TSK-10' },
+      setup: () => {
+        store = useTaskStore();
+        store.currentUser = { id: 1, email: 'a@b.c', full_name: 'Ada', skills: '' } as any;
+        store.projects = [fakeProject()] as any;
+        store.currentProjectId = 1;
+        store.isBackendConnected = true;
+        store.members = members as any;
+      },
+    });
+    return { w, store };
+  }
+
+  const type = async (w: any, text: string) => {
+    const box = w.find('#comment-draft');
+    (box.element as HTMLTextAreaElement).value = text;
+    (box.element as HTMLTextAreaElement).setSelectionRange(text.length, text.length);
+    await box.trigger('input');
+    await box.trigger('keyup');
+  };
+
+  it('opens a picker when @ is typed', async () => {
+    const { w } = open();
+    await flushPromises();
+    await type(w, 'hey @');
+
+    expect(w.find('#mention-menu').exists()).toBe(true);
+    expect(w.find('[data-mention-option="2"]').exists()).toBe(true);
+  });
+
+  it('filters the picker as you type', async () => {
+    const { w } = open([roster({ user_id: 2, full_name: 'Grace Hopper' }),
+                        roster({ user_id: 3, full_name: 'Alan Turing', email: 'alan@x.com' })]);
+    await flushPromises();
+    await type(w, '@gra');
+
+    expect(w.find('[data-mention-option="2"]').exists()).toBe(true);
+    expect(w.find('[data-mention-option="3"]').exists()).toBe(false);
+  });
+
+  it('does not open inside an email address', async () => {
+    const { w } = open();
+    await flushPromises();
+    await type(w, 'write to ada@exam');
+
+    expect(w.find('#mention-menu').exists()).toBe(false);
+  });
+
+  it('inserts a token carrying the id, not just the name', async () => {
+    // The id is what the mention means — a rename must not break it.
+    const { w } = open();
+    await flushPromises();
+    await type(w, 'hey @gra');
+    await w.find('[data-mention-option="2"]').trigger('mousedown');
+    await flushPromises();
+
+    expect((w.find('#comment-draft').element as HTMLTextAreaElement).value)
+      .toBe('hey @[Grace Hopper](2) ');
+  });
+
+  it('closes the picker after choosing', async () => {
+    const { w } = open();
+    await flushPromises();
+    await type(w, '@g');
+    await w.find('[data-mention-option="2"]').trigger('mousedown');
+    await flushPromises();
+
+    expect(w.find('#mention-menu').exists()).toBe(false);
+  });
+
+  it('renders a mention as a chip, with the current name', async () => {
+    // The stored label says "Old Name"; the roster says otherwise, and the
+    // roster is what the reader should see.
+    apiMock.listComments.mockResolvedValue([comment({ content: 'ping @[Old Name](2) please' })]);
+    const { w } = open();
+    await flushPromises();
+
+    const chip = w.find('[data-mention="2"]');
+    expect(chip.exists()).toBe(true);
+    expect(chip.text()).toBe('@Grace Hopper');
+  });
+
+  it('falls back to the captured name for somebody no longer in the roster', async () => {
+    apiMock.listComments.mockResolvedValue([comment({ content: 'ping @[Departed](99)' })]);
+    const { w } = open();
+    await flushPromises();
+
+    expect(w.find('[data-mention="99"]').text()).toBe('@Departed');
+  });
+
+  it('never renders a comment body as markup', async () => {
+    // Segments are Vue nodes, not v-html. A comment must not be able to
+    // introduce elements into the page.
+    apiMock.listComments.mockResolvedValue([comment({ content: '<img src=x onerror=alert(1)>' })]);
+    const { w } = open();
+    await flushPromises();
+
+    expect(w.find('[data-comment="1"] img').exists()).toBe(false);
+    expect(w.find('[data-comment="1"]').text()).toContain('<img src=x onerror=alert(1)>');
+  });
+});
+
+describe('CommentThread — replies', () => {
+  function open() {
+    let store!: Store;
+    const w = mountWithPinia(CommentThread, {
+      props: { taskId: 'TSK-10' },
+      setup: () => {
+        store = useTaskStore();
+        store.currentUser = { id: 1, email: 'a@b.c', full_name: 'Ada', skills: '' } as any;
+        store.projects = [fakeProject()] as any;
+        store.currentProjectId = 1;
+        store.isBackendConnected = true;
+        store.members = [roster()] as any;
+      },
+    });
+    return { w, store };
+  }
+
+  it('nests a reply under its parent, not as a sibling', async () => {
+    apiMock.listComments.mockResolvedValue([
+      comment({ id: 1, content: 'Original' }),
+      comment({ id: 2, content: 'A reply', parent_id: 1 }),
+    ]);
+    const { w } = open();
+    await flushPromises();
+
+    // One thread, containing both.
+    expect(w.findAll('[data-thread]')).toHaveLength(1);
+    expect(w.find('[data-thread="1"] [data-comment="2"]').attributes('data-reply')).toBe('true');
+  });
+
+  it('shows who is being replied to before you send', async () => {
+    apiMock.listComments.mockResolvedValue([comment({ id: 1, content: 'Original' })]);
+    const { w } = open();
+    await flushPromises();
+
+    await w.find('[data-reply-to="1"]').trigger('click');
+    await flushPromises();
+
+    expect(w.find('#reply-banner').text()).toContain('Ada Lovelace');
+    expect(w.find('#reply-banner').text()).toContain('Original');
+  });
+
+  it('sends the parent id', async () => {
+    apiMock.listComments.mockResolvedValue([comment({ id: 1, content: 'Original' })]);
+    const { w } = open();
+    await flushPromises();
+    await w.find('[data-reply-to="1"]').trigger('click');
+
+    await w.find('#comment-draft').setValue('Agreed');
+    await w.findAll('button').find((b: any) => /^post$/i.test(b.text()))!.trigger('click');
+    await flushPromises();
+
+    expect(apiMock.addComment).toHaveBeenCalledWith(10, 'Agreed', 'COMMENT', 1);
+  });
+
+  it('cancelling returns to a top-level comment', async () => {
+    apiMock.listComments.mockResolvedValue([comment({ id: 1, content: 'Original' })]);
+    const { w } = open();
+    await flushPromises();
+    await w.find('[data-reply-to="1"]').trigger('click');
+
+    await w.find('#reply-cancel').trigger('click');
+    await flushPromises();
+
+    expect(w.find('#reply-banner').exists()).toBe(false);
+  });
+
+  it('clears the reply target after posting, so the next note is not a reply too', async () => {
+    apiMock.listComments.mockResolvedValue([comment({ id: 1, content: 'Original' })]);
+    const { w } = open();
+    await flushPromises();
+    await w.find('[data-reply-to="1"]').trigger('click');
+    await w.find('#comment-draft').setValue('Agreed');
+    await w.findAll('button').find((b: any) => /^post$/i.test(b.text()))!.trigger('click');
+    await flushPromises();
+
+    expect(w.find('#reply-banner').exists()).toBe(false);
+  });
+
+  it('offers Reply on a reply too, since the server flattens it', async () => {
+    apiMock.listComments.mockResolvedValue([
+      comment({ id: 1, content: 'Original' }),
+      comment({ id: 2, content: 'A reply', parent_id: 1 }),
+    ]);
+    const { w } = open();
+    await flushPromises();
+
+    expect(w.find('[data-reply-to="2"]').exists()).toBe(true);
+  });
+});
+
+describe('CommentThread — paste', () => {
+  function open() {
+    let store!: Store;
+    const w = mountWithPinia(CommentThread, {
+      props: { taskId: 'TSK-10' },
+      setup: () => {
+        store = useTaskStore();
+        store.currentUser = { id: 1, email: 'a@b.c', full_name: 'Ada', skills: '' } as any;
+        store.projects = [fakeProject()] as any;
+        store.currentProjectId = 1;
+        store.isBackendConnected = true;
+        store.members = [roster()] as any;
+      },
+    });
+    return { w, store };
+  }
+
+  it('queues a pasted image like a chosen one', async () => {
+    const { w } = open();
+    await flushPromises();
+
+    const box = w.find('#comment-draft').element;
+    box.dispatchEvent(pasteEvent([new File(['x'], 'image.png', { type: 'image/png' })]));
+    await w.vm.$nextTick();
+
+    expect(w.findAll('[data-pending-file]')).toHaveLength(1);
+  });
+
+  it('names a screenshot from the timestamp, since the clipboard gives none', async () => {
+    const { w } = open();
+    await flushPromises();
+
+    const box = w.find('#comment-draft').element;
+    box.dispatchEvent(pasteEvent([new File(['x'], 'image.png', { type: 'image/png' })]));
+    await w.vm.$nextTick();
+
+    expect(w.find('[data-pending-file]').text()).toMatch(/pasted-.*\.png/);
+  });
+
+  it('keeps a real filename when the clipboard supplies one', async () => {
+    const { w } = open();
+    await flushPromises();
+
+    const box = w.find('#comment-draft').element;
+    box.dispatchEvent(pasteEvent([new File(['x'], 'diagram.png', { type: 'image/png' })]));
+    await w.vm.$nextTick();
+
+    expect(w.find('[data-pending-file]').text()).toContain('diagram.png');
+  });
+
+  it('numbers several images pasted at once', async () => {
+    const { w } = open();
+    await flushPromises();
+
+    const box = w.find('#comment-draft').element;
+    box.dispatchEvent(pasteEvent([
+      new File(['a'], 'image.png', { type: 'image/png' }),
+      new File(['b'], 'image.png', { type: 'image/png' }),
+    ]));
+    await w.vm.$nextTick();
+
+    const names = w.findAll('[data-pending-file]').map((n: any) => n.text());
+    expect(names).toHaveLength(2);
+    expect(names[0]).not.toBe(names[1]);
+  });
+
+  it('leaves a plain-text paste entirely to the browser', async () => {
+    // Intercepting text would break the caret and the undo stack for no gain.
+    const { w } = open();
+    await flushPromises();
+
+    const ev: any = new Event('paste', { bubbles: true, cancelable: true });
+    ev.clipboardData = { items: [{ kind: 'string', getAsFile: () => null }] };
+    w.find('#comment-draft').element.dispatchEvent(ev);
+    await w.vm.$nextTick();
+
+    expect(ev.defaultPrevented).toBe(false);
+    expect(w.findAll('[data-pending-file]')).toHaveLength(0);
   });
 });

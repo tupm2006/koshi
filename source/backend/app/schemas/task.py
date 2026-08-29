@@ -25,6 +25,9 @@ class CommentCreate(CommentBase):
     # nothing is enforced by it — it changes how the entry is labelled, not
     # what it can do.
     kind: CommentKindEnum = CommentKindEnum.COMMENT
+    # Reply target. Must be a comment on the same task; replying to a reply is
+    # re-parented to its top-level ancestor rather than refused.
+    parent_id: Optional[int] = None
 
 class CommentOut(CommentBase):
     id: int
@@ -32,7 +35,12 @@ class CommentOut(CommentBase):
     author_id: int
     author: Optional[UserOut] = None
     kind: CommentKindEnum = CommentKindEnum.COMMENT
+    parent_id: Optional[int] = None
     attachments: List[AttachmentOut] = []
+    #: Resolved from the `@[Name](id)` tokens in `content`, so a client can show
+    #: who was tagged without parsing, and can render each person's *current*
+    #: name rather than the one captured when the comment was written.
+    mentions: List[UserOut] = []
     created_at: datetime
 
     class Config:

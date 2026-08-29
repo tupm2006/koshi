@@ -91,7 +91,11 @@ export interface TaskComment {
   author: UserProfile | null;
   content: string;
   kind: CommentKind;
+  /** Null for a top-level comment. Replies are always one level deep. */
+  parent_id: number | null;
   attachments: Attachment[];
+  /** Resolved server-side from the tokens in `content`, with current names. */
+  mentions: UserProfile[];
   created_at: string;
 }
 
@@ -282,10 +286,15 @@ export class ApiClient {
     return this.request<TaskComment[]>(`/tasks/${taskId}/comments`);
   }
 
-  async addComment(taskId: number, content: string, kind: CommentKind = 'COMMENT'): Promise<TaskComment> {
+  async addComment(
+    taskId: number,
+    content: string,
+    kind: CommentKind = 'COMMENT',
+    parentId: number | null = null,
+  ): Promise<TaskComment> {
     return this.request<TaskComment>(`/tasks/${taskId}/comments`, {
       method: 'POST',
-      body: JSON.stringify({ content, kind }),
+      body: JSON.stringify({ content, kind, parent_id: parentId }),
     });
   }
 

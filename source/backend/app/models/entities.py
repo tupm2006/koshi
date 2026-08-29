@@ -278,10 +278,21 @@ class Comment(Base):
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     content = Column(Text, nullable=False)
     kind = Column(Enum(CommentKindEnum), default=CommentKindEnum.COMMENT, nullable=False)
+    # One level of nesting only: a reply to a reply is stored against the same
+    # parent. Deep threads are unreadable in a narrow inspector panel, and the
+    # flattening is enforced server-side so no client can create a chain.
+    parent_id = Column(Integer, ForeignKey("comments.id", ondelete="CASCADE"), nullable=True, index=True)
     created_at = Column(DateTime, default=utcnow)
 
     task = relationship("Task", back_populates="comments")
     author = relationship("User", back_populates="comments")
     attachments = relationship(
         "Attachment", back_populates="comment", cascade="all, delete-orphan"
+    )
+    parent = relationship("Comment", remote_side="Comment.id", back_populates="replies")
+    replies = relationship(
+        "Comment",
+        back_populates="parent",
+        cascade="all, delete-orphan",
+        order_by="Comment.id",
     )

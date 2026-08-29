@@ -57,6 +57,7 @@ koshi/
 | `dagSorter.ts` | `topologicalSort(tasks)`, `computeCriticalPath(tasks)` | Kahn's algorithm with deterministic tie-breaking; memoised longest-weighted-path search over non-`DONE` tasks. **Tested** — `dagSorter.test.ts` (28). | FR-GRAPH-01…05 |
 | `keyboard.ts` | keydown dispatcher, `isInputActive` | Single global `switch` mapping keys → store actions. **The one authoritative list of key bindings.** **Tested** — `keyboard.test.ts` (38). | FR-INT-01…14 |
 | `uploads.py` (backend) | `save_upload`, `path_for` | Attachment storage. Allowlisted types, generated filenames, streamed size limit. 🔴 Widening `ALLOWED_TYPES` needs sign-off. | D7 DEC-023 |
+| `mentions.ts` / `mentions.py` | `parseSegments`, `mentionToken`, `activeMentionQuery`, `parse_mention_ids` | The `@[Label](id)` token. Deliberately duplicated across the two languages; both are tested. | D7 DEC-025 |
 | `urgency.ts` | `urgencyOf`, `sortByUrgency`, `daysUntil`, `dueLabel` | Deadline banding and the board's default order. `now` is always a parameter. Deadline outranks priority by design. | FR-TASK, D7 DEC-022 |
 | `gitParser.ts` | `parseGitDiff(diff, tasks)` | Regex extraction of `close/fix/resolve #ID`; scans added lines for TODO/FIXME, empty catch blocks, hardcoded secrets, `: any`. Also resolves BLOCKED tasks on a whole-word title match — a loose heuristic, see OQ-08. `blockedTaskIds` is always empty (F-29). Covered by `gitParser.test.ts`. | FR-AI-05 |
 | `aiDecomposer.ts` | client-side goal heuristics | Tier-1 (<5 ms) local decomposition before any network call. | FR-AI-04 |

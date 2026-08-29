@@ -19,10 +19,10 @@ Guidance for AI agents working in this repository. **Read `documentation/` befor
 
 ```bash
 # Backend — must stay green
-cd source/backend && pytest -q          # expect: 117 passed
+cd source/backend && pytest -q          # expect: 134 passed
 
 # Frontend
-pnpm test                               # expect: 334 passed (vitest)
+pnpm test                               # expect: 383 passed (vitest)
 pnpm run build                          # vue-tsc -b && vite build
 ```
 
@@ -112,6 +112,17 @@ visitor must never reach the board except via explicit guest mode.
 `services/uploads.py` generates `stored_name`; `filename` is a label. The stored content type comes
 from our table, not the request — a browser sniffing an "image" into HTML would give the uploader
 script execution on this origin. Widening `ALLOWED_TYPES` is 🔴 RED.
+
+**A comment body is never rendered as markup.** `parseSegments` returns segments that the template
+renders as Vue nodes; building an HTML string and using `v-html` would make every comment a
+stored-XSS vector. 🔴 RED.
+
+**Mentions are `@[Label](userId)` tokens in the body — no mentions table.** The id is what a mention
+means, the label only what it looked like when written, so a rename resolves correctly. The regex
+exists in `lib/mentions.ts` and `services/mentions.py`; change one, change both.
+
+**Replies are one level deep.** Replying to a reply re-parents to its top-level ancestor, enforced in
+the router because SQL cannot express it. You may only tag accepted members of the project.
 
 **Avatars are visible to yourself and to people you share a project with**, because faces are
 rendered on task cards. Anyone else gets 404, not 403. `POST /users/me/avatar` takes no user id, so

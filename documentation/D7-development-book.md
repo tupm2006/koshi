@@ -1248,6 +1248,60 @@ by the time migration 0005 ran; it was applied to that database rather than a re
 rows survived with `avatar_file` added. Worth recording because the instinct after a schema change
 is to reset the volume, and here that would have destroyed somebody's actual project.
 
+### DEC-025 — @mentions, threaded replies, and paste
+
+**Date:** 2026-08-29 · **Tests:** backend 117 → 134, frontend 334 → 383 · **Migration:** 0006
+
+**The mention format is the whole design.** A mention is stored inside the comment body as
+`@[Display Name](userId)`. The id is what the mention *means*; the label is only what it looked like
+when it was written. That separation is what survives a rename: the client resolves the id against
+the current roster and renders today's name, falling back to the captured label for somebody who has
+since left the project.
+
+**There is deliberately no mentions table.** A parallel record of the same fact would have to be kept
+in step with an editable text field, and two records of one fact is how they drift — the lesson D4
+already carries about task ids. The tokens are the single source of truth; `mentions` on the wire is
+*derived* from them at read time, and says so.
+
+The regex is duplicated in `lib/mentions.ts` and `services/mentions.py`. That is not ideal, but both
+sides genuinely need it, and the alternative — a shared schema artefact for one regular expression —
+costs more than it saves. Both are tested against the same shape.
+
+**A bare `@ada` is left as plain text.** Guessing would tag the wrong person the first time two
+people share a first name. The picker only opens on an `@` that starts a word, which is also what
+stops an email address from opening it.
+
+**Replies are one level, always.** Replying to a reply re-parents to the top-level ancestor rather
+than being refused: the user was offered a Reply button and should not be told off for using it.
+The flattening is enforced in the router because SQL cannot express "the parent must not itself have
+a parent". A reply may only target a comment on the same task — otherwise it appears under a thread
+its author never saw, and across projects that is a leak.
+
+**Rendering never touches `v-html`.** `parseSegments` returns text and mention runs, and the template
+renders each as an ordinary Vue node. Building an HTML string here would make every comment body a
+stored-XSS vector — a test pastes `<img src=x onerror=...>` into a comment and asserts no element
+appears.
+
+**Paste.** Text is left entirely to the browser: intercepting it would break the caret and the undo
+stack for no gain. Only files are taken, because a clipboard screenshot has no filename — it is
+named from the timestamp, numbered when several arrive together, and queued exactly like a file
+chosen through Attach. `preventDefault` fires only when a file was actually taken, so pasting an
+image copied from a rich-text editor still inserts its accompanying text.
+
+The profile page takes a paste on the whole page rather than on an input, because there is no field
+to focus first — you copy an image and press Ctrl+V. It ignores pastes aimed at the name and skills
+fields, where a paste means text, and shares the 2 MB guard with the file picker rather than
+repeating it.
+
+**Two fixtures corrected, no code blamed.** `Collaboration.test.ts`'s comment fixture predated
+`parent_id`, so every comment read as a reply to nothing and the threading filter dropped them all;
+and `addComment` gained a fourth argument. Both are the tests catching up with a contract change,
+which is what they are for.
+
+**Applied to live data.** Migration 0006 ran against the local production database, which by then
+held two accounts, a project, two tasks and a comment the user had written. All of it survived, the
+existing comment becoming a top-level entry with a null parent.
+
 ## Part III — Timeline
 
 | Date | Event |
@@ -1277,6 +1331,7 @@ is to reset the volume, and here that would have destroyed somebody's actual pro
 | **2026-08-28** | Deadlines on the create form, deadline-first board ordering, PM/member default scope, and membership invitations requiring acceptance (DEC-022, migration 0003). Backend → 80, frontend → 292. |
 | **2026-08-29** | Multiple assignees, per-member filtering, comments, completion evidence with uploads, assignee avatars (DEC-023, migration 0004). An unguarded comment endpoint found (F-40). Backend → 107, frontend → 323. |
 | **2026-08-29** | Explicit Edit button; profile picture upload (DEC-024, migration 0005). Read-only edit mode closed — third instance of the silent-refusal class. Backend → 117, frontend → 334. |
+| **2026-08-29** | @mentions, one-level threaded replies, clipboard paste for images (DEC-025, migration 0006). Backend → 134, frontend → 383. |
 
 ## Part IV — Open questions
 

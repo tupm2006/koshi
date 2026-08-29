@@ -17,6 +17,7 @@ from app.schemas.task import (
 from app.security import (
     get_current_user, get_membership, require_member, require_project_pm,
 )
+from app.services.mentions import parse_mention_ids
 from app.services.uploads import path_for, save_upload
 from app.utils.time import utcnow
 
@@ -57,7 +58,24 @@ def _task_out(task: Task) -> TaskOut:
     )
 
 
-def _comment_out(comment: Comment) -> CommentOut:
+def _resolve_mentions(db: Session, comment: Comment) -> list:
+    """
+    Turn the ids in the body into users.
+
+    Order follows the text. A mention of somebody since removed from the project
+    simply does not resolve — the token stays in the content and the client
+    falls back to the name captured at write time.
+    """
+    ids = parse_mention_ids(comment.content)
+    if not ids:
+        return []
+    found = {u.id: u for u in db.query(User).filter(User.id.in_(ids))}
+    return [
+        UserOut.model_validate(found[i], from_attributes=True) for i in ids if i in found
+    ]
+
+
+def _comment_out(comment: Comment, db: Session | None = None) -> CommentOut:
     out = CommentOut(
         id=comment.id,
         task_id=comment.task_id,
@@ -65,8 +83,11 @@ def _comment_out(comment: Comment) -> CommentOut:
         author=UserOut.model_validate(comment.author, from_attributes=True) if comment.author else None,
         content=comment.content,
         kind=comment.kind,
+        parent_id=comment.parent_id,
         created_at=comment.created_at,
     )
+    if db is not None:
+        out.mentions = _resolve_mentions(db, comment)
     out.attachments = [
         AttachmentOut(
             id=a.id,
@@ -256,7 +277,7 @@ def list_comments(task_id: int, db: Session = Depends(get_db), current_user: Use
         .order_by(Comment.id.asc())
         .all()
     )
-    return [_comment_out(c) for c in comments]
+    return [_comment_out(c, db) for c in comments]
 
 
 @router.post("/{task_id}/comments", response_model=CommentOut, status_code=status.HTTP_201_CREATED)
@@ -270,16 +291,49 @@ def add_comment(task_id: int, req: CommentCreate, db: Session = Depends(get_db),
     if not content:
         raise HTTPException(status_code=400, detail="A comment cannot be empty")
 
+    # You may only tag people who can actually read the thread. Otherwise a
+    # mention is a notification nobody receives, and it confirms that a user id
+    # exists to somebody outside the project.
+    mentioned = parse_mention_ids(content)
+    if mentioned:
+        members = {
+            m.user_id
+            for m in db.query(ProjectMember).filter(
+                ProjectMember.project_id == task.project_id,
+                ProjectMember.user_id.in_(mentioned),
+            )
+            if m.is_active
+        }
+        strangers = [uid for uid in mentioned if uid not in members]
+        if strangers:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot mention people who are not in this project: {strangers}",
+            )
+
+    parent_id = None
+    if req.parent_id is not None:
+        parent = db.query(Comment).filter(Comment.id == req.parent_id).first()
+        # Same task, or the reply would appear under a thread its author never
+        # saw — and would leak text across projects.
+        if parent is None or parent.task_id != task.id:
+            raise HTTPException(status_code=404, detail="Reply target not found on this task")
+        # Flatten: replying to a reply attaches to its parent. One level keeps
+        # the thread readable in a narrow panel, and re-parenting is kinder than
+        # refusing a button the user was legitimately offered.
+        parent_id = parent.parent_id or parent.id
+
     comment = Comment(
         task_id=task.id,
         author_id=current_user.id,
         content=content,
         kind=req.kind,
+        parent_id=parent_id,
     )
     db.add(comment)
     db.commit()
     db.refresh(comment)
-    return _comment_out(comment)
+    return _comment_out(comment, db)
 
 
 # ---------------------------------------------------------------------------
