@@ -1,7 +1,7 @@
 # D5 — Tests & Acceptance Criteria
 
 **Purpose:** define what "correct" means, and record honestly what is currently verified.
-**Last verified by execution:** 2026-08-29 — backend `134 passed`, frontend `383 passed`.
+**Last verified by execution:** 2026-08-29 — backend `155 passed`, frontend `399 passed`.
 
 ---
 
@@ -15,7 +15,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pytest -q
 ```
-Expected: **134 passed**. (`app/database.py` creates the sqlite directory itself, so no `mkdir` is needed.) Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
+Expected: **155 passed**. (`app/database.py` creates the sqlite directory itself, so no `mkdir` is needed.) Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
 
 ### Database migrations
 
@@ -36,7 +36,7 @@ creates nothing and **refuses to start** unless the database is at head (D3 §5c
 
 ```bash
 pnpm install
-pnpm test                     # vitest run — 383 tests
+pnpm test                     # vitest run — 399 tests
 pnpm run test:watch           # vitest, watch mode
 pnpm run build                # vue-tsc -b && vite build
 pnpm run dev                  # manual verification at :5173
@@ -88,6 +88,7 @@ Still **manually verified only**: `lib/gitParser.ts` and the six AI modals.
 | Avatars, comment thread, evidence prompt | ✅ `Collaboration.test.ts` (29) | Good. Found F-42 — a failed upload's error message was wiped by the reload that followed. |
 | Explicit Edit affordance; read-only refusal | ✅ `TaskDetailModal.test.ts` (18) | Good — closes F-43. |
 | `lib/mentions.ts` — token format, caret detection, roster matching | ✅ `mentions.test.ts` (26) | Good. Pure; the regex is duplicated server-side and both are pinned. |
+| Notification feed — delivery rules, read tracking, isolation, cascade | ✅ `test_notifications.py` (21) + `Notifications.test.ts` (16) | Good. Pins that the shape takes kinds that do not exist yet. |
 | Mentions, replies, clipboard paste | ✅ `test_mentions_and_replies.py` (17) + `Collaboration.test.ts` (48) | Good. Includes that a comment body can never render as markup. |
 | Profile picture upload, removal, size refusal | ✅ `ProfilePage.test.ts` (23) + `test_assignees_and_evidence.py` | Good. Server-side covers who may see a face. |
 | `TaskTable` / `KanbanBoard` — rendering, filters, selection, column placement | ✅ `BoardViews.test.ts` (15) | Good |

@@ -12,6 +12,7 @@ import MeetingMinutesModal from './components/MeetingMinutesModal.vue';
 import WorkloadAssignModal from './components/WorkloadAssignModal.vue';
 import LandingPage from './components/LandingPage.vue';
 import ProfilePage from './components/ProfilePage.vue';
+import NotificationsPage from './components/NotificationsPage.vue';
 import ProjectDashboard from './components/ProjectDashboard.vue';
 import GitDiffModal from './components/GitDiffModal.vue';
 import DAGVisualizerModal from './components/DAGVisualizerModal.vue';
@@ -37,6 +38,7 @@ import {
   Moon,
   ChevronDown,
   FolderKanban,
+  Bell,
 } from 'lucide-vue-next';
 import type { FilterStatus } from './types/task';
 
@@ -189,6 +191,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
   <LandingPage v-if="taskStore.appView === 'LANDING'" />
 
   <ProfilePage v-else-if="taskStore.appView === 'PROFILE'" />
+  <NotificationsPage v-else-if="taskStore.appView === 'NOTIFICATIONS'" />
 
   <div v-else class="h-screen h-[100dvh] flex flex-col bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans text-xs md:text-sm safe-top overflow-hidden">
     <!-- Top Header (Fixed h-12) -->
@@ -220,6 +223,24 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           >
             <FolderKanban class="w-3.5 h-3.5 shrink-0" />
             <span class="truncate">{{ taskStore.currentProject?.name ?? 'No project' }}</span>
+          </button>
+
+          <!-- Bell. Placed next to the identity pill rather than among the
+               tools, because it is about you, not about the board. -->
+          <button
+            v-if="taskStore.currentUser"
+            type="button"
+            id="notifications-bell"
+            class="relative h-8 w-8 inline-flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer shadow-2xs"
+            :title="taskStore.unreadCount > 0 ? `${taskStore.unreadCount} unread` : 'Notifications'"
+            @click="taskStore.showNotifications()"
+          >
+            <Bell class="w-4 h-4" />
+            <span
+              v-if="taskStore.unreadCount > 0"
+              data-unread-badge
+              class="absolute -top-1 -right-1 min-w-4 h-4 px-1 inline-flex items-center justify-center rounded-full bg-rose-600 text-white text-[9px] font-mono font-bold"
+            >{{ taskStore.unreadCount > 99 ? '99+' : taskStore.unreadCount }}</span>
           </button>
 
           <!-- Auth Status Pill -->

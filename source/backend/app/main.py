@@ -10,7 +10,7 @@ from app.models.entities import (
     ProjectRoleEnum, TaskAssignee, TaskStatusEnum, TaskPriorityEnum,
 )
 from app.security import get_password_hash
-from app.routers import auth, users, projects, sprints, tasks, stats, ai
+from app.routers import auth, users, projects, sprints, tasks, stats, ai, notifications
 from app.utils.time import utcnow
 
 def seed_initial_data():
@@ -237,6 +237,7 @@ app.include_router(sprints.router, prefix=settings.API_V1_PREFIX)
 app.include_router(tasks.router, prefix=settings.API_V1_PREFIX)
 app.include_router(stats.router, prefix=settings.API_V1_PREFIX)
 app.include_router(ai.router, prefix=settings.API_V1_PREFIX)
+app.include_router(notifications.router, prefix=settings.API_V1_PREFIX)
 
 @app.get(f"{settings.API_V1_PREFIX}/health", tags=["Health"])
 def health_check():

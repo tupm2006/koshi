@@ -830,6 +830,9 @@ Observations that are not yet decisions. Each should become a decision or a work
 | F-42 | `CommentThread.post()` set the "these files did not upload" message *before* `load()`, whose first act is to clear `errorMsg` — so a failed upload reported nothing and the user believed their evidence had attached. | `CommentThread.vue` | Medium | ✅ Closed — DEC-023 |
 | F-43 | The task inspector had no visible way to start editing — only the `i` shortcut and clicking the title text, neither of which announces itself. Users discovered editing by clicking the description field. Entering edit mode on a read-only project was also possible, where every write is then silently refused. | `TaskDetailModal.vue` | Medium | ✅ Closed — DEC-024 |
 | F-44 | The avatar replace path read the outgoing filename back *after* committing the new one, so the comparison always matched and the previous file was never unlinked. | `routers/users.py` | Low | ✅ Closed — DEC-024 |
+| F-45 | Every attachment and avatar rendered as a broken image: `<img src="/api/...">` is a plain browser request and cannot carry an `Authorization` header, so the route answered 401. The route was never wrong — every test and manual check sent the header, and an `<img>` tag is the one caller that cannot. | `CommentThread.vue`, `ProfilePage.vue`, `AssigneeAvatars.vue` | High | ✅ Closed — DEC-026 (`AuthedMedia` / `AuthedAvatar`) |
+| F-46 | nginx had no `client_max_body_size`, so its 1 MB default rejected uploads with its own HTML error page before FastAPI saw them. The app's 25 MB limit was decorative behind the proxy. | `nginx.conf` | Medium | ✅ Closed — DEC-026 (30 MB) |
+| F-47 | SQLite ignores foreign keys unless `PRAGMA foreign_keys=ON`, which was never set — so every `ondelete="CASCADE"` written since migration 0003 was decorative. Deleting a task left comments, attachments and assignment rows as orphans; nothing failed and nothing cleaned up. | `app/database.py` | Medium | ✅ Closed — DEC-026 |
 | F-23 | Deleting the SQLite file under a running uvicorn leaves it writing to a deleted inode ("attempt to write a readonly database"). Restart the process, do not just replace the file. | operational | Low | Open — documented here |
 
 ### DEC-018 — gitParser and the AI modals tested; a secret-leaking image found
@@ -1302,6 +1305,60 @@ which is what they are for.
 held two accounts, a project, two tasks and a comment the user had written. All of it survived, the
 existing comment becoming a top-level entry with a null parent.
 
+### DEC-026 — A notification feed, and three things that were quietly not working
+
+**Date:** 2026-08-29 · **Tests:** backend 134 → 155, frontend 383 → 399 · **Migration:** 0007
+
+**The reported bug was real and mine.** A pasted image uploaded correctly — the row and the file
+were both on disk — and then could not be viewed. `<img src="/api/tasks/attachments/1">` is a plain
+browser request: it carries cookies, and it cannot carry an `Authorization` header. The route
+answered 401 and the browser drew a broken image (F-45).
+
+The route was never wrong. Every backend test sent the header, and so did every manual `curl`. An
+`<img>` tag is the one caller that cannot, and it was the only caller never exercised. **A test that
+speaks the protocol correctly cannot find a bug in a client that does not.**
+
+Fixed by fetching through `api.fetchBlob` and handing the browser an object URL. The alternatives
+were worse: a token in the query string writes it into every proxy and access log, and cookie auth
+for these routes alone means two authentication schemes in one API. `AuthedAvatar` keeps a shared
+cache, because a board with twenty tasks would otherwise fetch the same three faces twenty times;
+`AuthedMedia` revokes its URL on unmount, because a thread that is scrolled would otherwise leak a
+copy of every image for the life of the tab.
+
+**Two more found while checking it.** nginx had no `client_max_body_size`, so its 1 MB default was
+silently the real ceiling and the app's 25 MB was decorative (F-46) — the user's 237 KB screenshot
+got through, a 2 MB one would not have. And `PRAGMA foreign_keys` was off, which is SQLite's
+default, meaning **every `ondelete="CASCADE"` written since migration 0003 was decorative** (F-47).
+Nothing had failed; nothing had been cleaned up either.
+
+Enabling it took three attempts, and the two failures are the interesting part. Registering the
+listener on the `Engine` *class* also caught Alembic's engine, and `batch_alter_table` rebuilds a
+table by copying it and dropping the original — which enforcement turns into a failure. Then
+disabling the pragma inside `env.py` broke it differently. The working answer is to scope the
+listener to the app engine and the test engine and leave Alembic's alone. The test engine matters:
+a database that enforces constraints only in production is a database whose constraints are
+untested, which is how F-47 survived four migrations.
+
+**The notification feed is deliberately not a mention feed.** `Notification` describes *an event
+addressed to a person*: a kind, an optional actor, and nullable foreign keys for project, task and
+comment. `TASK_ASSIGNED`, `PROJECT_INVITED` and `TASK_DUE_SOON` are declared now, unused, so the
+columns are judged against them rather than retrofitted later — a test pins that they exist.
+
+**No message string is stored.** Wording belongs to the client, which knows the reader's language;
+English prose in the database would have to be re-translated on every read and could never be
+corrected retroactively. `kind` names the event and `NotificationsPage` owns the sentence.
+
+Three rules decide whether a feed is worth opening, and they live in `services/notify.py` rather
+than at each call site: never notify somebody about their own action; at most one entry per person
+per event, with the more specific kind winning when both apply; and only people who can still see
+the thing. Membership is re-checked on *read* as well, because an entry carries a project name and
+a task title and somebody can be removed between the two.
+
+**Nothing in `notify()` raises.** A notification is a courtesy on top of an action that already
+succeeded; failing a comment because its notification could not be written would be the tail wagging
+the dog. It does not commit either — the caller owns the transaction, so a notification can never
+reference a comment that was rolled back.
+
 ## Part III — Timeline
 
 | Date | Event |
@@ -1332,6 +1389,7 @@ existing comment becoming a top-level entry with a null parent.
 | **2026-08-29** | Multiple assignees, per-member filtering, comments, completion evidence with uploads, assignee avatars (DEC-023, migration 0004). An unguarded comment endpoint found (F-40). Backend → 107, frontend → 323. |
 | **2026-08-29** | Explicit Edit button; profile picture upload (DEC-024, migration 0005). Read-only edit mode closed — third instance of the silent-refusal class. Backend → 117, frontend → 334. |
 | **2026-08-29** | @mentions, one-level threaded replies, clipboard paste for images (DEC-025, migration 0006). Backend → 134, frontend → 383. |
+| **2026-08-29** | Notification feed (DEC-026, migration 0007). Authed media fixed (F-45), nginx body limit (F-46), and SQLite foreign keys found to have never been enforced (F-47). Backend → 155, frontend → 399. |
 
 ## Part IV — Open questions
 

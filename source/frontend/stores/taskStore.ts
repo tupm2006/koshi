@@ -4,7 +4,7 @@ import { get, set } from 'idb-keyval';
 import type { Task, TaskAssignee, TaskStatus, TaskPriority, TaskFilter, FilterStatus, FilterPriority, Complexity } from '../types/task';
 import { topologicalSort, computeCriticalPath } from '../lib/dagSorter';
 import { sortByUrgency } from '../lib/urgency';
-import { api, taskKeyOf, serverIdOf, type UserProfile, type Project, type ProjectRole, type Invitation, type ProjectMember } from '../services/api';
+import { api, taskKeyOf, serverIdOf, type UserProfile, type Project, type ProjectRole, type Invitation, type ProjectMember, type AppNotification } from '../services/api';
 
 /**
  * IndexedDB keys are partitioned per project.
@@ -44,7 +44,12 @@ export const useTaskStore = defineStore('taskStore', {
      * router — there are three screens and no URLs to preserve, so a dependency
      * would buy nothing.
      */
-    appView: 'LANDING' as 'LANDING' | 'BOARD' | 'PROFILE',
+    appView: 'LANDING' as 'LANDING' | 'BOARD' | 'PROFILE' | 'NOTIFICATIONS',
+    /** The feed, newest first. Loaded on demand and after posting. */
+    notifications: [] as AppNotification[],
+    /** Kept separately from `notifications.length` so the badge is correct
+     *  before the feed has ever been opened. */
+    unreadCount: 0,
     filter: {
       searchQuery: '',
       status: 'ALL',
@@ -243,6 +248,7 @@ export const useTaskStore = defineStore('taskStore', {
 
       const projects = await this.loadProjects();
       await this.loadInvitations();
+      await this.refreshUnreadCount();
       if (this.currentProjectId !== null) {
         await this.selectProject(this.currentProjectId);
       } else {
@@ -258,6 +264,78 @@ export const useTaskStore = defineStore('taskStore', {
      * Fetch pending invitations. Never throws: a failure here must not stop the
      * board from loading — an invitation is a nicety, the board is the product.
      */
+    async loadNotifications(unreadOnly = false) {
+      if (!this.isBackendConnected) return;
+      try {
+        this.notifications = await api.listNotifications(unreadOnly);
+        this.unreadCount = this.notifications.filter((n) => n.read_at === null).length;
+      } catch (e) {
+        console.warn('Could not load notifications:', e);
+      }
+    },
+
+    /** Just the badge. Cheap enough to call on every sign-in. */
+    async refreshUnreadCount() {
+      if (!this.isBackendConnected) return;
+      try {
+        this.unreadCount = await api.unreadNotificationCount();
+      } catch (e) {
+        console.warn('Could not load the unread count:', e);
+      }
+    },
+
+    async markNotificationRead(id: number) {
+      const n = this.notifications.find((x) => x.id === id);
+      if (!n || n.read_at !== null) return;
+      // Optimistic: the badge should drop the moment it is clicked. The server
+      // call is idempotent, so a failure leaves it merely out of date until the
+      // next load rather than wrong in a way that compounds.
+      n.read_at = new Date().toISOString();
+      this.unreadCount = Math.max(0, this.unreadCount - 1);
+      try {
+        await api.markNotificationRead(id);
+      } catch (e) {
+        console.warn('Could not mark as read:', e);
+      }
+    },
+
+    async markAllNotificationsRead() {
+      const now = new Date().toISOString();
+      this.notifications.forEach((n) => { if (n.read_at === null) n.read_at = now; });
+      this.unreadCount = 0;
+      try {
+        await api.markAllNotificationsRead();
+      } catch (e) {
+        console.warn('Could not mark all as read:', e);
+      }
+    },
+
+    showNotifications() {
+      this.appView = 'NOTIFICATIONS';
+      this.loadNotifications();
+    },
+
+    /**
+     * Open the task a notification points at.
+     *
+     * Switching project first, because the task may well be in a different one
+     * — that is precisely when a notification is most useful.
+     */
+    async openNotification(n: AppNotification) {
+      await this.markNotificationRead(n.id);
+      if (n.project_id !== null && n.project_id !== this.currentProjectId) {
+        await this.selectProject(n.project_id);
+      }
+      this.appView = 'BOARD';
+      if (n.task_id !== null) {
+        const key = taskKeyOf(n.task_id);
+        const idx = this.filteredTasks.findIndex((t) => t.id === key);
+        if (idx >= 0) this.selectedIndex = idx;
+        return key;
+      }
+      return null;
+    },
+
     async loadInvitations() {
       if (!this.isBackendConnected) return;
       try {
@@ -297,6 +375,8 @@ export const useTaskStore = defineStore('taskStore', {
       this.currentUser = null;
       this.projects = [];
       this.invitations = [];
+      this.notifications = [];
+      this.unreadCount = 0;
       this.scope = 'ALL';
       this.currentProjectId = null;
       this.tasks = [];

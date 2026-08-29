@@ -12,6 +12,7 @@
  */
 import { computed } from 'vue';
 import type { TaskAssignee } from '../types/task';
+import AuthedAvatar from './AuthedAvatar.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -59,16 +60,19 @@ const dims = computed(() =>
       :key="a.id"
       :data-assignee="a.id"
       :title="a.full_name"
-      class="inline-flex items-center justify-center rounded-full ring-1 ring-white dark:ring-slate-900 overflow-hidden shrink-0"
+      class="relative inline-flex items-center justify-center rounded-full ring-1 ring-white dark:ring-slate-900 overflow-hidden shrink-0"
       :class="[dims, a.avatar_url ? '' : colourOf(a.id)]"
     >
-      <img
+      <!-- Initials sit underneath: if the picture fails to load, the badge
+           still says who this is rather than showing a broken-image icon. -->
+      <span class="absolute inset-0 flex items-center justify-center font-bold text-white leading-none select-none">
+        {{ initials(a.full_name) }}
+      </span>
+      <AuthedAvatar
         v-if="a.avatar_url"
         :src="a.avatar_url"
-        :alt="a.full_name"
-        class="w-full h-full object-cover"
+        class="relative w-full h-full object-cover"
       />
-      <span v-else class="font-bold text-white leading-none select-none">{{ initials(a.full_name) }}</span>
     </span>
 
     <span

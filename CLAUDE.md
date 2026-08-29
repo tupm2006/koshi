@@ -19,10 +19,10 @@ Guidance for AI agents working in this repository. **Read `documentation/` befor
 
 ```bash
 # Backend — must stay green
-cd source/backend && pytest -q          # expect: 134 passed
+cd source/backend && pytest -q          # expect: 155 passed
 
 # Frontend
-pnpm test                               # expect: 383 passed (vitest)
+pnpm test                               # expect: 399 passed (vitest)
 pnpm run build                          # vue-tsc -b && vite build
 ```
 
@@ -112,6 +112,17 @@ visitor must never reach the board except via explicit guest mode.
 `services/uploads.py` generates `stored_name`; `filename` is a label. The stored content type comes
 from our table, not the request — a browser sniffing an "image" into HTML would give the uploader
 script execution on this origin. Widening `ALLOWED_TYPES` is 🔴 RED.
+
+**`<img src>` cannot send a bearer token.** Anything behind auth is fetched through
+`api.fetchBlob` and shown as an object URL — `AuthedMedia` for attachments, `AuthedAvatar` for
+faces. Pointing an `<img>` straight at `/api/...` renders broken (F-45).
+
+**SQLite ignores foreign keys unless told not to.** `enforce_foreign_keys()` is applied to the app
+engine and the test engine, and deliberately NOT to Alembic's — `batch_alter_table` rebuilds tables
+and enforcement turns that into a failure. Never register it on the `Engine` class.
+
+**Never notify somebody about their own action.** It is the rule that decides whether the feed is
+worth opening. `services/notify.py` is the only place notifications are created.
 
 **A comment body is never rendered as markup.** `parseSegments` returns segments that the template
 renders as Vue nodes; building an HTML string and using `v-html` would make every comment a

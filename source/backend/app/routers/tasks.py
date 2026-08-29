@@ -17,7 +17,9 @@ from app.schemas.task import (
 from app.security import (
     get_current_user, get_membership, require_member, require_project_pm,
 )
+from app.models.entities import NotificationKindEnum
 from app.services.mentions import parse_mention_ids
+from app.services.notify import notify
 from app.services.uploads import path_for, save_upload
 from app.utils.time import utcnow
 
@@ -331,6 +333,36 @@ def add_comment(task_id: int, req: CommentCreate, db: Session = Depends(get_db),
         parent_id=parent_id,
     )
     db.add(comment)
+    db.flush()  # the notifications need comment.id
+
+    # A mention is more specific than "somebody replied", so it wins when one
+    # person is both. `notify` drops the author either way — being told what you
+    # just did is noise.
+    notify(
+        db,
+        recipients=mentioned,
+        kind=NotificationKindEnum.MENTION,
+        actor_id=current_user.id,
+        project_id=task.project_id,
+        task_id=task.id,
+        comment_id=comment.id,
+    )
+    if parent_id is not None:
+        parent_author = db.query(Comment).filter(Comment.id == parent_id).first()
+        if parent_author is not None:
+            notify(
+                db,
+                recipients=[parent_author.author_id],
+                kind=NotificationKindEnum.REPLY,
+                actor_id=current_user.id,
+                project_id=task.project_id,
+                task_id=task.id,
+                comment_id=comment.id,
+                skip_user_ids=mentioned,
+            )
+
+    # One commit: the comment and its notifications land together, so the feed
+    # can never reference something that was rolled back.
     db.commit()
     db.refresh(comment)
     return _comment_out(comment, db)

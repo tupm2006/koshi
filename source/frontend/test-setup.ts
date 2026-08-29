@@ -20,3 +20,10 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
     }),
   });
 }
+
+// jsdom implements neither of these. Components that render fetched media hand
+// the browser a blob: URL (F-45), so without a stub they throw on mount.
+if (typeof URL.createObjectURL !== 'function') {
+  URL.createObjectURL = (() => 'blob:mock') as typeof URL.createObjectURL;
+  URL.revokeObjectURL = (() => {}) as typeof URL.revokeObjectURL;
+}

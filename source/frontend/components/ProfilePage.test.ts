@@ -13,6 +13,8 @@ const { apiMock } = vi.hoisted(() => ({
   apiMock: {
     getToken: vi.fn(() => null),
     logout: vi.fn(),
+    // <img> cannot send a bearer token, so media is fetched (F-45).
+    fetchBlob: vi.fn(async () => new Blob(['x'], { type: 'image/png' })),
     listProjects: vi.fn(async () => [] as any[]),
     getTasks: vi.fn(async () => [] as any[]),
     updateProfile: vi.fn(),
@@ -79,8 +81,13 @@ describe('identity', () => {
   });
 
   it('renders an avatar when one is present', async () => {
-    const { w } = await open({ user: fakeUser({ avatar_url: 'https://example.com/a.png' }) });
-    expect(w.find('img').attributes('src')).toBe('https://example.com/a.png');
+    // Fetched with the bearer token and shown as a blob — <img src> cannot
+    // carry an Authorization header (F-45).
+    const { w } = await open({ user: fakeUser({ avatar_url: '/api/users/1/avatar?v=abc' }) });
+    await flushPromises();
+
+    expect(apiMock.fetchBlob).toHaveBeenCalledWith('/api/users/1/avatar?v=abc');
+    expect(w.find('[data-authed-avatar]').exists()).toBe(true);
   });
 
   it('counts projects and the ones the user manages', async () => {
@@ -241,7 +248,8 @@ describe('profile picture', () => {
     await pick(w, new File(['x'], 'face.png', { type: 'image/png' }));
 
     expect(apiMock.uploadAvatar).toHaveBeenCalled();
-    expect(w.find('img').attributes('src')).toBe('/api/users/1/avatar?v=abc');
+    expect(apiMock.fetchBlob).toHaveBeenCalledWith('/api/users/1/avatar?v=abc');
+    expect(w.find('[data-authed-avatar]').exists()).toBe(true);
   });
 
   it('refuses an oversized file without calling the server', async () => {
@@ -284,7 +292,7 @@ describe('profile picture', () => {
     await w.find('#avatar-remove').trigger('click');
     await flushPromises();
 
-    expect(w.find('img').exists()).toBe(false);
+    expect(w.find('[data-authed-avatar]').exists()).toBe(false);
     expect(w.text()).toContain('AL');  // Ada Lovelace
   });
 });

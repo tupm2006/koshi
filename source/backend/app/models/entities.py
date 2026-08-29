@@ -213,6 +213,70 @@ class Task(Base):
     def acceptance_criteria(self, value):
         self.acceptance_criteria_json = json.dumps(value if isinstance(value, list) else [])
 
+class NotificationKindEnum(str, enum.Enum):
+    """
+    What happened. Adding a member here needs no migration on SQLite and no
+    change to the delivery, listing or read-tracking code — only a new place
+    that creates one, and a label in the client.
+
+    Kinds deliberately name an *event*, not a message. The wording belongs to
+    the client, which knows the reader's locale; storing English prose here
+    would have to be re-translated on every read and could never be corrected
+    retroactively.
+    """
+    MENTION = "MENTION"           # somebody tagged you in a comment
+    REPLY = "REPLY"               # somebody replied to your comment
+    # Room for what a project tool obviously grows into. Listed rather than
+    # invented later so the shape of `Notification` is judged against them now.
+    TASK_ASSIGNED = "TASK_ASSIGNED"
+    PROJECT_INVITED = "PROJECT_INVITED"
+    TASK_DUE_SOON = "TASK_DUE_SOON"
+
+
+class Notification(Base):
+    """
+    One thing that happened, addressed to one person.
+
+    **Context is a set of nullable foreign keys, not a JSON blob.** A blob would
+    accept anything and be unqueryable; these columns let the database delete a
+    notification when the thing it points at goes away, which is the behaviour
+    you want and the one nobody remembers to write by hand.
+
+    **No notification is ever created for your own action.** Being told what you
+    just did is noise, and it is the single rule that decides whether a
+    notification feed is worth opening.
+    """
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    # The recipient. Indexed with created_at because every read is "my recent
+    # notifications".
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    kind = Column(Enum(NotificationKindEnum), nullable=False)
+    # Who caused it. Nullable so a system-generated kind (a due-date reminder)
+    # needs no fake actor.
+    actor_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=True)
+    comment_id = Column(Integer, ForeignKey("comments.id", ondelete="CASCADE"), nullable=True)
+
+    # Null until read. A timestamp rather than a boolean: it costs the same and
+    # answers "when did they see it", which a boolean throws away.
+    read_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=utcnow, index=True)
+
+    user = relationship("User", foreign_keys=[user_id])
+    actor = relationship("User", foreign_keys=[actor_id])
+    project = relationship("Project")
+    task = relationship("Task")
+    comment = relationship("Comment")
+
+    @property
+    def is_read(self) -> bool:
+        return self.read_at is not None
+
+
 class TaskAssignee(Base):
     """
     A person working on a task.

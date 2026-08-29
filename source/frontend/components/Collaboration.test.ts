@@ -14,6 +14,8 @@ const { apiMock } = vi.hoisted(() => ({
   apiMock: {
     getToken: vi.fn(() => null),
     logout: vi.fn(),
+    // <img> cannot send a bearer token, so media is fetched (F-45).
+    fetchBlob: vi.fn(async () => new Blob(['x'], { type: 'image/png' })),
     listProjects: vi.fn(async () => [] as any[]),
     listMembers: vi.fn(async () => [] as any[]),
     listInvitations: vi.fn(async () => [] as any[]),
@@ -128,10 +130,16 @@ describe('AssigneeAvatars', () => {
     expect(a.filter((c) => c.startsWith('bg-'))).toEqual(b.filter((c) => c.startsWith('bg-')));
   });
 
-  it('prefers a real avatar over initials', () => {
-    const w = mount([person(1, 'Ada Lovelace', 'https://example.test/a.png')]);
-    expect(w.find('img').attributes('src')).toBe('https://example.test/a.png');
-    expect(w.text()).not.toContain('AL');
+  it('fetches a real avatar, with initials underneath as the fallback', async () => {
+    // The picture is fetched with a bearer token (F-45), so it arrives after a
+    // round trip. Initials render beneath it rather than instead of it: if the
+    // fetch fails, the badge still says who this is.
+    const w = mount([person(1, 'Ada Lovelace', '/api/users/1/avatar?v=abc')]);
+    await flushPromises();
+
+    expect(w.findComponent({ name: 'AuthedAvatar' }).exists()).toBe(true);
+    expect(apiMock.fetchBlob).toHaveBeenCalledWith('/api/users/1/avatar?v=abc');
+    expect(w.text()).toContain('AL');
   });
 
   it('titles each avatar with the full name for the non-obvious initials', () => {
@@ -195,7 +203,10 @@ describe('CommentThread', () => {
     const { w } = open();
     await flushPromises();
 
-    expect(w.find('[data-attachment="5"] img').attributes('src')).toBe('/api/tasks/attachments/5');
+    // Fetched with the token and shown as a blob, because <img src> cannot
+    // carry an Authorization header (F-45).
+    expect(apiMock.fetchBlob).toHaveBeenCalledWith('/api/tasks/attachments/5');
+    expect(w.find('[data-attachment="5"] img').exists()).toBe(true);
   });
 
   it('renders a video with controls', async () => {
@@ -208,6 +219,7 @@ describe('CommentThread', () => {
     const video = w.find('[data-attachment="5"] video');
     expect(video.exists()).toBe(true);
     expect(video.attributes('controls')).toBeDefined();
+    expect(apiMock.fetchBlob).toHaveBeenCalledWith('/api/tasks/attachments/5');
   });
 
   it('falls back to a link for anything it cannot display', async () => {

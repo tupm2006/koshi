@@ -9,6 +9,7 @@
  */
 import { ref, computed, onMounted } from 'vue';
 import { useTaskStore } from '../stores/taskStore';
+import AuthedAvatar from './AuthedAvatar.vue';
 import {
   ArrowLeft, Mail, Wrench, Shield, User as UserIcon, LogOut, Save,
   AlertCircle, Check, CalendarDays, FolderKanban, Loader2, Camera,
@@ -178,10 +179,9 @@ onMounted(() => {
                elsewhere on the page would make you look in two places for one
                thing. -->
           <div class="relative shrink-0 group">
-            <img
+            <AuthedAvatar
               v-if="user?.avatar_url"
               :src="user.avatar_url"
-              alt=""
               class="w-16 h-16 rounded-full border border-slate-300 dark:border-slate-700 object-cover"
             />
             <div

@@ -18,6 +18,7 @@ import { useTaskStore } from '../stores/taskStore';
 import { serverIdOf } from '../services/api';
 import { MessageSquare, Send, Paperclip, X, ShieldCheck, Loader2, CornerDownRight, AtSign } from 'lucide-vue-next';
 import { parseSegments, mentionToken, activeMentionQuery, matchMembers } from '../lib/mentions';
+import AuthedMedia from './AuthedMedia.vue';
 
 const props = defineProps<{ taskId: string }>();
 
@@ -301,19 +302,12 @@ const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: '
 
             <div v-if="node.comment.attachments.length" class="mt-2 grid grid-cols-2 gap-2">
               <div v-for="a in node.comment.attachments" :key="a.id" :data-attachment="a.id">
-                <img
-                  v-if="isImage(a.content_type)"
+                <AuthedMedia
+                  v-if="isImage(a.content_type) || isVideo(a.content_type)"
                   :src="a.url"
                   :alt="a.filename"
-                  class="w-full rounded border border-slate-200 dark:border-slate-800 object-cover max-h-40"
+                  :kind="isVideo(a.content_type) ? 'video' : 'image'"
                 />
-                <video
-                  v-else-if="isVideo(a.content_type)"
-                  :src="a.url"
-                  controls
-                  preload="metadata"
-                  class="w-full rounded border border-slate-200 dark:border-slate-800 max-h-40"
-                ></video>
                 <a
                   v-else
                   :href="a.url"
@@ -365,8 +359,12 @@ const when = (iso: string) => new Date(iso).toLocaleString(undefined, { month: '
               </p>
               <div v-if="r.attachments.length" class="mt-1.5 grid grid-cols-2 gap-2">
                 <div v-for="a in r.attachments" :key="a.id" :data-attachment="a.id">
-                  <img v-if="isImage(a.content_type)" :src="a.url" :alt="a.filename" class="w-full rounded border border-slate-200 dark:border-slate-800 object-cover max-h-32" />
-                  <video v-else-if="isVideo(a.content_type)" :src="a.url" controls preload="metadata" class="w-full rounded border border-slate-200 dark:border-slate-800 max-h-32"></video>
+                  <AuthedMedia
+                    v-if="isImage(a.content_type) || isVideo(a.content_type)"
+                    :src="a.url"
+                    :alt="a.filename"
+                    :kind="isVideo(a.content_type) ? 'video' : 'image'"
+                  />
                   <a v-else :href="a.url" target="_blank" rel="noopener noreferrer" class="text-[11px] font-mono text-indigo-600 dark:text-indigo-400 underline break-all">{{ a.filename }}</a>
                 </div>
               </div>

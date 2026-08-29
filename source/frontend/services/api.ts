@@ -99,6 +99,35 @@ export interface TaskComment {
   created_at: string;
 }
 
+/**
+ * A feed entry.
+ *
+ * There is no message string on purpose: the wording belongs to the client,
+ * which knows the reader's locale. `kind` names the *event*, and the
+ * denormalised project/task fields let a row render without another request.
+ */
+export type NotificationKind =
+  | 'MENTION'
+  | 'REPLY'
+  | 'TASK_ASSIGNED'
+  | 'PROJECT_INVITED'
+  | 'TASK_DUE_SOON';
+
+export interface AppNotification {
+  id: number;
+  kind: NotificationKind;
+  actor: UserProfile | null;
+  project_id: number | null;
+  project_name: string | null;
+  task_id: number | null;
+  task_key: string | null;
+  task_title: string | null;
+  comment_id: number | null;
+  excerpt: string | null;
+  read_at: string | null;
+  created_at: string;
+}
+
 export interface AuthResponse {
   access_token: string;
   token_type: string;
@@ -272,6 +301,23 @@ export class ApiClient {
     });
   }
 
+  /**
+   * Fetch a binary route as a Blob, with the bearer token attached.
+   *
+   * `<img src>` cannot send an Authorization header, so anything behind auth
+   * has to be fetched here and handed to the browser as an object URL (F-45).
+   * Paths are app-relative and prefixed like every other call.
+   */
+  async fetchBlob(path: string): Promise<Blob> {
+    const endpoint = path.startsWith(API_BASE) ? path.slice(API_BASE.length) : path;
+    const headers = new Headers();
+    if (this.token) headers.set('Authorization', `Bearer ${this.token}`);
+
+    const res = await fetch(`${API_BASE}${endpoint}`, { headers });
+    if (!res.ok) throw new Error(`Could not load ${path}: ${res.status}`);
+    return res.blob();
+  }
+
   async uploadAvatar(file: File): Promise<UserProfile> {
     const body = new FormData();
     body.append('file', file);
@@ -280,6 +326,24 @@ export class ApiClient {
 
   async removeAvatar(): Promise<UserProfile> {
     return this.request<UserProfile>('/users/me/avatar', { method: 'DELETE' });
+  }
+
+  async listNotifications(unreadOnly = false, limit = 50): Promise<AppNotification[]> {
+    const q = new URLSearchParams({ unread_only: String(unreadOnly), limit: String(limit) });
+    return this.request<AppNotification[]>(`/notifications?${q}`);
+  }
+
+  async unreadNotificationCount(): Promise<number> {
+    const res = await this.request<{ unread: number }>('/notifications/unread-count');
+    return res.unread;
+  }
+
+  async markNotificationRead(id: number): Promise<AppNotification> {
+    return this.request<AppNotification>(`/notifications/${id}/read`, { method: 'POST' });
+  }
+
+  async markAllNotificationsRead(): Promise<void> {
+    return this.request<void>('/notifications/read-all', { method: 'POST' });
   }
 
   async listComments(taskId: number): Promise<TaskComment[]> {

@@ -13,6 +13,8 @@ const { apiMock } = vi.hoisted(() => ({
   apiMock: {
     getToken: vi.fn(() => null),
     logout: vi.fn(),
+    // <img> cannot send a bearer token, so media is fetched (F-45).
+    fetchBlob: vi.fn(async () => new Blob(['x'], { type: 'image/png' })),
     listProjects: vi.fn(async () => [] as any[]),
     getTasks: vi.fn(async () => [] as any[]),
     createTask: vi.fn(async () => ({})),

@@ -9,12 +9,15 @@ os.environ["DATABASE_URL"] = "sqlite:///./data/test_koshi.db"
 # The Google OAuth test exercises the unverified-token path, which is opt-in.
 os.environ["ALLOW_UNVERIFIED_GOOGLE_TOKENS"] = "true"
 
-from app.database import Base, get_db
+from app.database import Base, get_db, enforce_foreign_keys
 from app.main import app, seed_initial_data
 from app.security import create_access_token
 
 TEST_DATABASE_URL = "sqlite:///./data/test_koshi.db"
 test_engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
+# The tests must run against the same constraint enforcement as the app, or a
+# cascade that only works in production is a cascade nobody has ever verified.
+enforce_foreign_keys(test_engine)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 @pytest.fixture(scope="session", autouse=True)
