@@ -4,8 +4,22 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
-# Set test environment
-os.environ["DATABASE_URL"] = "sqlite:///./data/test_koshi.db"
+# Which database the suite runs against.
+#
+# SQLite by default, so `pytest` works in a bare checkout with no server. Set
+# TEST_DATABASE_URL to run the same suite against the engine that actually
+# ships:
+#
+#   TEST_DATABASE_URL='mysql+pymysql://root:pw@127.0.0.1:3307/koshi_test?charset=utf8mb4' pytest
+#
+# This gap is real and worth naming: F-47 — foreign keys never enforced —
+# survived four migrations precisely because the tests ran on a different
+# engine from production. Run against MySQL before anything that touches the
+# schema, constraints or a dialect-specific migration.
+TEST_DATABASE_URL = os.environ.get(
+    "TEST_DATABASE_URL", "sqlite:///./data/test_koshi.db"
+)
+os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 # The Google OAuth test exercises the unverified-token path, which is opt-in.
 os.environ["ALLOW_UNVERIFIED_GOOGLE_TOKENS"] = "true"
 
@@ -13,11 +27,16 @@ from app.database import Base, get_db, enforce_foreign_keys
 from app.main import app, seed_initial_data
 from app.security import create_access_token
 
-TEST_DATABASE_URL = "sqlite:///./data/test_koshi.db"
-test_engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
+IS_SQLITE = TEST_DATABASE_URL.startswith("sqlite")
+test_engine = create_engine(
+    TEST_DATABASE_URL,
+    connect_args={"check_same_thread": False} if IS_SQLITE else {},
+)
 # The tests must run against the same constraint enforcement as the app, or a
 # cascade that only works in production is a cascade nobody has ever verified.
-enforce_foreign_keys(test_engine)
+# InnoDB does this itself, so it is a SQLite-only correction.
+if IS_SQLITE:
+    enforce_foreign_keys(test_engine)
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 @pytest.fixture(scope="session", autouse=True)
@@ -26,7 +45,7 @@ def setup_test_db():
     Base.metadata.create_all(bind=test_engine)
     yield
     Base.metadata.drop_all(bind=test_engine)
-    if os.path.exists("./data/test_koshi.db"):
+    if IS_SQLITE and os.path.exists("./data/test_koshi.db"):
         try:
             os.remove("./data/test_koshi.db")
         except Exception:

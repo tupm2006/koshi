@@ -7,6 +7,11 @@ class Settings(BaseSettings):
     API_V1_PREFIX: str = "/api"
     
     # Database configuration (SQLite default, can be Postgres)
+    # SQLite by default so a checkout runs with no database server. Production
+    # uses MySQL:
+    #   mysql+pymysql://koshi:<password>@koshi-db:3306/koshi?charset=utf8mb4
+    # The charset matters — MySQL's "utf8" is three bytes and cannot store an
+    # emoji or some CJK characters, which would truncate a task title silently.
     DATABASE_URL: str = "sqlite:///./data/koshi.db"
 
     # ---- Attachments --------------------------------------------------------

@@ -19,7 +19,12 @@ Guidance for AI agents working in this repository. **Read `documentation/` befor
 
 ```bash
 # Backend — must stay green
-cd source/backend && pytest -q          # expect: 155 passed
+cd source/backend && pytest -q          # expect: 155 passed  (SQLite)
+
+# The same suite against the engine that ships. Run this before anything that
+# touches the schema, a constraint, or a dialect-specific migration — F-47
+# survived four migrations because the tests ran on a different engine.
+TEST_DATABASE_URL='mysql+pymysql://koshi:PW@127.0.0.1:3306/koshi_test?charset=utf8mb4' pytest -q
 
 # Frontend
 pnpm test                               # expect: 399 passed (vitest)
@@ -116,6 +121,14 @@ script execution on this origin. Widening `ALLOWED_TYPES` is 🔴 RED.
 **`<img src>` cannot send a bearer token.** Anything behind auth is fetched through
 `api.fetchBlob` and shown as an object URL — `AuthedMedia` for attachments, `AuthedAvatar` for
 faces. Pointing an `<img>` straight at `/api/...` renders broken (F-45).
+
+**Production is MySQL 8; a bare checkout is SQLite.** `DATABASE_URL` decides. Anything
+dialect-specific in a migration must be gated on `bind.dialect.name` — MySQL cannot drop a column a
+foreign key still references, and its ENUM is inline rather than a standalone type. Always
+`utf8mb4`: MySQL's "utf8" is three bytes and silently truncates emoji and some Vietnamese.
+
+**Uploads live on disk, not in the database.** A `mysqldump` is not a complete backup — the
+`koshi-data` volume holds every attachment and avatar.
 
 **SQLite ignores foreign keys unless told not to.** `enforce_foreign_keys()` is applied to the app
 engine and the test engine, and deliberately NOT to Alembic's — `batch_alter_table` rebuilds tables

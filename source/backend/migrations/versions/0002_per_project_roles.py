@@ -33,13 +33,32 @@ down_revision = "0001_initial_schema"
 branch_labels = None
 depends_on = None
 
+
+def _create_enum(enum_type, bind) -> None:
+    """
+    Create a standalone enum type where the dialect has one.
+
+    PostgreSQL needs `CREATE TYPE`; MySQL puts the value list inline on the
+    column and SQLite stores a VARCHAR, so calling `.create()` on either is at
+    best a no-op and at worst an error. `checkfirst` handles re-runs.
+    """
+    if bind.dialect.name == "postgresql":
+        enum_type.create(bind, checkfirst=True)
+
+
+def _drop_enum(enum_type, bind) -> None:
+    if bind.dialect.name == "postgresql":
+        enum_type.drop(bind, checkfirst=True)
+
+
+
 PROJECT_ROLE_ENUM = sa.Enum("PM", "MEMBER", name="projectroleenum")
 
 
 def upgrade() -> None:
     bind = op.get_bind()
 
-    PROJECT_ROLE_ENUM.create(bind, checkfirst=True)
+    _create_enum(PROJECT_ROLE_ENUM, bind)
 
     op.create_table(
         "project_members",
@@ -121,4 +140,4 @@ def downgrade() -> None:
     op.drop_index("ix_project_members_id", table_name="project_members")
     op.drop_table("project_members")
 
-    PROJECT_ROLE_ENUM.drop(bind, checkfirst=True)
+    _drop_enum(PROJECT_ROLE_ENUM, bind)

@@ -22,6 +22,49 @@ down_revision = "0003_membership_invitations"
 branch_labels = None
 depends_on = None
 
+
+def _create_enum(enum_type, bind) -> None:
+    """
+    Create a standalone enum type where the dialect has one.
+
+    PostgreSQL needs `CREATE TYPE`; MySQL puts the value list inline on the
+    column and SQLite stores a VARCHAR, so calling `.create()` on either is at
+    best a no-op and at worst an error. `checkfirst` handles re-runs.
+    """
+    if bind.dialect.name == "postgresql":
+        enum_type.create(bind, checkfirst=True)
+
+
+def _drop_enum(enum_type, bind) -> None:
+    if bind.dialect.name == "postgresql":
+        enum_type.drop(bind, checkfirst=True)
+
+
+def _drop_fks_on(bind, table: str, column: str) -> None:
+    """
+    Drop any foreign-key constraint covering `column`, by inspection.
+
+    MySQL refuses to drop a column that a foreign key still references
+    ("Cannot drop column 'assignee_id': needed in a foreign key constraint"),
+    and the constraint's name is auto-generated — `tasks_ibfk_3` here — so it
+    cannot be written down portably.
+
+    SQLite reaches this through `batch_alter_table`, which rebuilds the table
+    without the column and its constraint in one step, so nothing is needed and
+    this is skipped. That gate is also why editing this already-applied
+    migration is safe: for every database that has run it (all SQLite), the
+    behaviour is unchanged.
+    """
+    if bind.dialect.name == "sqlite":
+        return
+    from sqlalchemy import inspect as sa_inspect
+
+    for fk in sa_inspect(bind).get_foreign_keys(table):
+        if column in (fk.get("constrained_columns") or []) and fk.get("name"):
+            op.drop_constraint(fk["name"], table, type_="foreignkey")
+
+
+
 COMMENT_KIND = sa.Enum("COMMENT", "EVIDENCE", name="commentkindenum")
 
 
@@ -56,11 +99,12 @@ def upgrade() -> None:
         """
     )
 
+    _drop_fks_on(bind, "tasks", "assignee_id")
     with op.batch_alter_table("tasks") as batch:
         batch.drop_column("assignee_id")
 
     # ---- comment kinds ------------------------------------------------------
-    COMMENT_KIND.create(bind, checkfirst=True)
+    _create_enum(COMMENT_KIND, bind)
     with op.batch_alter_table("comments") as batch:
         batch.add_column(
             sa.Column("kind", COMMENT_KIND, nullable=False, server_default="COMMENT")
@@ -96,7 +140,7 @@ def downgrade() -> None:
 
     with op.batch_alter_table("comments") as batch:
         batch.drop_column("kind")
-    COMMENT_KIND.drop(op.get_bind(), checkfirst=True)
+    _drop_enum(COMMENT_KIND, op.get_bind())
 
     with op.batch_alter_table("tasks") as batch:
         batch.add_column(sa.Column("assignee_id", sa.Integer(), nullable=True))

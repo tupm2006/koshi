@@ -27,14 +27,45 @@ name: koshi-prod-local
 # `proxy-net` behind Caddy, and there is no TLS because there is no domain.
 # Nothing about the application's security posture is relaxed.
 services:
+  koshi-db:
+    image: mysql:8.4
+    container_name: koshi-db-prod-local
+    restart: unless-stopped
+    command:
+      # utf8mb4 throughout. MySQL's "utf8" is three bytes and silently
+      # truncates an emoji or some CJK characters — in a tool where people
+      # write task titles in Vietnamese, that is data loss.
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      - MYSQL_DATABASE=koshi
+      - MYSQL_USER=koshi
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:?run scripts/dev-env.sh first (writes ./.env)}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:?run scripts/dev-env.sh first (writes ./.env)}
+    volumes:
+      - koshi-prod-local-mysql:/var/lib/mysql
+    healthcheck:
+      # The backend must not start before the server accepts connections, or
+      # `alembic upgrade` fails on a race that looks like a config error.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      - koshi-prod-local
+
   koshi-backend:
     build:
       context: ./source/backend
       dockerfile: Dockerfile
     container_name: koshi-backend-prod-local
     restart: unless-stopped
+    depends_on:
+      koshi-db:
+        condition: service_healthy
     environment:
-      - DATABASE_URL=sqlite:///./data/koshi.db
+      - DATABASE_URL=mysql+pymysql://koshi:${MYSQL_PASSWORD}@koshi-db:3306/koshi?charset=utf8mb4
       - ENVIRONMENT=production
       # Separate from the dev stack's JWT_SECRET on purpose: a session minted
       # against the seeded demo data must not be valid here. `scripts/dev-env.sh`
@@ -69,6 +100,7 @@ services:
 
 volumes:
   koshi-prod-local-data:
+  koshi-prod-local-mysql:
 
 networks:
   koshi-prod-local:

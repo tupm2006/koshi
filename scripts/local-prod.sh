@@ -27,6 +27,7 @@ down)  say "Stopping (database kept)"; $COMPOSE down; exit 0 ;;
 logs)  $COMPOSE logs -f; exit 0 ;;
 reset)
   say "Destroying the local production database"
+  echo "Back it up first if you want it: ./scripts/local-prod.sh up takes a dump on every start."
   read -rp "This deletes every account and project in the local prod instance. Type 'yes': " ok
   [ "$ok" = "yes" ] || die "aborted"
   $COMPOSE down -v
@@ -38,8 +39,19 @@ up) ;;
 esac
 
 # ---------------------------------------------------------------- preflight
-grep -q '^PROD_JWT_SECRET=.\+' .env 2>/dev/null \
-  || die "no PROD_JWT_SECRET in ./.env — run ./scripts/dev-env.sh first"
+for required in PROD_JWT_SECRET MYSQL_PASSWORD MYSQL_ROOT_PASSWORD; do
+  grep -q "^${required}=.\+" .env 2>/dev/null \
+    || die "no ${required} in ./.env — run ./scripts/dev-env.sh first"
+done
+
+say "Waiting for MySQL"
+$COMPOSE up -d koshi-db
+for i in $(seq 1 40); do
+  status=$($COMPOSE ps koshi-db --format '{{.Status}}' 2>/dev/null || true)
+  case "$status" in *healthy*) echo "  ready after ${i}s"; break;; esac
+  [ "$i" = 40 ] && die "MySQL did not become healthy — $COMPOSE logs koshi-db"
+  sleep 1
+done
 
 say "Building"
 $COMPOSE build
@@ -51,7 +63,11 @@ say "Verifying the image carries no secret or developer data"
 # `compose images` only lists images belonging to existing CONTAINERS, so it
 # returns nothing right after a `down` — precisely when this check matters most.
 # `config --images` resolves the name from the file itself.
-image=$($COMPOSE config --images koshi-backend)
+# `config --images <svc>` also lists the images of that service's
+# dependencies, so mysql:8.4 comes back alongside ours. Match the built one by
+# its project-derived suffix rather than taking the first line, which is only
+# incidentally right.
+image=$($COMPOSE config --images koshi-backend | grep -- '-koshi-backend$' | head -1)
 [ -n "$image" ] || die "could not resolve the backend image name"
 result=$(docker run --rm --entrypoint sh "$image" -c '
   test -f /app/.env       && echo LEAKED_ENV
@@ -62,16 +78,23 @@ echo "$result" | grep -q LEAKED && die "image contains secrets or data: $result"
 echo "  clean"
 
 # ---------------------------------------------------------------- migrate
-say "Backing up, then migrating"
-$COMPOSE run --rm --no-deps --entrypoint sh koshi-backend -c '
-  if [ -f /app/data/koshi.db ]; then
-    cp /app/data/koshi.db "/app/data/koshi.db.bak-$(date +%Y%m%d-%H%M%S)" && echo "  backed up"
-  else
-    echo "  no existing database — first run"
-  fi'
+say "Backing up the database, then migrating"
+# mysqldump into the host, so a bad migration is recoverable without touching
+# the volume. Kept out of the repo tree deliberately: a dump is user data.
+mkdir -p "${HOME}/koshi-backups"
+stamp=$(date +%Y%m%d-%H%M%S)
+if $COMPOSE exec -T koshi-db sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction --routines koshi' \
+     > "${HOME}/koshi-backups/koshi-${stamp}.sql" 2>/dev/null && \
+   [ -s "${HOME}/koshi-backups/koshi-${stamp}.sql" ]; then
+  echo "  dumped to ~/koshi-backups/koshi-${stamp}.sql"
+else
+  rm -f "${HOME}/koshi-backups/koshi-${stamp}.sql"
+  echo "  nothing to dump yet (first run)"
+fi
 
 $COMPOSE run --rm --no-deps koshi-backend alembic upgrade head \
-  || die "migration failed; the service was not started"
+  || die "migration failed; the service was not started. Restore with:
+          $COMPOSE exec -T koshi-db mysql -uroot -p... koshi < ~/koshi-backups/koshi-${stamp}.sql"
 
 # ---------------------------------------------------------------- release
 say "Starting"

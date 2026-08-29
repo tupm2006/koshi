@@ -15,3 +15,8 @@ aiofiles>=23.2.0
 google-auth>=2.28.0
 requests>=2.31.0
 alembic==1.19.1
+
+# MySQL driver. PyMySQL is pure Python, so the slim image needs no compiler and
+# no libmysqlclient headers. `cryptography` (already present via python-jose)
+# is what MySQL 8's default caching_sha2_password authentication needs.
+PyMySQL>=1.1.0

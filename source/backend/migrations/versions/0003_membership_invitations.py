@@ -23,12 +23,31 @@ down_revision = "0002_per_project_roles"
 branch_labels = None
 depends_on = None
 
+
+def _create_enum(enum_type, bind) -> None:
+    """
+    Create a standalone enum type where the dialect has one.
+
+    PostgreSQL needs `CREATE TYPE`; MySQL puts the value list inline on the
+    column and SQLite stores a VARCHAR, so calling `.create()` on either is at
+    best a no-op and at worst an error. `checkfirst` handles re-runs.
+    """
+    if bind.dialect.name == "postgresql":
+        enum_type.create(bind, checkfirst=True)
+
+
+def _drop_enum(enum_type, bind) -> None:
+    if bind.dialect.name == "postgresql":
+        enum_type.drop(bind, checkfirst=True)
+
+
+
 MEMBERSHIP_STATUS = sa.Enum("PENDING", "ACCEPTED", "DECLINED", name="membershipstatusenum")
 
 
 def upgrade() -> None:
     bind = op.get_bind()
-    MEMBERSHIP_STATUS.create(bind, checkfirst=True)
+    _create_enum(MEMBERSHIP_STATUS, bind)
 
     # server_default is required: SQLite cannot add a NOT NULL column without
     # one, and existing rows need a value in the same statement.
@@ -61,4 +80,4 @@ def downgrade() -> None:
         batch.drop_column("invited_by_id")
         batch.drop_column("status")
 
-    MEMBERSHIP_STATUS.drop(op.get_bind(), checkfirst=True)
+    _drop_enum(MEMBERSHIP_STATUS, op.get_bind())

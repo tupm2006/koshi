@@ -7,11 +7,14 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Two independent secrets. The dev stack seeds accounts with a known password;
-# the local production stack does not. Sharing one secret between them would let
-# a session minted against demo data authenticate against the real instance.
+# Four secrets, all per-machine and all generated here:
+#   JWT_SECRET       dev stack signing key
+#   PROD_JWT_SECRET  local production signing key — separate on purpose, so a
+#                    session minted against seeded demo data cannot authenticate
+#                    against the real instance
+#   MYSQL_PASSWORD / MYSQL_ROOT_PASSWORD  for the local production database
 wrote=0
-for name in JWT_SECRET PROD_JWT_SECRET; do
+for name in JWT_SECRET PROD_JWT_SECRET MYSQL_PASSWORD MYSQL_ROOT_PASSWORD; do
   if [ -f .env ] && grep -q "^${name}=.\+" .env; then
     echo "  ${name}: already set, leaving it alone"
   else

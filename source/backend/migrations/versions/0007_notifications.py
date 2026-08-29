@@ -16,6 +16,25 @@ down_revision = "0006_comment_replies"
 branch_labels = None
 depends_on = None
 
+
+def _create_enum(enum_type, bind) -> None:
+    """
+    Create a standalone enum type where the dialect has one.
+
+    PostgreSQL needs `CREATE TYPE`; MySQL puts the value list inline on the
+    column and SQLite stores a VARCHAR, so calling `.create()` on either is at
+    best a no-op and at worst an error. `checkfirst` handles re-runs.
+    """
+    if bind.dialect.name == "postgresql":
+        enum_type.create(bind, checkfirst=True)
+
+
+def _drop_enum(enum_type, bind) -> None:
+    if bind.dialect.name == "postgresql":
+        enum_type.drop(bind, checkfirst=True)
+
+
+
 NOTIFICATION_KIND = sa.Enum(
     "MENTION", "REPLY", "TASK_ASSIGNED", "PROJECT_INVITED", "TASK_DUE_SOON",
     name="notificationkindenum",
@@ -23,7 +42,7 @@ NOTIFICATION_KIND = sa.Enum(
 
 
 def upgrade() -> None:
-    NOTIFICATION_KIND.create(op.get_bind(), checkfirst=True)
+    _create_enum(NOTIFICATION_KIND, op.get_bind())
 
     op.create_table(
         "notifications",
@@ -60,4 +79,4 @@ def downgrade() -> None:
     op.drop_index("ix_notifications_project_id", table_name="notifications")
     op.drop_index("ix_notifications_user_id", table_name="notifications")
     op.drop_table("notifications")
-    NOTIFICATION_KIND.drop(op.get_bind(), checkfirst=True)
+    _drop_enum(NOTIFICATION_KIND, op.get_bind())

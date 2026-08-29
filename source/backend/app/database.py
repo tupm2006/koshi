@@ -11,9 +11,21 @@ if "sqlite:///" in settings.DATABASE_URL:
     if db_dir and not os.path.exists(db_dir):
         os.makedirs(db_dir, exist_ok=True)
 
+IS_SQLITE = settings.DATABASE_URL.startswith("sqlite")
+
 engine = create_engine(
     settings.DATABASE_URL,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {}
+    connect_args={"check_same_thread": False} if IS_SQLITE else {},
+    # Server-side connections go stale; MySQL closes an idle one after
+    # `wait_timeout` (8 hours by default) and the pool would then hand out a
+    # dead socket. Recycling below that, and checking before use, turns a
+    # mysterious "server has gone away" into a transparent reconnect.
+    **({} if IS_SQLITE else {
+        "pool_pre_ping": True,
+        "pool_recycle": 3600,
+        "pool_size": 10,
+        "max_overflow": 20,
+    }),
 )
 
 def enforce_foreign_keys(target_engine: Engine) -> None:
@@ -57,7 +69,8 @@ def enforce_foreign_keys(target_engine: Engine) -> None:
         cursor.close()
 
 
-if "sqlite" in settings.DATABASE_URL:
+if IS_SQLITE:
+    # InnoDB enforces foreign keys itself, so this is a SQLite-only correction.
     enforce_foreign_keys(engine)
 
 

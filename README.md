@@ -46,7 +46,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 alembic upgrade head               # build/update the schema
-pytest -q                          # 155 tests
+pytest -q                          # 155 tests (SQLite; see CLAUDE.md for MySQL)
 ```
 
 On first run with an empty database the app seeds two accounts (`pm@tupm.qzz.io` and

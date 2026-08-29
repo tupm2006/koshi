@@ -5,14 +5,44 @@
 name: koshi
 
 services:
+  koshi-db:
+    image: mysql:8.4
+    container_name: koshi-db
+    restart: unless-stopped
+    command:
+      # utf8mb4: MySQL's "utf8" is three bytes and silently truncates emoji and
+      # some CJK characters — data loss in a tool people write Vietnamese in.
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      - MYSQL_DATABASE=koshi
+      - MYSQL_USER=koshi
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:?MYSQL_PASSWORD must be set}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:?MYSQL_ROOT_PASSWORD must be set}
+    volumes:
+      - koshi-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p$$MYSQL_ROOT_PASSWORD"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    networks:
+      # Internal only: the database is never published to the host or the
+      # proxy network.
+      - koshi-internal
+
   koshi-backend:
     build:
       context: ./source/backend
       dockerfile: Dockerfile
     container_name: koshi-backend
     restart: unless-stopped
+    depends_on:
+      koshi-db:
+        condition: service_healthy
     environment:
-      - DATABASE_URL=sqlite:///./data/koshi.db
+      - DATABASE_URL=mysql+pymysql://koshi:${MYSQL_PASSWORD}@koshi-db:3306/koshi?charset=utf8mb4
       # Required. Startup fails outside development if this is unset or left at the
       # development default. Generate with: openssl rand -hex 32
       - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set}
@@ -42,7 +72,10 @@ services:
       - proxy-net
 
 volumes:
+  # Uploaded files. Still a volume with MySQL — attachments live on disk, not
+  # in the database, so a database backup alone is not a complete backup.
   koshi-data:
+  koshi-mysql:
 
 networks:
   koshi-internal:

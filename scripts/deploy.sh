@@ -94,6 +94,19 @@ else
   chmod 600 .env
   echo "  wrote a NEW JWT_SECRET — every existing session is now invalid"
 fi
+
+# Database passwords are generated once and then left alone. ROTATE does NOT
+# touch them: MySQL keeps the password from when the volume was initialised, so
+# changing it here would lock the application out of its own data.
+for var in MYSQL_PASSWORD MYSQL_ROOT_PASSWORD; do
+  if [ -f .env ] && grep -q "^${var}=.\+" .env; then
+    echo "  keeping the existing ${var}"
+  else
+    printf '%s=%s\n' "$var" "$(openssl rand -hex 24)" >> .env
+    chmod 600 .env
+    echo "  generated ${var}"
+  fi
+done
 REMOTE
 
 # ---------------------------------------------------------------- build
@@ -124,14 +137,22 @@ ssh "$HOST" "cd '$DIR' && img=\$(docker compose config --images koshi-backend) &
 # Back up first: 0002 drops users.role and its downgrade reconstructs that
 # column from memberships rather than restoring the original values (D6 §7.2).
 say "Backing up the database, then migrating"
-ssh "$HOST" "cd '$DIR' && docker compose run --rm --no-deps --entrypoint sh koshi-backend -c '
-  if [ -f /app/data/koshi.db ]; then
-    cp /app/data/koshi.db \"/app/data/koshi.db.bak-\$(date +%Y%m%d-%H%M%S)\" && echo \"  backed up\";
+# mysqldump to the remote home directory, outside the deploy tree so the next
+# upload cannot overwrite it.
+ssh "$HOST" "cd '$DIR' && mkdir -p ~/koshi-backups && \
+  if docker compose ps koshi-db --format '{{.Name}}' | grep -q . ; then
+    docker compose exec -T koshi-db sh -c 'mysqldump -uroot -p\"\$MYSQL_ROOT_PASSWORD\" --single-transaction --routines koshi' \
+      > ~/koshi-backups/koshi-\$(date +%Y%m%d-%H%M%S).sql && echo '  dumped'
   else
-    echo \"  no existing database — this is a first deploy\";
-  fi'"
+    echo '  no database running yet — first deploy'
+  fi"
 
-ssh "$HOST" "cd '$DIR' && docker compose run --rm --no-deps koshi-backend alembic upgrade head" \
+ssh "$HOST" "cd '$DIR' && docker compose up -d koshi-db && \
+  for i in \$(seq 1 40); do
+    docker compose ps koshi-db --format '{{.Status}}' | grep -q healthy && break
+    [ \$i = 40 ] && exit 1
+    sleep 1
+  done && docker compose run --rm --no-deps koshi-backend alembic upgrade head" \
   || die "migration failed — the service was NOT started, so the old container
           is still serving. Investigate before retrying; if this is a database
           created before Alembic existed, see D6 §7.2 for the stamp step."

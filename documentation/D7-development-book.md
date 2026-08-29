@@ -1359,6 +1359,59 @@ succeeded; failing a comment because its notification could not be written would
 the dog. It does not commit either — the caller owns the transaction, so a notification can never
 reference a comment that was rolled back.
 
+### DEC-027 — MySQL for production
+
+**Date:** 2026-08-29 · **Tests:** 155 on SQLite *and* 155 on MySQL 8.4
+
+**First, a correction the request was based on.** The reason given was that "SQLite re-seeds every
+run". It does not: the database lives in a named Docker volume and had survived every rebuild in
+this session — two accounts, a project, two tasks, five comments and two uploaded images were read
+back from it immediately before the switch. What had destroyed data earlier was a `down -v` of mine,
+not SQLite. Recorded because a migration undertaken for a reason that is not true tends to be
+undone later for a reason that also is not true.
+
+MySQL is still the right call, on grounds that do hold: concurrent writers, `mysqldump` and
+point-in-time recovery, and foreign keys enforced by the engine instead of a per-connection pragma
+somebody has to remember to set (F-47).
+
+**What actually differed between the dialects.** Three things, each found by running the migrations
+rather than by reasoning about them:
+
+1. **MySQL refuses to drop a column a foreign key still references.** `tasks.assignee_id` in 0004
+   failed with `Cannot drop column 'assignee_id': needed in a foreign key constraint 'tasks_ibfk_3'`
+   — and that name is auto-generated, so it cannot be written down portably. Fixed by dropping any
+   FK covering the column by inspection first.
+2. **An ENUM is not a standalone type in MySQL**, so `sa.Enum(...).create()` is a PostgreSQL-only
+   operation. Gated on the dialect.
+3. **`utf8` in MySQL is three bytes.** The compose file pins `utf8mb4` server-side and the URL
+   carries `charset=utf8mb4`, because the default would silently truncate an emoji or some
+   Vietnamese in a task title — data loss that looks like a rendering bug.
+
+**Editing an applied migration.** D6 P12 forbids it, and 0004 was edited anyway. The justification
+is narrow and testable: the new code is gated on `dialect.name != "sqlite"`, and every database that
+has ever run 0004 is SQLite, so their behaviour is byte-identical. The alternative was a fresh MySQL
+database that cannot migrate past 0004 at all, which no later revision can repair.
+
+**The data was moved, not recreated.** `scripts_migrate_sqlite_to_mysql.py` copies row by row
+through SQLAlchemy rather than replaying a dump — the dialects disagree about quoting, booleans and
+datetimes, and a dump that *almost* imports is worse than one that refuses. Identity columns are
+preserved so every foreign key still resolves and no id in an uploaded file's row goes stale. It
+refuses a non-empty target, and verifies the counts afterwards rather than trusting the insert.
+
+The live database was dumped to `~/koshi-backups/` before anything ran, and `local-prod.sh` now
+takes a `mysqldump` on every start. All 17 rows moved and were verified; a Vietnamese-with-emoji
+title round-tripped exactly.
+
+**The tests now run on both.** `TEST_DATABASE_URL` points the suite at MySQL, and it was run there:
+155 passed, the same as on SQLite. That gap mattered — F-47 survived four migrations *because* the
+tests ran on a different engine from production, so shipping MySQL while testing only SQLite would
+have reproduced the exact mistake this session already paid for once.
+
+SQLite remains the default so `pytest` works in a bare checkout with no server. The honest framing
+is that SQLite is now a convenience for development and MySQL is what ships, and the suite must be
+run against MySQL before anything touching the schema, a constraint, or a dialect-specific
+migration.
+
 ## Part III — Timeline
 
 | Date | Event |
@@ -1389,6 +1442,7 @@ reference a comment that was rolled back.
 | **2026-08-29** | Multiple assignees, per-member filtering, comments, completion evidence with uploads, assignee avatars (DEC-023, migration 0004). An unguarded comment endpoint found (F-40). Backend → 107, frontend → 323. |
 | **2026-08-29** | Explicit Edit button; profile picture upload (DEC-024, migration 0005). Read-only edit mode closed — third instance of the silent-refusal class. Backend → 117, frontend → 334. |
 | **2026-08-29** | @mentions, one-level threaded replies, clipboard paste for images (DEC-025, migration 0006). Backend → 134, frontend → 383. |
+| **2026-08-29** | MySQL 8.4 adopted for production; live data migrated and verified; suite run on both engines (DEC-027). |
 | **2026-08-29** | Notification feed (DEC-026, migration 0007). Authed media fixed (F-45), nginx body limit (F-46), and SQLite foreign keys found to have never been enforced (F-47). Backend → 155, frontend → 399. |
 
 ## Part IV — Open questions
