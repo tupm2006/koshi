@@ -15,10 +15,12 @@ const INITIAL_TASKS: Task[] = [
     status: 'IN_PROGRESS',
     priority: 'CRITICAL',
     assignee: 'tupm',
+    sprintId: 1,
     dueDate: new Date(Date.now() + 86400000 * 2).toISOString(),
     createdAt: Date.now() - 3600000 * 8,
     updatedAt: Date.now() - 3600000 * 2,
     complexity: 'M',
+    documents: ['https://vuejs.org/guide/introduction.html', 'https://pinia.vuejs.org/'],
     acceptanceCriteria: ['Pass customer specification audit', '0 runtime memory leaks', 'Full keyboard navigation'],
   },
   {
@@ -27,7 +29,10 @@ const INITIAL_TASKS: Task[] = [
     description: 'Bind j/k navigation, Space status toggle, Enter inline rename, and / quick filtering.',
     status: 'TODO',
     priority: 'HIGH',
+    requestedPriority: 'CRITICAL',
+    priorityRequestReason: 'Blocks MVP keyboard traversal milestone',
     assignee: 'tupm',
+    sprintId: 1,
     dueDate: new Date(Date.now() + 86400000 * 3).toISOString(),
     createdAt: Date.now() - 3600000 * 7,
     updatedAt: Date.now() - 3600000 * 2,
@@ -42,6 +47,7 @@ const INITIAL_TASKS: Task[] = [
     status: 'DONE',
     priority: 'HIGH',
     assignee: 'tupm',
+    sprintId: 1,
     createdAt: Date.now() - 3600000 * 24,
     updatedAt: Date.now() - 3600000 * 12,
     complexity: 'S',
@@ -54,6 +60,7 @@ const INITIAL_TASKS: Task[] = [
     status: 'TODO',
     priority: 'MEDIUM',
     assignee: 'tupm',
+    sprintId: null,
     createdAt: Date.now() - 3600000 * 6,
     updatedAt: Date.now() - 3600000 * 1,
     dependencies: ['TSK-102'],
@@ -68,6 +75,10 @@ const INITIAL_TASKS: Task[] = [
     blockingReason: 'Waiting for upstream Gemini API proxy verification',
     priority: 'HIGH',
     assignee: 'tupm',
+    sprintId: null,
+    dueDate: new Date(Date.now() - 86400000 * 3).toISOString(),
+    isOverdue: true,
+    slipDays: 3,
     createdAt: Date.now() - 3600000 * 5,
     updatedAt: Date.now() - 3600000 * 1,
     dependencies: ['TSK-102'],
@@ -81,6 +92,7 @@ const INITIAL_TASKS: Task[] = [
     status: 'TODO',
     priority: 'HIGH',
     assignee: 'tupm',
+    sprintId: null,
     createdAt: Date.now() - 3600000 * 4,
     updatedAt: Date.now() - 3600000 * 1,
     dependencies: ['TSK-101'],
@@ -146,8 +158,12 @@ export const useTaskStore = defineStore('taskStore', {
       searchQuery: '',
       status: 'ALL',
       priority: 'ALL',
+      sprintId: 'ALL',
       onlyCriticalPath: false,
     } as TaskFilter,
+    sprints: [
+      { id: 1, name: 'Sprint 1: Core Engine', project_id: 1, start_date: '', end_date: '', is_active: true }
+    ] as any[],
   }),
 
   getters: {
@@ -175,6 +191,14 @@ export const useTaskStore = defineStore('taskStore', {
 
       if (state.filter.priority !== 'ALL') {
         result = result.filter((t) => t.priority === state.filter.priority);
+      }
+
+      if (state.filter.sprintId !== 'ALL') {
+        if (state.filter.sprintId === 'BACKLOG') {
+          result = result.filter((t) => t.sprintId == null || t.sprintId === undefined);
+        } else {
+          result = result.filter((t) => t.sprintId === state.filter.sprintId);
+        }
       }
 
       const critSet = computeCriticalPath(state.tasks);
@@ -273,6 +297,14 @@ export const useTaskStore = defineStore('taskStore', {
             const user = await api.getMe();
             this.currentUser = user;
             await this.syncWithBackend();
+            try {
+              const sps = await api.getSprints();
+              if (Array.isArray(sps) && sps.length > 0) {
+                this.sprints = sps;
+              }
+            } catch (e) {
+              console.warn('[taskStore] Sprints endpoint unavailable:', e);
+            }
             this.isBackendConnected = true;
             this.isLoaded = true;
             return;
@@ -315,6 +347,8 @@ export const useTaskStore = defineStore('taskStore', {
             blockingReason: t.blocking_reason,
             dependencies: t.dependencies || [],
             acceptanceCriteria: t.acceptance_criteria || [],
+            documents: t.documents || [],
+            sprintId: t.sprint_id ?? null,
             createdAt: new Date(t.created_at).getTime(),
             updatedAt: new Date(t.updated_at).getTime(),
           }));
@@ -330,6 +364,10 @@ export const useTaskStore = defineStore('taskStore', {
               // Local is more recent (optimistic edit in flight)
               merged.push(local);
             } else {
+              // Retain local documents if server didn't provide any
+              if (local && local.documents && local.documents.length > 0 && (!sTask.documents || sTask.documents.length === 0)) {
+                sTask.documents = local.documents;
+              }
               merged.push(sTask);
             }
           }
@@ -577,6 +615,71 @@ export const useTaskStore = defineStore('taskStore', {
     setFilterPriority(priority: FilterPriority) {
       this.filter.priority = priority;
       this.selectedIndex = 0;
+    },
+
+    setFilterSprint(sprintId: number | 'ALL' | 'BACKLOG') {
+      this.filter.sprintId = sprintId;
+      this.selectedIndex = 0;
+    },
+
+    async requestPriorityChange(taskId: string, requestedPriority: TaskPriority, reason: string = '') {
+      const task = this.tasks.find((t) => t.id === taskId);
+      if (!task) return;
+
+      task.requestedPriority = requestedPriority;
+      task.priorityRequestReason = reason;
+      task.updatedAt = Date.now();
+      await this.persist();
+
+      const numId = parseInt(taskId.replace(/\D/g, ''), 10);
+      if (this.isBackendConnected && !isNaN(numId)) {
+        try {
+          await api.requestPriority(numId, requestedPriority, reason);
+        } catch (e) {
+          console.warn('[taskStore] Failed to request priority change on server:', e);
+        }
+      }
+    },
+
+    async approvePriorityChange(taskId: string) {
+      const task = this.tasks.find((t) => t.id === taskId);
+      if (!task) return;
+
+      if (task.requestedPriority) {
+        task.priority = task.requestedPriority;
+        task.requestedPriority = null;
+        task.priorityRequestReason = null;
+        task.updatedAt = Date.now();
+        await this.persist();
+      }
+
+      const numId = parseInt(taskId.replace(/\D/g, ''), 10);
+      if (this.isBackendConnected && !isNaN(numId)) {
+        try {
+          await api.approvePriority(numId);
+        } catch (e) {
+          console.warn('[taskStore] Failed to approve priority on server:', e);
+        }
+      }
+    },
+
+    async rejectPriorityChange(taskId: string) {
+      const task = this.tasks.find((t) => t.id === taskId);
+      if (!task) return;
+
+      task.requestedPriority = null;
+      task.priorityRequestReason = null;
+      task.updatedAt = Date.now();
+      await this.persist();
+
+      const numId = parseInt(taskId.replace(/\D/g, ''), 10);
+      if (this.isBackendConnected && !isNaN(numId)) {
+        try {
+          await api.rejectPriority(numId);
+        } catch (e) {
+          console.warn('[taskStore] Failed to reject priority on server:', e);
+        }
+      }
     },
 
     setSearchQuery(query: string) {

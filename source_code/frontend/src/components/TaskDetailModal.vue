@@ -8,6 +8,9 @@ import {
   Flame,
   Layers,
   ChevronDown,
+  FileText,
+  Trash2,
+  Plus,
 } from 'lucide-vue-next';
 
 const props = defineProps<{
@@ -20,6 +23,52 @@ const emit = defineEmits<{
 
 const taskStore = useTaskStore();
 const isEditing = ref(false);
+
+const userRole = computed<'OWNER' | 'PM' | 'MEMBER' | 'VIEWER'>(() => {
+  return (taskStore.currentUser?.role as any) || 'PM';
+});
+const isMember = computed(() => userRole.value === 'MEMBER');
+const isPmOrOwner = computed(() => !taskStore.currentUser || userRole.value === 'PM' || userRole.value === 'OWNER');
+
+// Priority Governance State (Member Proposal)
+const isProposingPriority = ref(false);
+const proposedPriority = ref<TaskPriority>('HIGH');
+const proposedReason = ref('');
+
+function openProposePriority() {
+  if (task.value) {
+    proposedPriority.value = (task.value.requestedPriority || (task.value.priority === 'CRITICAL' ? 'HIGH' : 'CRITICAL')) as TaskPriority;
+    proposedReason.value = task.value.priorityRequestReason || '';
+  }
+  isProposingPriority.value = true;
+}
+
+function submitPriorityProposal() {
+  if (!task.value) return;
+  taskStore.requestPriorityChange(task.value.id, proposedPriority.value, proposedReason.value.trim());
+  isProposingPriority.value = false;
+}
+
+// Document Management State
+const newDocUrl = ref('');
+
+function addDocument() {
+  const url = newDocUrl.value.trim();
+  if (!url || !task.value) return;
+  const currentDocs = task.value.documents ? [...task.value.documents] : [];
+  if (!currentDocs.includes(url)) {
+    currentDocs.push(url);
+    taskStore.updateTask(task.value.id, { documents: currentDocs });
+  }
+  newDocUrl.value = '';
+}
+
+function removeDocument(index: number) {
+  if (!task.value || !task.value.documents) return;
+  const currentDocs = [...task.value.documents];
+  currentDocs.splice(index, 1);
+  taskStore.updateTask(task.value.id, { documents: currentDocs });
+}
 
 // Focus Refs for Sequential Tab Focus Traversal
 const titleInput = ref<HTMLInputElement | null>(null);
@@ -100,7 +149,7 @@ function saveAndExit() {
     taskStore.updateTask(task.value.id, {
       title: editTitle.value.trim(),
       status: editStatus.value,
-      priority: editPriority.value,
+      priority: isMember.value ? task.value.priority : editPriority.value,
       complexity: editComplexity.value,
       assignee: editAssignee.value.trim() || undefined,
       dueDate: editDueDate.value ? new Date(editDueDate.value).toISOString() : undefined,
@@ -117,7 +166,7 @@ function onFieldChange() {
     taskStore.updateTask(task.value.id, {
       title: editTitle.value.trim() || task.value.title,
       status: editStatus.value,
-      priority: editPriority.value,
+      priority: isMember.value ? task.value.priority : editPriority.value,
       complexity: editComplexity.value,
       assignee: editAssignee.value.trim() || undefined,
       dueDate: editDueDate.value ? new Date(editDueDate.value).toISOString() : undefined,
@@ -256,6 +305,57 @@ function getStatusBadge(s: TaskStatus) {
 
       <!-- Modal Body -->
       <div class="p-5 md:p-6 overflow-y-auto space-y-5 flex-1 text-xs md:text-sm font-sans">
+        <!-- PM/OWNER: Priority Change Request Approval Alert Banner -->
+        <div
+          v-if="task.requestedPriority && isPmOrOwner"
+          class="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+        >
+          <div class="space-y-1 min-w-0">
+            <div class="flex items-center gap-1.5 font-mono text-xs font-bold text-amber-900 dark:text-amber-200 flex-wrap">
+              <span>⚡ Priority Change Requested:</span>
+              <span class="px-2 py-0.5 rounded border text-[11px]" :class="getPriorityBadge(task.requestedPriority)">
+                {{ task.requestedPriority }}
+              </span>
+            </div>
+            <p v-if="task.priorityRequestReason" class="text-xs text-amber-800 dark:text-amber-300">
+              <span class="font-semibold font-mono">Reason:</span> {{ task.priorityRequestReason }}
+            </p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              class="h-7 px-3 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-mono font-semibold cursor-pointer shadow-xs transition-colors"
+              @click="taskStore.approvePriorityChange(task.id)"
+            >
+              Approve
+            </button>
+            <button
+              type="button"
+              class="h-7 px-3 rounded-md bg-rose-600 hover:bg-rose-500 text-white text-xs font-mono font-semibold cursor-pointer shadow-xs transition-colors"
+              @click="taskStore.rejectPriorityChange(task.id)"
+            >
+              Reject
+            </button>
+          </div>
+        </div>
+
+        <!-- MEMBER: Pending Priority Change Notice -->
+        <div
+          v-if="task.requestedPriority && isMember"
+          class="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-lg text-xs"
+        >
+          <div class="flex items-center gap-1.5 font-mono font-semibold text-amber-900 dark:text-amber-200">
+            <span>⚡ Proposed Priority:</span>
+            <span class="px-1.5 py-0.5 rounded border text-[11px]" :class="getPriorityBadge(task.requestedPriority)">
+              {{ task.requestedPriority }}
+            </span>
+            <span class="text-slate-500 dark:text-slate-400 text-[11px] font-normal">(Pending PM Approval)</span>
+          </div>
+          <p v-if="task.priorityRequestReason" class="text-amber-800 dark:text-amber-300 mt-1">
+            {{ task.priorityRequestReason }}
+          </p>
+        </div>
+
         <!-- Title Field (tabindex 1) -->
         <div>
           <label class="block font-mono text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
@@ -288,27 +388,43 @@ function getStatusBadge(s: TaskStatus) {
           <!-- Priority Selector (tabindex 3) -->
           <div>
             <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">Priority</span>
-            <div v-if="!isEditing">
+            <!-- MEMBER: Read-only Priority with Propose Priority button -->
+            <div v-if="isMember" class="space-y-1">
               <span class="h-6 px-2 inline-flex items-center justify-center rounded-md border text-[11px] font-mono font-semibold uppercase" :class="getPriorityBadge(task.priority)">
                 {{ task.priority }}
               </span>
-            </div>
-            <div v-else class="relative">
-              <select
-                ref="prioritySelect"
-                tabindex="3"
-                v-model="editPriority"
-                class="w-full h-7 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md pl-2 pr-6 text-xs font-mono text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 appearance-none cursor-pointer font-semibold"
-                :class="getPriorityBadge(editPriority)"
-                @change="onFieldChange"
+              <button
+                type="button"
+                class="block w-full text-center h-6 px-1.5 rounded border border-indigo-300 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-[10px] font-mono font-medium cursor-pointer transition-colors"
+                @click="openProposePriority"
               >
-                <option value="LOW">LOW</option>
-                <option value="MEDIUM">MEDIUM</option>
-                <option value="HIGH">HIGH</option>
-                <option value="CRITICAL">CRITICAL</option>
-              </select>
-              <ChevronDown class="w-3 h-3 absolute right-1.5 top-2 pointer-events-none opacity-60" />
+                Propose Priority
+              </button>
             </div>
+            <!-- PM / OWNER: Interactive Priority Selector -->
+            <template v-else>
+              <div v-if="!isEditing">
+                <span class="h-6 px-2 inline-flex items-center justify-center rounded-md border text-[11px] font-mono font-semibold uppercase" :class="getPriorityBadge(task.priority)">
+                  {{ task.priority }}
+                </span>
+              </div>
+              <div v-else class="relative">
+                <select
+                  ref="prioritySelect"
+                  tabindex="3"
+                  v-model="editPriority"
+                  class="w-full h-7 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md pl-2 pr-6 text-xs font-mono text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 appearance-none cursor-pointer font-semibold"
+                  :class="getPriorityBadge(editPriority)"
+                  @change="onFieldChange"
+                >
+                  <option value="LOW">LOW</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="HIGH">HIGH</option>
+                  <option value="CRITICAL">CRITICAL</option>
+                </select>
+                <ChevronDown class="w-3 h-3 absolute right-1.5 top-2 pointer-events-none opacity-60" />
+              </div>
+            </template>
           </div>
 
           <!-- Complexity Selector (tabindex 4) -->
@@ -468,6 +584,66 @@ function getStatusBadge(s: TaskStatus) {
             </div>
           </div>
         </div>
+
+        <!-- Related Documents & Links -->
+        <div class="space-y-2">
+          <label class="block font-mono text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Related Documents & Links
+          </label>
+
+          <!-- List of documents -->
+          <div v-if="task.documents && task.documents.length > 0" class="space-y-1.5">
+            <div
+              v-for="(doc, idx) in task.documents"
+              :key="idx"
+              class="flex items-center justify-between p-2 rounded-md bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 gap-2"
+            >
+              <div class="flex items-center gap-2 min-w-0 flex-1">
+                <FileText class="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                <a
+                  :href="doc"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-xs font-mono text-indigo-600 dark:text-indigo-400 hover:underline truncate"
+                  :title="doc"
+                >
+                  {{ doc }}
+                </a>
+              </div>
+              <button
+                type="button"
+                @click="removeDocument(idx)"
+                class="p-1 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 rounded cursor-pointer shrink-0 transition-colors"
+                title="Remove link"
+              >
+                <Trash2 class="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+          <div v-else class="text-xs text-slate-400 dark:text-slate-600 italic py-1">
+            No documents attached yet.
+          </div>
+
+          <!-- Add new document link input -->
+          <div class="flex items-center gap-2 pt-1">
+            <input
+              v-model="newDocUrl"
+              type="url"
+              placeholder="Paste document URL (e.g. https://github.com/...)..."
+              class="flex-1 h-8 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 text-xs font-mono text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+              @keydown.enter.prevent="addDocument"
+            />
+            <button
+              type="button"
+              @click="addDocument"
+              :disabled="!newDocUrl.trim()"
+              class="h-8 px-3 rounded-md bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-mono font-medium text-slate-800 dark:text-slate-200 flex items-center gap-1.5 cursor-pointer shrink-0"
+            >
+              <Plus class="w-3.5 h-3.5" />
+              <span>Add Link</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Footer Action Strip (Single Save Action in Edit Mode) -->
@@ -502,6 +678,83 @@ function getStatusBadge(s: TaskStatus) {
               Save
             </button>
           </template>
+        </div>
+      </div>
+    </div>
+
+    <!-- Member Propose Priority Modal Dialog -->
+    <div
+      v-if="isProposingPriority && task"
+      class="fixed inset-0 z-60 bg-slate-900/60 dark:bg-black/80 backdrop-blur-xs flex items-center justify-center p-3"
+      @click.self="isProposingPriority = false"
+    >
+      <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-lg shadow-2xl border border-slate-300 dark:border-slate-800 p-5 space-y-4 text-slate-900 dark:text-slate-100">
+        <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2.5">
+          <h3 class="text-sm font-mono font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+            <span>⚡ Propose Priority Change</span>
+          </h3>
+          <button
+            type="button"
+            class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+            @click="isProposingPriority = false"
+          >
+            <X class="w-4 h-4" />
+          </button>
+        </div>
+
+        <div class="space-y-3 text-xs font-sans">
+          <div>
+            <label class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">
+              Current Priority
+            </label>
+            <span class="h-6 px-2 inline-flex items-center justify-center rounded-md border text-[11px] font-mono font-semibold uppercase" :class="getPriorityBadge(task.priority)">
+              {{ task.priority }}
+            </span>
+          </div>
+
+          <div>
+            <label class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">
+              Proposed Priority
+            </label>
+            <select
+              v-model="proposedPriority"
+              class="w-full h-8 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 text-xs font-mono font-semibold text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
+            >
+              <option value="LOW">LOW</option>
+              <option value="MEDIUM">MEDIUM</option>
+              <option value="HIGH">HIGH</option>
+              <option value="CRITICAL">CRITICAL</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">
+              Rationale / Reason
+            </label>
+            <textarea
+              v-model="proposedReason"
+              rows="3"
+              placeholder="Explain why this priority change is necessary..."
+              class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md p-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            ></textarea>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-800">
+          <button
+            type="button"
+            class="h-8 px-3 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer"
+            @click="isProposingPriority = false"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            class="h-8 px-3.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-mono font-semibold cursor-pointer shadow-xs"
+            @click="submitPriorityProposal"
+          >
+            Submit Proposal
+          </button>
         </div>
       </div>
     </div>

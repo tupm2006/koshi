@@ -292,11 +292,11 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <!-- Backup (Desktop) -->
           <button
             type="button"
-            class="hidden md:inline-flex h-8 items-center justify-center px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer"
+            class="hidden md:inline-flex h-8 w-8 items-center justify-center rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 cursor-pointer shadow-2xs transition-colors"
             @click="isExportImportOpen = true"
             title="JSON Backup & Restore"
           >
-            <Download class="w-3.5 h-3.5"/>
+            <Download class="w-4 h-4"/>
           </button>
 
           <!-- Theme Toggle (Clean Square Icon) -->
@@ -336,24 +336,54 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
     <!-- Sub-Header: Search & Filter Tabs (Auto-Height on Mobile to prevent clipping) -->
     <section class="min-h-[44px] h-auto py-2 sm:h-11 sm:py-0 border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900/60 px-3 md:px-6 flex items-center shrink-0 z-20 shadow-2xs">
       <div class="w-full max-w-[1720px] mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-        <!-- Search Input -->
-        <div class="relative flex-1 max-w-full sm:max-w-md">
-          <Search class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"/>
-          <input
-            ref="searchInputEl"
-            v-model="taskStore.filter.searchQuery"
-            type="text"
-            placeholder="Filter tasks... (Press /)"
-            class="h-8 w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md pl-8 pr-7 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-indigo-500 font-sans"
-          />
-          <button
-            v-if="taskStore.filter.searchQuery"
-            type="button"
-            class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
-            @click="taskStore.setSearchQuery('')"
-          >
-            <X class="w-3.5 h-3.5"/>
-          </button>
+        <!-- Search Input & Sprint Milestone Dropdown -->
+        <div class="flex items-center gap-2 flex-1 max-w-full sm:max-w-xl">
+          <div class="relative flex-1">
+            <Search class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"/>
+            <input
+              ref="searchInputEl"
+              v-model="taskStore.filter.searchQuery"
+              type="text"
+              placeholder="Filter tasks... (Press /)"
+              class="h-8 w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md pl-8 pr-7 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-indigo-500 font-sans"
+            />
+            <button
+              v-if="taskStore.filter.searchQuery"
+              type="button"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+              @click="taskStore.setSearchQuery('')"
+            >
+              <X class="w-3.5 h-3.5"/>
+            </button>
+          </div>
+
+          <!-- Compact Sprint Milestone Dropdown -->
+          <div class="relative shrink-0">
+            <select
+              :value="taskStore.filter.sprintId"
+              @change="(e) => {
+                const val = (e.target as HTMLSelectElement).value;
+                if (val === 'ALL' || val === 'BACKLOG') {
+                  taskStore.setFilterSprint(val);
+                } else {
+                  taskStore.setFilterSprint(Number(val));
+                }
+              }"
+              class="h-8 pl-2.5 pr-7 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md text-xs font-mono font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer appearance-none shadow-2xs"
+              aria-label="Filter by Sprint"
+            >
+              <option value="ALL">All Sprints</option>
+              <option
+                v-for="sprint in taskStore.sprints"
+                :key="sprint.id"
+                :value="sprint.id"
+              >
+                {{ sprint.name }}
+              </option>
+              <option value="BACKLOG">Backlog</option>
+            </select>
+            <ChevronDown class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+          </div>
         </div>
 
         <!-- Filter Chips (Horizontally Scrollable on Mobile) -->

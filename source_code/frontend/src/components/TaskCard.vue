@@ -62,7 +62,21 @@ function getPriorityBadge(p: TaskPriority) {
     <!-- Top Row: ID & Badges -->
     <div class="flex items-center justify-between gap-1 mb-1.5 text-xs font-mono min-w-0">
       <span class="text-slate-500 dark:text-slate-400 font-semibold truncate min-w-0" :title="task.id">{{ task.id }}</span>
-      <div class="flex items-center gap-1.5 shrink-0">
+      <div class="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+        <span
+          v-if="task.isOverdue && task.status !== 'DONE'"
+          class="h-5 px-1.5 inline-flex items-center rounded-md border text-[11px] font-bold bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/70 dark:text-rose-300 dark:border-rose-800 shrink-0"
+          :title="`Overdue by ${task.slipDays || 1} day(s)`"
+        >
+          ⚠️ LATE (+{{ task.slipDays || 1 }} d)
+        </span>
+        <span
+          v-if="task.requestedPriority"
+          class="h-5 px-1.5 inline-flex items-center rounded-md border text-[11px] font-bold bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-800 shrink-0"
+          :title="`Priority change requested: ${task.requestedPriority}${task.priorityRequestReason ? ' - ' + task.priorityRequestReason : ''}`"
+        >
+          ⚡ REQ: {{ task.requestedPriority }}
+        </span>
         <span v-if="isCriticalPath && task.status !== 'DONE'" title="Critical Path" class="text-rose-600 dark:text-rose-400">
           <Flame class="w-3.5 h-3.5" />
         </span>

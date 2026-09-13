@@ -22,6 +22,18 @@ export interface Task {
   // Graph / DAG metadata
   dependencies?: string[]; // IDs of tasks this task depends on
   acceptanceCriteria?: string[];
+  documents?: string[];
+  sprintId?: number | null;
+}
+
+export interface Sprint {
+  id: number;
+  project_id: number;
+  name: string;
+  goal?: string;
+  start_date: string;
+  end_date: string;
+  is_active?: boolean;
 }
 
 export type FilterStatus = 'ALL' | TaskStatus;
@@ -31,6 +43,7 @@ export interface TaskFilter {
   searchQuery: string;
   status: FilterStatus;
   priority: FilterPriority;
+  sprintId: number | 'ALL' | 'BACKLOG';
   assignee?: string;
   onlyCriticalPath?: boolean;
 }

@@ -248,6 +248,10 @@ export class ApiService {
     });
   }
 
+  async getSprints(projectId = 1) {
+    return this.request<any[]>(`/sprints?project_id=${projectId}`);
+  }
+
 
   async getWeeklySummary(projectId = 1) {
     return this.request<{ status: string; summary: string }>(`/ai/weekly-summary?project_id=${projectId}`, {
