@@ -10,6 +10,9 @@ services:
       - JWT_SECRET=${JWT_SECRET:-koshi_prod_sec_d9a83f4b1e5c2a7f8093e614b82d3f7a1c9e8b0d4f2a6e3c5b8a1f7d9e2c4b6a}
       - DATABASE_URL=sqlite:////app/data/koshi.db
       - ALLOWED_ORIGINS=https://koshi.felixsu.qzz.io,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173
+      - CORS_ORIGINS=https://koshi.felixsu.qzz.io,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173
+      - ALLOW_UNVERIFIED_GOOGLE_TOKENS=false
+      - SEED_DEMO_DATA=false
       - AI_API_URL=https://api.openai.com/v1/chat/completions
       - AI_API_KEY=${AI_API_KEY:-}
       - AI_MODEL_NAME=gpt-4o-mini
