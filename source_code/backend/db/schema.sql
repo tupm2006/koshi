@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     blocking_reason VARCHAR(255) NULL,
     dependencies_json TEXT DEFAULT '[]',
     acceptance_criteria_json TEXT DEFAULT '[]',
+    documents_json TEXT DEFAULT '[]',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

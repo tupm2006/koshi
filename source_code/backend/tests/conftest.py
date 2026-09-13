@@ -19,6 +19,7 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_
 def setup_test_db():
     Base.metadata.drop_all(bind=test_engine)
     Base.metadata.create_all(bind=test_engine)
+    seed_initial_data()
     yield
     Base.metadata.drop_all(bind=test_engine)
     if os.path.exists("./data/test_koshi.db"):
@@ -53,7 +54,7 @@ def client(db_session):
     app.dependency_overrides.clear()
 
 @pytest.fixture
-def pm_auth_headers(client):
+def pm_auth_headers(client, db_session):
     # Register / login test PM
     reg_payload = {
         "email": "test_pm@example.com",
@@ -65,10 +66,16 @@ def pm_auth_headers(client):
     client.post("/api/auth/register", json=reg_payload)
     login_res = client.post("/api/auth/login", json={"email": "test_pm@example.com", "password": "password123"})
     token = login_res.json()["access_token"]
+    user_id = login_res.json()["user"]["id"]
+    from app.models.entities import ProjectMember, ProjectMemberRoleEnum, Project
+    if db_session.query(Project).filter(Project.id == 1).first():
+        if not db_session.query(ProjectMember).filter(ProjectMember.project_id == 1, ProjectMember.user_id == user_id).first():
+            db_session.add(ProjectMember(project_id=1, user_id=user_id, role=ProjectMemberRoleEnum.PM))
+            db_session.commit()
     return {"Authorization": f"Bearer {token}"}
 
 @pytest.fixture
-def member_auth_headers(client):
+def member_auth_headers(client, db_session):
     reg_payload = {
         "email": "test_member@example.com",
         "password": "password123",
@@ -79,4 +86,29 @@ def member_auth_headers(client):
     client.post("/api/auth/register", json=reg_payload)
     login_res = client.post("/api/auth/login", json={"email": "test_member@example.com", "password": "password123"})
     token = login_res.json()["access_token"]
+    user_id = login_res.json()["user"]["id"]
+    from app.models.entities import ProjectMember, ProjectMemberRoleEnum, Project
+    if db_session.query(Project).filter(Project.id == 1).first():
+        if not db_session.query(ProjectMember).filter(ProjectMember.project_id == 1, ProjectMember.user_id == user_id).first():
+            db_session.add(ProjectMember(project_id=1, user_id=user_id, role=ProjectMemberRoleEnum.MEMBER))
+            db_session.commit()
     return {"Authorization": f"Bearer {token}"}
+
+@pytest.fixture
+def project_with_member(client, pm_auth_headers, member_auth_headers):
+    proj = client.post(
+        "/api/projects",
+        json={"name": "Fixture Project", "description": "for tests"},
+        headers=pm_auth_headers,
+    )
+    assert proj.status_code == 201
+    project_id = proj.json()["id"]
+
+    me = client.get("/api/auth/me", headers=member_auth_headers).json()
+    add = client.post(
+        f"/api/projects/{project_id}/members",
+        json={"user_id": me["id"], "role": "MEMBER"},
+        headers=pm_auth_headers,
+    )
+    assert add.status_code == 201
+    return project_id, me["id"]

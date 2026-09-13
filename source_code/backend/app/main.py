@@ -158,6 +158,8 @@ def migrate_database():
                     conn.execute(text("ALTER TABLE tasks ADD COLUMN priority_request_reason VARCHAR(255) DEFAULT NULL"))
                 if "priority_requested_by_id" not in t_cols:
                     conn.execute(text("ALTER TABLE tasks ADD COLUMN priority_requested_by_id INTEGER DEFAULT NULL"))
+                if "documents_json" not in t_cols:
+                    conn.execute(text("ALTER TABLE tasks ADD COLUMN documents_json TEXT DEFAULT '[]'"))
             # Ensure project_members table exists
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS project_members (
@@ -172,13 +174,38 @@ def migrate_database():
     except Exception as e:
         print("Migration notice:", e)
 
+def _is_development() -> bool:
+    return settings.ENVIRONMENT.lower() in ("development", "dev", "test", "testing")
+
+def _check_production_safety() -> None:
+    if _is_development():
+        return
+
+    problems = []
+    if settings.JWT_SECRET == getattr(settings, "DEV_JWT_SECRET", "koshi_super_secret_jwt_key_2026_academic_spec"):
+        problems.append("JWT_SECRET is still the development default; set a strong unique value.")
+    if getattr(settings, "ALLOW_UNVERIFIED_GOOGLE_TOKENS", False):
+        problems.append("ALLOW_UNVERIFIED_GOOGLE_TOKENS is enabled; this permits forged sessions.")
+    cors_str = getattr(settings, "CORS_ORIGINS", "")
+    if cors_str.strip() == "*":
+        problems.append("CORS_ORIGINS is '*'; pin it to the deployed frontend origin(s).")
+    if getattr(settings, "SEED_DEMO_DATA", False):
+        problems.append("SEED_DEMO_DATA is enabled; this creates accounts with known passwords.")
+
+    if problems:
+        raise RuntimeError(
+            "Refusing to start with insecure configuration in ENVIRONMENT="
+            f"{settings.ENVIRONMENT}:\n  - " + "\n  - ".join(problems)
+        )
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    _check_production_safety()
     migrate_database()
     Base.metadata.create_all(bind=engine)
-    seed_initial_data()
+    if getattr(settings, "SEED_DEMO_DATA", True):
+        seed_initial_data()
     yield
     # Teardown
 

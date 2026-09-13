@@ -20,7 +20,8 @@ class ProjectOut(ProjectBase):
         from_attributes = True
 
 class ProjectMemberAdd(BaseModel):
-    user_id: int
+    user_id: Optional[int] = None
+    email: Optional[str] = None
     role: Optional[ProjectMemberRoleEnum] = ProjectMemberRoleEnum.MEMBER
 
 class ProjectMemberUpdate(BaseModel):

@@ -17,7 +17,7 @@ router = APIRouter(prefix="/projects", tags=["Projects"])
 @router.get("", response_model=List[ProjectOut])
 def list_projects(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     # Return projects that the user owns or is a member of
-    user_memberships = db.query(ProjectMember.project_id).filter(ProjectMember.user_id == current_user.id).subquery()
+    user_memberships = [m[0] for m in db.query(ProjectMember.project_id).filter(ProjectMember.user_id == current_user.id).all()]
     projects = db.query(Project).filter(
         (Project.owner_id == current_user.id) | (Project.id.in_(user_memberships))
     ).all()
@@ -73,20 +73,25 @@ def add_project_member(
     # Only OWNER or PM can add members
     verify_project_membership(project_id, current_user.id, db, allowed_roles=[ProjectMemberRoleEnum.OWNER, ProjectMemberRoleEnum.PM])
 
-    target_user = db.query(User).filter(User.id == req.user_id).first()
+    target_user = None
+    if req.user_id:
+        target_user = db.query(User).filter(User.id == req.user_id).first()
+    elif req.email:
+        target_user = db.query(User).filter(User.email == req.email).first()
+
     if not target_user:
         raise HTTPException(status_code=404, detail="User not found")
 
     existing = db.query(ProjectMember).filter(
         ProjectMember.project_id == project_id,
-        ProjectMember.user_id == req.user_id
+        ProjectMember.user_id == target_user.id
     ).first()
     if existing:
         raise HTTPException(status_code=400, detail="User is already a member of this project")
 
     membership = ProjectMember(
         project_id=project_id,
-        user_id=req.user_id,
+        user_id=target_user.id,
         role=req.role or ProjectMemberRoleEnum.MEMBER
     )
     db.add(membership)
@@ -110,6 +115,14 @@ def update_project_member_role(
     ).first()
     if not membership:
         raise HTTPException(status_code=404, detail="Project member not found")
+
+    if membership.role in [ProjectMemberRoleEnum.PM, ProjectMemberRoleEnum.OWNER] and req.role not in [ProjectMemberRoleEnum.PM, ProjectMemberRoleEnum.OWNER]:
+        pm_count = db.query(ProjectMember).filter(
+            ProjectMember.project_id == project_id,
+            ProjectMember.role.in_([ProjectMemberRoleEnum.PM, ProjectMemberRoleEnum.OWNER])
+        ).count()
+        if pm_count <= 1:
+            raise HTTPException(status_code=400, detail="Cannot demote the last Project Manager")
 
     membership.role = req.role
     db.commit()

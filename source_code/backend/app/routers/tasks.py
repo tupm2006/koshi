@@ -28,7 +28,7 @@ def compute_task_out(task: Task) -> dict:
     if task.due_date and status_str != "DONE":
         if task.due_date < now:
             is_overdue = True
-            slip_days = max(0, int((now - task.due_date).total_seconds() // 86400))
+            slip_days = max(0, (now - task.due_date).days)
 
     deps = []
     if task.dependencies_json:
@@ -43,6 +43,13 @@ def compute_task_out(task: Task) -> dict:
             criteria = json.loads(task.acceptance_criteria_json)
         except Exception:
             criteria = []
+
+    docs = []
+    if getattr(task, "documents_json", None):
+        try:
+            docs = json.loads(task.documents_json)
+        except Exception:
+            docs = []
 
     priority_str = task.priority.value if hasattr(task.priority, 'value') else str(task.priority)
 
@@ -66,6 +73,7 @@ def compute_task_out(task: Task) -> dict:
         "blocking_reason": task.blocking_reason,
         "dependencies": deps,
         "acceptance_criteria": criteria,
+        "documents": docs,
         "created_at": task.created_at,
         "updated_at": task.updated_at,
         "comments": task.comments or []
@@ -107,7 +115,8 @@ def create_task(
         due_date=payload.due_date,
         blocking_reason=payload.blocking_reason,
         dependencies_json=json.dumps(payload.dependencies or []),
-        acceptance_criteria_json=json.dumps(payload.acceptance_criteria or [])
+        acceptance_criteria_json=json.dumps(payload.acceptance_criteria or []),
+        documents_json=json.dumps(payload.documents or [])
     )
     db.add(task)
     db.commit()
@@ -131,6 +140,7 @@ def get_task(
     verify_project_membership(task.project_id, current_user.id, db)
     return compute_task_out(task)
 
+@router.put("/{task_id}", response_model=TaskOut)
 @router.patch("/{task_id}", response_model=TaskOut)
 def update_task(
     task_id: int,
@@ -156,6 +166,10 @@ def update_task(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Members cannot directly change priority. Please submit a priority proposal."
                 )
+
+    if "documents" in update_data and update_data["documents"] is not None:
+        docs = update_data.pop("documents")
+        task.documents_json = json.dumps(docs if isinstance(docs, list) else [])
 
     if "dependencies" in update_data and update_data["dependencies"] is not None:
         deps = update_data.pop("dependencies")

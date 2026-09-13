@@ -29,6 +29,7 @@ class TaskBase(BaseModel):
     blocking_reason: Optional[str] = None
     dependencies: Optional[List[str]] = []
     acceptance_criteria: Optional[List[str]] = []
+    documents: Optional[List[str]] = []
 
 class TaskCreate(TaskBase):
     project_id: int = 1
@@ -47,6 +48,7 @@ class TaskUpdate(BaseModel):
     sprint_id: Optional[int] = None
     dependencies: Optional[List[str]] = None
     acceptance_criteria: Optional[List[str]] = None
+    documents: Optional[List[str]] = []
 
 class PriorityRequestCreate(BaseModel):
     requested_priority: str
@@ -72,6 +74,7 @@ class TaskOut(BaseModel):
     blocking_reason: Optional[str] = None
     dependencies: List[str] = []
     acceptance_criteria: List[str] = []
+    documents: Optional[List[str]] = []
     created_at: datetime
     updated_at: datetime
     comments: Optional[List[CommentOut]] = []

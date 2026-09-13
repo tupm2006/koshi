@@ -113,6 +113,7 @@ class Task(Base):
     blocking_reason = Column(String(255), nullable=True)
     dependencies_json = Column(Text, default="[]")
     acceptance_criteria_json = Column(Text, default="[]")
+    documents_json = Column(Text, default="[]")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -143,6 +144,17 @@ class Task(Base):
     @acceptance_criteria.setter
     def acceptance_criteria(self, value):
         self.acceptance_criteria_json = json.dumps(value if isinstance(value, list) else [])
+
+    @property
+    def documents(self):
+        try:
+            return json.loads(self.documents_json or "[]")
+        except Exception:
+            return []
+
+    @documents.setter
+    def documents(self, value):
+        self.documents_json = json.dumps(value if isinstance(value, list) else [])
 
 class TaskDependency(Base):
     __tablename__ = "task_dependencies"

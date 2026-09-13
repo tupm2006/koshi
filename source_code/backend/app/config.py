@@ -15,11 +15,15 @@ class Settings(BaseSettings):
     )
     
     # JWT & Auth
+    DEV_JWT_SECRET: str = "koshi_super_secret_jwt_key_2026_academic_spec"
     JWT_SECRET: str = Field(
         default="koshi_super_secret_jwt_key_2026_academic_spec"
     )
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
+    ALLOW_UNVERIFIED_GOOGLE_TOKENS: bool = Field(default=False)
+    CORS_ORIGINS: str = Field(default="*")
+    SEED_DEMO_DATA: bool = Field(default=True)
     
     # CORS Origins
     ALLOWED_ORIGINS: Union[str, List[str]] = Field(

@@ -1,36 +1,51 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 from app.database import get_db
-from app.models.entities import User, Task, TaskStatusEnum
+from app.models.entities import User, Task, TaskStatusEnum, ProjectMember
 from app.schemas.stats import MemberWorkloadOut, DelayedTaskOut
 from app.security import get_current_user, verify_project_membership
 
 router = APIRouter(prefix="/stats", tags=["Statistics & Workload"])
 
 @router.get("/workload", response_model=List[MemberWorkloadOut])
-def get_member_workloads(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    users = db.query(User).all()
+def get_member_workloads(
+    project_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    if project_id is not None:
+        verify_project_membership(project_id, current_user.id, db)
+        members = db.query(ProjectMember).filter(ProjectMember.project_id == project_id).all()
+        users = [m.user for m in members if m.user is not None]
+        role_by_user = {m.user_id: m.role.value if hasattr(m.role, 'value') else str(m.role) for m in members}
+    else:
+        users = db.query(User).all()
+        role_by_user = {}
+
     results = []
-    
     for u in users:
-        active_tasks = db.query(Task).filter(
+        task_query = db.query(Task).filter(
             Task.assignee_id == u.id,
             Task.status.in_([TaskStatusEnum.TODO, TaskStatusEnum.IN_PROGRESS, TaskStatusEnum.BLOCKED])
-        ).all()
+        )
+        if project_id is not None:
+            task_query = task_query.filter(Task.project_id == project_id)
+        active_tasks = task_query.all()
         
         points = sum(t.complexity_points for t in active_tasks)
         skills_list = [s.strip() for s in (u.skills or "").split(",") if s.strip()]
         
         # Overloaded heuristic threshold: > 10 complexity points or > 5 active tasks
         is_overloaded = points > 10 or len(active_tasks) > 5
+        role_str = role_by_user.get(u.id, u.role.value if hasattr(u.role, 'value') else str(u.role))
         
         results.append(MemberWorkloadOut(
             user_id=u.id,
             full_name=u.full_name,
             email=u.email,
-            role=u.role.value,
+            role=role_str,
             skills=skills_list,
             active_tasks_count=len(active_tasks),
             total_complexity_points=points,

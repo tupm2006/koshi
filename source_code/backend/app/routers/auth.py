@@ -53,22 +53,6 @@ def register(req: UserRegisterRequest, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(user)
 
-    # Auto-assign to default Project #1
-    default_proj = db.query(Project).filter(Project.id == 1).first()
-    if default_proj:
-        member_record = db.query(ProjectMember).filter(
-            ProjectMember.project_id == 1,
-            ProjectMember.user_id == user.id
-        ).first()
-        if not member_record:
-            is_pm = (user.role == RoleEnum.PM) or (hasattr(user.role, 'value') and user.role.value == "PM")
-            membership = ProjectMember(
-                project_id=1,
-                user_id=user.id,
-                role=ProjectMemberRoleEnum.PM if is_pm else ProjectMemberRoleEnum.MEMBER
-            )
-            db.add(membership)
-            db.commit()
 
 
     role_val = user.role.value if hasattr(user.role, 'value') else str(user.role)
