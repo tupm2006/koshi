@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     )
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
-    ALLOW_UNVERIFIED_GOOGLE_TOKENS: bool = Field(default=False)
+    ALLOW_UNVERIFIED_GOOGLE_TOKENS: bool = False
     CORS_ORIGINS: str = Field(default="*")
     SEED_DEMO_DATA: bool = Field(default=True)
     

@@ -130,3 +130,10 @@ def test_tenant_rbac_cross_project_isolation(client: TestClient):
         headers=headers_b
     )
     assert unauthorized_create_task.status_code == 403
+
+def test_google_oauth_unverified_rejected_when_disabled(client: TestClient, monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "ALLOW_UNVERIFIED_GOOGLE_TOKENS", False)
+    dummy_jwt = "mock_google_token_google.dev@tupm.qzz.io"
+    res = client.post("/api/auth/google", json={"credential": dummy_jwt})
+    assert res.status_code == 401

@@ -148,6 +148,8 @@ def migrate_database():
                     conn.execute(text("ALTER TABLE users ADD COLUMN google_id VARCHAR(255)"))
                 if "avatar_url" not in columns:
                     conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(500)"))
+                if "avatar_file" not in columns:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN avatar_file VARCHAR(255)"))
             # Ensure priority governance columns exist in tasks
             result_tasks = conn.execute(text("PRAGMA table_info(tasks)"))
             t_cols = [row[1] for row in result_tasks.fetchall()]

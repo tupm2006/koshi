@@ -28,6 +28,7 @@ class UserOut(BaseModel):
     full_name: str
     google_id: Optional[str] = None
     avatar_url: Optional[str] = None
+    avatar_file: Optional[str] = None
     role: RoleEnum
     skills: str
     created_at: datetime

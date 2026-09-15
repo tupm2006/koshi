@@ -82,95 +82,140 @@ def login(req: UserLoginRequest, db: Session = Depends(get_db)):
         "user": user
     }
 
+def _decode_unverified_payload(credential: str):
+    try:
+        if credential.startswith("mock_google_token_"):
+            mock_email = credential.replace("mock_google_token_", "").strip().lower()
+            return {
+                "email": mock_email,
+                "name": mock_email.split("@")[0].capitalize(),
+                "sub": f"mock_gid_{mock_email}",
+                "picture": "https://lh3.googleusercontent.com/a/default-user"
+            }
+        elif "." in credential:
+            parts = credential.split(".")
+            if len(parts) >= 2:
+                payload_b64 = parts[1]
+                payload_b64 += "=" * ((4 - len(payload_b64) % 4) % 4)
+                decoded_bytes = base64.urlsafe_b64decode(payload_b64)
+                return json.loads(decoded_bytes.decode("utf-8"))
+        elif "mock" in credential or "demo" in credential:
+            return {
+                "email": "demo.user@ictu.edu.vn",
+                "name": "Demo User",
+                "sub": "mock_gid_demo",
+                "picture": "https://lh3.googleusercontent.com/a/default-user"
+            }
+        else:
+            payload_b64 = credential + "=" * ((4 - len(credential) % 4) % 4)
+            decoded_bytes = base64.urlsafe_b64decode(payload_b64)
+            data = json.loads(decoded_bytes.decode("utf-8"))
+            if isinstance(data, dict):
+                return data
+    except Exception:
+        return None
+    return None
+
 @router.post("/auth/google", response_model=TokenResponse)
 @router.post("/api/v1/auth/google", response_model=TokenResponse)
 def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
     credential = req.credential
     id_info = None
 
-    # 1. Controlled Academic Demo / Mock Token Handler
-    if credential.endswith(".mock_signature") or "mock_google_token" in credential:
-        try:
-            if credential.startswith("mock_google_token_"):
-                mock_email = credential.replace("mock_google_token_", "")
-                id_info = {
-                    "email": mock_email,
-                    "name": mock_email.split("@")[0].capitalize(),
-                    "sub": f"mock_gid_{mock_email}",
-                    "picture": "https://lh3.googleusercontent.com/a/default-user"
-                }
-            elif "." in credential:
-                parts = credential.split(".")
-                payload_b64 = parts[1]
-                payload_b64 += "=" * ((4 - len(payload_b64) % 4) % 4)
-                decoded_bytes = base64.urlsafe_b64decode(payload_b64)
-                id_info = json.loads(decoded_bytes.decode("utf-8"))
-            else:
-                id_info = {
-                    "email": "demo.user@ictu.edu.vn",
-                    "name": "Demo User",
-                    "sub": "mock_gid_demo",
-                    "picture": "https://lh3.googleusercontent.com/a/default-user"
-                }
-
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Invalid demo token payload: {str(e)}"
-            )
-    else:
-        # 2. Strict Real Google JWKS Certificate Verification
-        if id_token is None:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Google auth library not available on server"
-            )
+    if id_token is not None and google_requests is not None:
         try:
             id_info = id_token.verify_oauth2_token(
                 credential,
                 google_requests.Request()
             )
-        except Exception as e:
+        except Exception as verify_err:
+            if settings.ALLOW_UNVERIFIED_GOOGLE_TOKENS:
+                id_info = _decode_unverified_payload(credential)
+                if not id_info:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail=f"Google token verification failed and fallback decoding failed: {str(verify_err)}"
+                    )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Google ID token signature verification failed: {str(verify_err)}"
+                )
+    else:
+        if settings.ALLOW_UNVERIFIED_GOOGLE_TOKENS:
+            id_info = _decode_unverified_payload(credential)
+            if not id_info:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Google auth library not available and invalid payload"
+                )
+        else:
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Google ID token signature verification failed: {str(e)}"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Google auth library not available on server"
             )
 
-    email = id_info.get("email", "").strip().lower()
-    if not email:
+    email = (id_info.get("email") or "").strip().lower()
+    google_id = id_info.get("sub") or id_info.get("id") or id_info.get("google_id")
+    if not email and not google_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Token payload does not contain a valid email address."
+            detail="Token payload does not contain a valid email or user identifier."
         )
 
-    user = db.query(User).filter(User.email == email).first()
+    # Upsert user by google_id or email
+    user = None
+    if google_id:
+        user = db.query(User).filter(User.google_id == google_id).first()
+    if not user and email:
+        user = db.query(User).filter(User.email == email).first()
+
+    name = id_info.get("name") or id_info.get("full_name") or (email.split("@")[0].capitalize() if email else "Google User")
+    picture = id_info.get("picture") or id_info.get("avatar_url") or ("https://api.dicebear.com/7.x/bottts/svg?seed=" + email if email else None)
+
     if not user:
         is_pm = "tupm" in email or "pm@" in email
         user = User(
-            email=email,
+            email=email or f"{google_id}@google.user",
             hashed_password="",
-            full_name=id_info.get("name", email.split("@")[0]),
-            google_id=id_info.get("sub"),
-            avatar_url=id_info.get("picture", "https://api.dicebear.com/7.x/bottts/svg?seed=" + email),
-            role=RoleEnum.PM if is_pm else RoleEnum.MEMBER
+            full_name=name,
+            google_id=google_id,
+            avatar_url=picture,
+            avatar_file=None,
+            role=RoleEnum.PM if is_pm else RoleEnum.MEMBER,
+            skills=""
         )
         db.add(user)
         db.commit()
         db.refresh(user)
 
-        # Auto-join default Project #1
+        # Auto-join default Project #1 if exists
         default_proj = db.query(Project).filter(Project.id == 1).first()
         if default_proj:
-            membership = ProjectMember(
-                project_id=1,
-                user_id=user.id,
-                role=ProjectMemberRoleEnum.PM if user.role == RoleEnum.PM else ProjectMemberRoleEnum.MEMBER
-            )
-            db.add(membership)
-            db.commit()
+            membership = db.query(ProjectMember).filter(
+                ProjectMember.project_id == 1,
+                ProjectMember.user_id == user.id
+            ).first()
+            if not membership:
+                membership = ProjectMember(
+                    project_id=1,
+                    user_id=user.id,
+                    role=ProjectMemberRoleEnum.PM if user.role == RoleEnum.PM else ProjectMemberRoleEnum.MEMBER
+                )
+                db.add(membership)
+                db.commit()
     else:
-        if id_info.get("picture") and not user.avatar_url:
-            user.avatar_url = id_info.get("picture")
+        updated = False
+        if google_id and not user.google_id:
+            user.google_id = google_id
+            updated = True
+        if picture and not user.avatar_url:
+            user.avatar_url = picture
+            updated = True
+        if name and not user.full_name:
+            user.full_name = name
+            updated = True
+        if updated:
             db.commit()
             db.refresh(user)
 

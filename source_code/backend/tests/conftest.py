@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 
 # Set test environment
 os.environ["DATABASE_URL"] = "sqlite:///./data/test_koshi.db"
+os.environ.setdefault("ALLOW_UNVERIFIED_GOOGLE_TOKENS", "True")
 
 from app.database import Base, get_db
 from app.main import app, seed_initial_data

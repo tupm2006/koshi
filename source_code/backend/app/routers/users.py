@@ -1,11 +1,13 @@
 from typing import List
-from fastapi import APIRouter, HTTPException, Depends, status, Query
+from fastapi import APIRouter, HTTPException, Depends, status, Query, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.entities import User, Task, ProjectMember, RoleEnum, ProjectMemberRoleEnum
 from app.schemas.auth import UserOut, UserUpdate
 from app.schemas.stats import UserWithWIPOut
 from app.security import get_current_user
+from app.services.uploads import save_upload, delete_upload, get_upload_path
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -67,21 +69,72 @@ def update_user_profile(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    is_pm = (current_user.role == RoleEnum.PM) or (hasattr(current_user.role, 'value') and current_user.role.value == "PM")
-    if current_user.id != user_id and not is_pm:
-        raise HTTPException(status_code=403, detail="Not authorized to update other users' profile")
+    if user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Forbidden: You can only update your own profile."
+        )
         
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
         
     if payload.full_name is not None:
-        user.full_name = payload.full_name
+        user.full_name = payload.full_name.strip()
     if payload.skills is not None:
-        user.skills = payload.skills
-    if payload.role is not None and is_pm:
-        user.role = payload.role
+        user.skills = payload.skills.strip()
         
     db.commit()
     db.refresh(user)
     return user
+
+@router.post("/me/avatar", response_model=UserOut)
+async def upload_user_avatar(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    stored_name, content_type, size_bytes = await save_upload(file)
+
+    if current_user.avatar_file:
+        delete_upload(current_user.avatar_file)
+
+    current_user.avatar_file = stored_name
+    current_user.avatar_url = f"/api/users/{current_user.id}/avatar?v={stored_name[:8]}"
+    db.commit()
+    db.refresh(current_user)
+    return current_user
+
+@router.get("/{user_id}/avatar")
+def get_user_avatar(
+    user_id: int,
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if not user.avatar_file:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avatar not found")
+
+    file_path = get_upload_path(user.avatar_file)
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avatar file missing on disk")
+
+    media_type = "application/octet-stream"
+    if user.avatar_file.endswith(".png"):
+        media_type = "image/png"
+    elif user.avatar_file.endswith((".jpg", ".jpeg")):
+        media_type = "image/jpeg"
+    elif user.avatar_file.endswith(".webp"):
+        media_type = "image/webp"
+
+    headers = {
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "private, max-age=86400",
+    }
+    return FileResponse(
+        path=str(file_path),
+        media_type=media_type,
+        headers=headers
+    )
