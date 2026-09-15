@@ -163,6 +163,8 @@ def migrate_database():
                     conn.execute(text("ALTER TABLE tasks ADD COLUMN priority_requested_by_id INTEGER DEFAULT NULL"))
                 if "documents_json" not in t_cols:
                     conn.execute(text("ALTER TABLE tasks ADD COLUMN documents_json TEXT DEFAULT '[]'"))
+                conn.execute(text("UPDATE tasks SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL"))
+                conn.execute(text("UPDATE tasks SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL"))
             # Ensure project_members table exists
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS project_members (

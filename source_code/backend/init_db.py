@@ -161,10 +161,11 @@ def init_database():
         """, (sprint2_start, sprint2_end))
 
     # Distribute seeded tasks across sprint_id = 1 and sprint_id = None (Backlog)
+    now_str = now.strftime("%Y-%m-%d %H:%M:%S")
     tasks_seed = [
         (1, 1, 1, pm_id, 'Implement FastAPI backend with SQLite', 'Setup entities and routers', 'DONE', 'HIGH', 3, (now + timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S"), None, '[]', '[]', '[]'),
-        (2, 1, 1, dev_id, 'Build 2D Spatial Kanban Navigation', 'Vim hotkeys and focus tracking', 'IN_PROGRESS', 'CRITICAL', 3, (now + timedelta(days=4)).strftime("%Y-%m-%d %H:%M:%S"), None, '[1]', '[]', '[]'),
-        (3, 1, None, tupm_id, 'Integrate AI PM Workflow Endpoints', 'Weekly summary and minutes extraction', 'BLOCKED', 'HIGH', 2, (now + timedelta(days=5)).strftime("%Y-%m-%d %H:%M:%S"), 'Waiting on API token configuration', '[1]', '[]', '[]'),
+        (2, 1, 1, dev_id, 'Build 2D Spatial Kanban Navigation', 'Vim hotkeys and focus tracking', 'IN_PROGRESS', 'CRITICAL', 3, (now + timedelta(days=4)).strftime("%Y-%m-%d %H:%M:%S"), None, '["1"]', '[]', '[]'),
+        (3, 1, None, tupm_id, 'Integrate AI PM Workflow Endpoints', 'Weekly summary and minutes extraction', 'BLOCKED', 'HIGH', 2, (now + timedelta(days=5)).strftime("%Y-%m-%d %H:%M:%S"), 'Waiting on API token configuration', '["1"]', '[]', '[]'),
         (4, 1, None, dev_id, 'Offline-First Sync Engine and Service Worker', 'Ensure local resilience and caching', 'TODO', 'MEDIUM', 2, (now + timedelta(days=10)).strftime("%Y-%m-%d %H:%M:%S"), None, '[]', '[]', '[]')
     ]
 
@@ -172,15 +173,15 @@ def init_database():
         cursor.execute("SELECT id FROM tasks WHERE id = ?", (t_id,))
         if not cursor.fetchone():
             cursor.execute("""
-                INSERT INTO tasks (id, project_id, sprint_id, assignee_id, title, description, status, priority, complexity_points, due_date, blocking_reason, dependencies_json, acceptance_criteria_json, documents_json)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (t_id, p_id, s_id, a_id, title, desc, status, priority, pts, due, blk, deps, ac, docs))
+                INSERT INTO tasks (id, project_id, sprint_id, assignee_id, title, description, status, priority, complexity_points, due_date, blocking_reason, dependencies_json, acceptance_criteria_json, documents_json, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (t_id, p_id, s_id, a_id, title, desc, status, priority, pts, due, blk, deps, ac, docs, now_str, now_str))
         else:
             cursor.execute("""
                 UPDATE tasks
-                SET project_id = ?, sprint_id = ?, assignee_id = ?, title = ?, description = ?, status = ?, priority = ?, complexity_points = ?, due_date = ?, blocking_reason = ?, dependencies_json = ?, acceptance_criteria_json = ?, documents_json = ?
+                SET project_id = ?, sprint_id = ?, assignee_id = ?, title = ?, description = ?, status = ?, priority = ?, complexity_points = ?, due_date = ?, blocking_reason = ?, dependencies_json = ?, acceptance_criteria_json = ?, documents_json = ?, created_at = COALESCE(created_at, ?), updated_at = COALESCE(updated_at, ?)
                 WHERE id = ?
-            """, (p_id, s_id, a_id, title, desc, status, priority, pts, due, blk, deps, ac, docs, t_id))
+            """, (p_id, s_id, a_id, title, desc, status, priority, pts, due, blk, deps, ac, docs, now_str, now_str, t_id))
 
     cursor.execute("DELETE FROM task_dependencies WHERE task_id = 2 AND depends_on_id = 1")
     cursor.execute("INSERT OR IGNORE INTO task_dependencies (task_id, depends_on_id) VALUES (2, 1)")

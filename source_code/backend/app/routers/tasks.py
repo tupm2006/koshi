@@ -33,7 +33,8 @@ def compute_task_out(task: Task) -> dict:
     deps = []
     if task.dependencies_json:
         try:
-            deps = json.loads(task.dependencies_json)
+            raw_deps = json.loads(task.dependencies_json)
+            deps = [str(d) for d in raw_deps] if isinstance(raw_deps, list) else []
         except Exception:
             deps = []
 
@@ -74,8 +75,8 @@ def compute_task_out(task: Task) -> dict:
         "dependencies": deps,
         "acceptance_criteria": criteria,
         "documents": docs,
-        "created_at": task.created_at,
-        "updated_at": task.updated_at,
+        "created_at": task.created_at or now,
+        "updated_at": task.updated_at or now,
         "comments": task.comments or []
     }
 
