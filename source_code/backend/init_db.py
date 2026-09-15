@@ -61,6 +61,7 @@ def init_database():
             cursor.execute("ALTER TABLE task_dependencies ADD COLUMN depends_on_id INTEGER DEFAULT NULL;")
 
     now = datetime.utcnow()
+    now_str = now.strftime("%Y-%m-%d %H:%M:%S")
     pw_hash = hash_pw("koshi123")
 
     # Seed Accounts: pm@tupm.qzz.io, dev@tupm.qzz.io, tupm.pm@ictu.edu.vn
