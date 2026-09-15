@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useTaskStore } from './stores/taskStore';
 import { useThemeStore } from './stores/themeStore';
 import { createKeyboardHandler } from './lib/keyboard';
+import LandingPage from './components/LandingPage.vue';
+import ProfileView from './components/ProfileView.vue';
 import TaskTable from './components/TaskTable.vue';
 import KanbanBoard from './components/KanbanBoard.vue';
 import AIDecomposerModal from './components/AIDecomposerModal.vue';
@@ -33,7 +35,11 @@ import {
   Sun,
   Moon,
   ChevronDown,
-  CircleHelp
+  CircleHelp,
+  ArrowLeft,
+  User as UserIcon,
+  LogOut,
+  Wrench
 } from 'lucide-vue-next';
 import type { FilterStatus } from './types/task';
 
@@ -131,9 +137,29 @@ function handleWindowClick(e: MouseEvent) {
   }
 }
 
+function handleAuthClose() {
+  isAuthModalOpen.value = false;
+  if (taskStore.currentUser) {
+    taskStore.setAppView('BOARD');
+  }
+}
+
+watch(
+  () => taskStore.appView,
+  (newView) => {
+    if (newView === 'BOARD') {
+      keyboard.mount();
+    } else {
+      keyboard.unmount();
+    }
+  }
+);
+
 onMounted(() => {
   taskStore.init();
-  keyboard.mount();
+  if (taskStore.appView === 'BOARD') {
+    keyboard.mount();
+  }
   window.addEventListener('click', handleWindowClick);
   window.addEventListener('keydown', handleGlobalEscape, true);
 });
@@ -174,63 +200,108 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 
 <template>
   <div class="h-screen h-[100dvh] flex flex-col bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans text-xs md:text-sm safe-top overflow-hidden">
-    <!-- Top Navigation Header -->
-    <header class="h-12 border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 px-3 md:px-6 flex items-center justify-between z-30 shadow-xs">
-      <div class="w-full max-w-[1720px] mx-auto flex items-center justify-between gap-2">
-        <!-- Left: Logo & View Mode -->
-        <div class="flex items-center gap-2">
-          <h1 class="text-sm font-bold tracking-wider text-slate-900 dark:text-slate-100 font-mono">
-            KOSHI
-          </h1>
-          <button
-            type="button"
-            class="h-8 flex items-center gap-1.5 px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-mono text-slate-800 dark:text-slate-200 cursor-pointer shadow-2xs"
-            @click="taskStore.toggleViewMode()"
-            title="Toggle Table / Kanban View (b)"
-          >
-            <LayoutGrid class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" v-if="taskStore.viewMode === 'TABLE'"/>
-            <List class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" v-else/>
-            <span class="hidden sm:inline">{{ taskStore.viewMode === 'TABLE' ? 'Kanban' : 'Table' }}</span>
-          </button>
-        </div>
+    <!-- 1. LANDING PAGE VIEW -->
+    <LandingPage
+      v-if="taskStore.appView === 'LANDING'"
+      @open-auth="isAuthModalOpen = true"
+    />
 
-        <!-- Right: Actions Cluster (Desktop vs Mobile Optimized) -->
-        <div class="flex items-center gap-1.5 sm:gap-2">
-          <!-- User / Auth Profile -->
-          <div v-if="taskStore.currentUser" class="inline-flex items-center gap-1">
-            <button
-              type="button"
-              class="h-8 inline-flex items-center gap-1 px-2 rounded-md border text-xs font-mono cursor-pointer shadow-2xs bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold max-w-[140px] sm:max-w-none truncate"
-              @click="isAuthModalOpen = true"
-              title="Account Details"
+    <!-- 2. AUTHENTICATED WORKSPACE SHELL (BOARD & PROFILE) -->
+    <div v-else class="h-full flex flex-col overflow-hidden">
+      <!-- Top Navigation Header -->
+      <header class="h-12 border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 px-3 md:px-6 flex items-center justify-between z-30 shadow-xs">
+        <div class="w-full max-w-[1720px] mx-auto flex items-center justify-between gap-2">
+          <!-- Left: Logo & View Switcher -->
+          <div class="flex items-center gap-2">
+            <h1
+              class="text-sm font-bold tracking-wider text-slate-900 dark:text-slate-100 font-mono cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+              @click="taskStore.setAppView('BOARD')"
+              title="Go to Board"
             >
-              <img
-                v-if="taskStore.currentUser.avatar_url"
-                :src="taskStore.currentUser.avatar_url"
-                alt="Avatar"
-                class="w-4 h-4 rounded-full border border-indigo-400 object-cover shrink-0"
-              />
-              <Shield v-else class="w-3.5 h-3.5 shrink-0"/>
-              <span class="truncate">{{ taskStore.currentUser.role }}: {{ taskStore.currentUser.full_name }}</span>
-            </button>
+              KOSHI
+            </h1>
+
+            <!-- View Switcher Tabs: Board vs Profile -->
+            <div class="inline-flex rounded-md border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-0.5 shadow-2xs font-mono text-xs">
+              <button
+                type="button"
+                :class="[
+                  'h-7 px-2.5 rounded-sm cursor-pointer transition-colors font-medium flex items-center gap-1.5',
+                  taskStore.appView === 'BOARD'
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs font-semibold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                ]"
+                @click="taskStore.setAppView('BOARD')"
+              >
+                <LayoutGrid class="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                <span>Board</span>
+              </button>
+              <button
+                type="button"
+                :class="[
+                  'h-7 px-2.5 rounded-sm cursor-pointer transition-colors font-medium flex items-center gap-1.5',
+                  taskStore.appView === 'PROFILE'
+                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs font-semibold'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                ]"
+                @click="taskStore.setAppView('PROFILE')"
+              >
+                <Shield class="w-3 h-3 text-sky-600 dark:text-sky-400" />
+                <span>Profile</span>
+              </button>
+            </div>
+
+            <!-- Board View Mode Toggle (Table / Kanban) - visible on Board -->
             <button
+              v-if="taskStore.appView === 'BOARD'"
               type="button"
-              class="hidden sm:inline-flex h-8 px-2 items-center justify-center rounded-md border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 dark:hover:text-rose-400 text-[11px] font-mono text-slate-500 cursor-pointer shadow-2xs"
-              @click="taskStore.logout()"
-              title="Sign Out"
+              class="h-8 flex items-center gap-1.5 px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-mono text-slate-800 dark:text-slate-200 cursor-pointer shadow-2xs"
+              @click="taskStore.toggleViewMode()"
+              title="Toggle Table / Kanban View (b)"
             >
-              Sign Out
+              <LayoutGrid class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" v-if="taskStore.viewMode === 'TABLE'"/>
+              <List class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" v-else/>
+              <span class="hidden sm:inline">{{ taskStore.viewMode === 'TABLE' ? 'Kanban' : 'Table' }}</span>
             </button>
           </div>
-          <button
-            v-else
-            type="button"
-            class="h-8 inline-flex items-center gap-1 px-2.5 rounded-md border text-xs font-mono cursor-pointer shadow-2xs bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
-            @click="isAuthModalOpen = true"
-          >
-            <Shield class="w-3.5 h-3.5"/>
-            <span>Sign In</span>
-          </button>
+
+          <!-- Right: Actions Cluster (Desktop vs Mobile Optimized) -->
+          <div class="flex items-center gap-1.5 sm:gap-2">
+            <!-- User / Auth Profile -->
+            <div v-if="taskStore.currentUser" class="inline-flex items-center gap-1">
+              <button
+                type="button"
+                class="h-8 inline-flex items-center gap-1 px-2 rounded-md border text-xs font-mono cursor-pointer shadow-2xs bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold max-w-[140px] sm:max-w-none truncate"
+                @click="taskStore.setAppView('PROFILE')"
+                title="Account Details (Switch to Profile)"
+              >
+                <img
+                  v-if="taskStore.currentUser.avatar_url"
+                  :src="taskStore.currentUser.avatar_url"
+                  alt="Avatar"
+                  class="w-4 h-4 rounded-full border border-indigo-400 object-cover shrink-0"
+                />
+                <Shield v-else class="w-3.5 h-3.5 shrink-0"/>
+                <span class="truncate">{{ taskStore.currentUser.role }}: {{ taskStore.currentUser.full_name }}</span>
+              </button>
+              <button
+                type="button"
+                class="hidden sm:inline-flex h-8 px-2 items-center justify-center rounded-md border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 dark:hover:text-rose-400 text-[11px] font-mono text-slate-500 cursor-pointer shadow-2xs"
+                @click="taskStore.logout()"
+                title="Sign Out to Landing"
+              >
+                Sign Out
+              </button>
+            </div>
+            <button
+              v-else
+              type="button"
+              class="h-8 inline-flex items-center gap-1 px-2.5 rounded-md border text-xs font-mono cursor-pointer shadow-2xs bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+              @click="isAuthModalOpen = true"
+            >
+              <Shield class="w-3.5 h-3.5"/>
+              <span>Sign In</span>
+            </button>
 
           <!-- Desktop-only Actions -->
           <button
@@ -333,136 +404,146 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
       </div>
     </header>
 
-    <!-- Sub-Header: Search & Filter Tabs (Auto-Height on Mobile to prevent clipping) -->
-    <section class="min-h-[44px] h-auto py-2 sm:h-11 sm:py-0 border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900/60 px-3 md:px-6 flex items-center shrink-0 z-20 shadow-2xs">
-      <div class="w-full max-w-[1720px] mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
-        <!-- Search Input & Sprint Milestone Dropdown -->
-        <div class="flex items-center gap-2 flex-1 max-w-full sm:max-w-xl">
-          <div class="relative flex-1">
-            <Search class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"/>
-            <input
-              ref="searchInputEl"
-              v-model="taskStore.filter.searchQuery"
-              type="text"
-              placeholder="Filter tasks... (Press /)"
-              class="h-8 w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md pl-8 pr-7 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-indigo-500 font-sans"
-            />
+    <!-- 2A. BOARD VIEW -->
+    <template v-if="taskStore.appView === 'BOARD'">
+      <!-- Sub-Header: Search & Filter Tabs (Auto-Height on Mobile to prevent clipping) -->
+      <section class="min-h-[44px] h-auto py-2 sm:h-11 sm:py-0 border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900/60 px-3 md:px-6 flex items-center shrink-0 z-20 shadow-2xs">
+        <div class="w-full max-w-[1720px] mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
+          <!-- Search Input & Sprint Milestone Dropdown -->
+          <div class="flex items-center gap-2 flex-1 max-w-full sm:max-w-xl">
+            <div class="relative flex-1">
+              <Search class="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"/>
+              <input
+                ref="searchInputEl"
+                v-model="taskStore.filter.searchQuery"
+                type="text"
+                placeholder="Filter tasks... (Press /)"
+                class="h-8 w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md pl-8 pr-7 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 focus:outline-none focus:border-indigo-500 font-sans"
+              />
+              <button
+                v-if="taskStore.filter.searchQuery"
+                type="button"
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
+                @click="taskStore.setSearchQuery('')"
+              >
+                <X class="w-3.5 h-3.5"/>
+              </button>
+            </div>
+
+            <!-- Compact Sprint Milestone Dropdown -->
+            <div class="relative shrink-0">
+              <select
+                :value="taskStore.filter.sprintId"
+                @change="(e) => {
+                  const val = (e.target as HTMLSelectElement).value;
+                  if (val === 'ALL' || val === 'BACKLOG') {
+                    taskStore.setFilterSprint(val);
+                  } else {
+                    taskStore.setFilterSprint(Number(val));
+                  }
+                }"
+                class="h-8 pl-2.5 pr-7 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md text-xs font-mono font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer appearance-none shadow-2xs"
+                aria-label="Filter by Sprint"
+              >
+                <option value="ALL">All Sprints</option>
+                <option
+                  v-for="sprint in taskStore.sprints"
+                  :key="sprint.id"
+                  :value="sprint.id"
+                >
+                  {{ sprint.name }}
+                </option>
+                <option value="BACKLOG">Backlog</option>
+              </select>
+              <ChevronDown class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+
+          <!-- Filter Chips (Horizontally Scrollable on Mobile) -->
+          <div class="flex items-center gap-1 text-xs font-mono overflow-x-auto no-scrollbar py-0.5 shrink-0">
             <button
-              v-if="taskStore.filter.searchQuery"
+              v-for="st in statusTabs"
+              :key="st"
               type="button"
-              class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
-              @click="taskStore.setSearchQuery('')"
+              :class="[
+                'h-6 px-2 rounded-md cursor-pointer shrink-0 text-[11px] font-medium transition-colors',
+                taskStore.filter.status === st && !taskStore.filter.onlyCriticalPath
+                  ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold border border-slate-300 dark:border-slate-700'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900'
+              ]"
+              @click="() => {
+                if (taskStore.filter.onlyCriticalPath) taskStore.toggleCriticalPathOnly();
+                taskStore.setFilterStatus(st);
+              }"
             >
-              <X class="w-3.5 h-3.5"/>
+              {{ st === 'IN_PROGRESS' ? 'IN PROG' : st }}
+            </button>
+            <button
+              type="button"
+              :class="[
+                'h-6 px-2 rounded-md cursor-pointer shrink-0 text-[11px] font-semibold flex items-center gap-1 border',
+                taskStore.filter.onlyCriticalPath
+                  ? 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60'
+                  : 'border-transparent text-slate-600 dark:text-slate-400'
+              ]"
+              @click="taskStore.toggleCriticalPathOnly()"
+            >
+              <Flame class="w-3 h-3 text-rose-600"/>
+              <span>Crit ({{ taskStore.criticalPathIds.size }})</span>
             </button>
           </div>
-
-          <!-- Compact Sprint Milestone Dropdown -->
-          <div class="relative shrink-0">
-            <select
-              :value="taskStore.filter.sprintId"
-              @change="(e) => {
-                const val = (e.target as HTMLSelectElement).value;
-                if (val === 'ALL' || val === 'BACKLOG') {
-                  taskStore.setFilterSprint(val);
-                } else {
-                  taskStore.setFilterSprint(Number(val));
-                }
-              }"
-              class="h-8 pl-2.5 pr-7 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md text-xs font-mono font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:border-indigo-500 cursor-pointer appearance-none shadow-2xs"
-              aria-label="Filter by Sprint"
-            >
-              <option value="ALL">All Sprints</option>
-              <option
-                v-for="sprint in taskStore.sprints"
-                :key="sprint.id"
-                :value="sprint.id"
-              >
-                {{ sprint.name }}
-              </option>
-              <option value="BACKLOG">Backlog</option>
-            </select>
-            <ChevronDown class="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-          </div>
         </div>
+      </section>
 
-        <!-- Filter Chips (Horizontally Scrollable on Mobile) -->
-        <div class="flex items-center gap-1 text-xs font-mono overflow-x-auto no-scrollbar py-0.5 shrink-0">
-          <button
-            v-for="st in statusTabs"
-            :key="st"
-            type="button"
-            :class="[
-              'h-6 px-2 rounded-md cursor-pointer shrink-0 text-[11px] font-medium transition-colors',
-              taskStore.filter.status === st && !taskStore.filter.onlyCriticalPath
-                ? 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold border border-slate-300 dark:border-slate-700'
-                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900'
-            ]"
-            @click="() => {
-              if (taskStore.filter.onlyCriticalPath) taskStore.toggleCriticalPathOnly();
-              taskStore.setFilterStatus(st);
-            }"
-          >
-            {{ st === 'IN_PROGRESS' ? 'IN PROG' : st }}
-          </button>
-          <button
-            type="button"
-            :class="[
-              'h-6 px-2 rounded-md cursor-pointer shrink-0 text-[11px] font-semibold flex items-center gap-1 border',
-              taskStore.filter.onlyCriticalPath
-                ? 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/60'
-                : 'border-transparent text-slate-600 dark:text-slate-400'
-            ]"
-            @click="taskStore.toggleCriticalPathOnly()"
-          >
-            <Flame class="w-3 h-3 text-rose-600"/>
-            <span>Crit ({{ taskStore.criticalPathIds.size }})</span>
-          </button>
+      <!-- Main Workspace Container with Mobile Bottom Nav Clearance -->
+      <main class="flex-1 min-h-0 w-full max-w-[1720px] mx-auto p-3 md:p-4 pb-24 md:pb-4 flex flex-col overflow-hidden">
+        <div v-if="taskStore.viewMode === 'TABLE'" class="flex-1 min-h-0 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg shadow-xs overflow-y-auto">
+          <TaskTable :on-open-create="() => (isCreateModalOpen = true)" />
         </div>
-      </div>
-    </section>
+        <div v-else class="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
+          <KanbanBoard :on-open-create="() => (isCreateModalOpen = true)" />
+        </div>
+      </main>
 
-    <!-- Main Workspace Container with Mobile Bottom Nav Clearance -->
-    <main class="flex-1 min-h-0 w-full max-w-[1720px] mx-auto p-3 md:p-4 pb-24 md:pb-4 flex flex-col overflow-hidden">
-      <div v-if="taskStore.viewMode === 'TABLE'" class="flex-1 min-h-0 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg shadow-xs overflow-y-auto">
-        <TaskTable :on-open-create="() => (isCreateModalOpen = true)" />
-      </div>
-      <div v-else class="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
-        <KanbanBoard :on-open-create="() => (isCreateModalOpen = true)" />
-      </div>
-    </main>
+      <!-- Desktop Status Footer -->
+      <footer class="hidden md:flex h-8 border-t border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs px-4 md:px-6 items-center justify-between shrink-0 select-none z-20">
+        <div class="flex items-center gap-2 font-mono text-[11px] text-slate-500 dark:text-slate-400">
+          <span><kbd class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">b</kbd> View</span>
+          <span><kbd class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">h/j/k/l</kbd> Nav</span>
+          <span><kbd class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">Space</kbd> Status</span>
+          <span><kbd class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">n</kbd> New</span>
+          <span><kbd class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">Enter</kbd> Detail</span>
+          <span><kbd class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">t</kbd> Theme</span>
+          <span><kbd class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">?</kbd> Help</span>
+        </div>
+        <div class="flex items-center gap-2 font-mono text-xs">
+          <span v-if="!taskStore.isBackendConnected" class="text-amber-600 font-semibold">Offline</span>
+          <button type="button" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer" @click="taskStore.resetToDefault()">Reset sample</button>
+        </div>
+      </footer>
 
-    <!-- Desktop Status Footer -->
-    <footer class="hidden md:flex h-8 border-t border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs px-4 md:px-6 items-center justify-between shrink-0 select-none z-20">
-      <div class="flex items-center gap-2 font-mono text-[11px] text-slate-500 dark:text-slate-400">
-        <span><kbd class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">b</kbd> View</span>
-        <span><kbd class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">h/j/k/l</kbd> Nav</span>
-        <span><kbd class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">Space</kbd> Status</span>
-        <span><kbd class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">n</kbd> New</span>
-        <span><kbd class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">Enter</kbd> Detail</span>
-        <span><kbd class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">t</kbd> Theme</span>
-        <span><kbd class="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">?</kbd> Help</span>
-      </div>
-      <div class="flex items-center gap-2 font-mono text-xs">
-        <span v-if="!taskStore.isBackendConnected" class="text-amber-600 font-semibold">Offline</span>
-        <button type="button" class="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer" @click="taskStore.resetToDefault()">Reset sample</button>
-      </div>
-    </footer>
+      <!-- Mobile Bottom Navigation -->
+      <MobileBottomNav
+        :on-open-create="() => (isCreateModalOpen = true)"
+        :on-open-a-i-decomposer="() => (isAIDecomposerOpen = true)"
+        :on-open-d-a-g="() => (isDAGOpen = true)"
+        :on-open-git-diff="() => (isGitDiffOpen = true)"
+        :on-focus-search="() => searchInputEl?.focus()"
+      />
+    </template>
 
-    <!-- Mobile Bottom Navigation -->
-    <MobileBottomNav
-      :on-open-create="() => (isCreateModalOpen = true)"
-      :on-open-a-i-decomposer="() => (isAIDecomposerOpen = true)"
-      :on-open-d-a-g="() => (isDAGOpen = true)"
-      :on-open-git-diff="() => (isGitDiffOpen = true)"
-      :on-focus-search="() => searchInputEl?.focus()"
+    <!-- 2B. PROFILE VIEW -->
+    <ProfileView
+      v-else-if="taskStore.appView === 'PROFILE'"
+      @open-auth="isAuthModalOpen = true"
     />
+  </div>
 
-    <!-- Modals -->
-    <WeeklySummaryModal v-if="isWeeklySummaryOpen" :on-close="() => (isWeeklySummaryOpen = false)" />
-    <MeetingMinutesModal v-if="isMeetingMinutesOpen" :on-close="() => (isMeetingMinutesOpen = false)" />
-    <WorkloadAssignModal v-if="isWorkloadAssignOpen" :on-close="() => (isWorkloadAssignOpen = false)" />
-    <AuthModal v-if="isAuthModalOpen" @close="isAuthModalOpen = false" />
+  <!-- Modals -->
+  <WeeklySummaryModal v-if="isWeeklySummaryOpen" :on-close="() => (isWeeklySummaryOpen = false)" />
+  <MeetingMinutesModal v-if="isMeetingMinutesOpen" :on-close="() => (isMeetingMinutesOpen = false)" />
+  <WorkloadAssignModal v-if="isWorkloadAssignOpen" :on-close="() => (isWorkloadAssignOpen = false)" />
+  <AuthModal v-if="isAuthModalOpen" @close="handleAuthClose" />
     <AIDecomposerModal v-if="isAIDecomposerOpen" @close="isAIDecomposerOpen = false" />
     <GitDiffModal v-if="isGitDiffOpen" @close="isGitDiffOpen = false" />
     <DAGVisualizerModal v-if="isDAGOpen" @close="isDAGOpen = false" />

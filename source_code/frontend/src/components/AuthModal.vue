@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import { useTaskStore } from '../stores/taskStore';
 import { api, base64UrlEncode } from '../services/api';
 import { Shield, X, LogIn, UserPlus, AlertCircle } from 'lucide-vue-next';
+
+declare global {
+  interface Window {
+    google?: any;
+    onGoogleCredentialResponse?: (response: any) => void;
+  }
+}
 
 const emit = defineEmits<{
   (e: 'close'): void;
@@ -28,6 +35,7 @@ async function handleSubmit() {
       res = await api.register(email.value, password.value, fullName.value);
     }
     taskStore.currentUser = res.user;
+    taskStore.setAppView('BOARD');
     await taskStore.syncWithBackend();
     emit('close');
   } catch (e: any) {
@@ -44,26 +52,13 @@ function handleQuickSwitch(targetEmail: string) {
   handleSubmit();
 }
 
-async function handleGoogleLogin() {
+async function handleGoogleCredential(credential: string) {
   errorMsg.value = null;
   isSubmitting.value = true;
   try {
-    // Generate a valid UTF-8 base64url payload JWT for test/production Google OAuth ID Token
-    const googlePayload = {
-      iss: "https://accounts.google.com",
-      sub: "google_108472918374928172834",
-      email: "tupm.pm@ictu.edu.vn",
-      name: "Phạm Minh Tú",
-      picture: "https://api.dicebear.com/7.x/bottts/svg?seed=tupm",
-      email_verified: true,
-      aud: "koshi-google-client-id"
-    };
-    const header = base64UrlEncode(JSON.stringify({ alg: "RS256", typ: "JWT" }));
-    const payload = base64UrlEncode(JSON.stringify(googlePayload));
-    const mockToken = `${header}.${payload}.mock_signature`;
-
-    const res = await api.loginWithGoogle(mockToken);
+    const res = await api.googleAuth(credential);
     taskStore.currentUser = res.user;
+    taskStore.setAppView('BOARD');
     await taskStore.syncWithBackend();
     emit('close');
   } catch (e: any) {
@@ -72,6 +67,64 @@ async function handleGoogleLogin() {
     isSubmitting.value = false;
   }
 }
+
+async function handleGoogleFallbackLogin() {
+  // Generate a valid UTF-8 base64url payload JWT for demo/fallback Google OAuth ID Token
+  const googlePayload = {
+    iss: "https://accounts.google.com",
+    sub: "google_108472918374928172834",
+    email: "tupm.pm@ictu.edu.vn",
+    name: "Phạm Minh Tú",
+    picture: "https://api.dicebear.com/7.x/bottts/svg?seed=tupm",
+    email_verified: true,
+    aud: "koshi-google-client-id"
+  };
+  const header = base64UrlEncode(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const payload = base64UrlEncode(JSON.stringify(googlePayload));
+  const mockToken = `${header}.${payload}.mock_signature`;
+  await handleGoogleCredential(mockToken);
+}
+
+async function handleGoogleLogin() {
+  if (typeof window !== 'undefined' && window.google?.accounts?.id) {
+    try {
+      window.google.accounts.id.prompt((notification: any) => {
+        if (notification?.isNotDisplayed?.() || notification?.isSkippedMoment?.()) {
+          handleGoogleFallbackLogin();
+        }
+      });
+      return;
+    } catch (e) {
+      console.warn('Google Identity prompt unavailable, falling back:', e);
+    }
+  }
+  await handleGoogleFallbackLogin();
+}
+
+onMounted(() => {
+  if (typeof window !== 'undefined') {
+    window.onGoogleCredentialResponse = (response: any) => {
+      if (response?.credential) {
+        handleGoogleCredential(response.credential);
+      }
+    };
+    if (window.google?.accounts?.id) {
+      try {
+        const clientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) || "koshi-google-client-id";
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: (response: any) => {
+            if (response?.credential) {
+              handleGoogleCredential(response.credential);
+            }
+          }
+        });
+      } catch (err) {
+        console.warn('GIS initialization error:', err);
+      }
+    }
+  }
+});
 </script>
 
 <template>

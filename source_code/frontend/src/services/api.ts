@@ -51,6 +51,7 @@ export interface UserProfile {
   full_name: string;
   google_id?: string;
   avatar_url?: string;
+  avatar_file?: string;
   role?: string;
   skills?: string;
 }
@@ -96,7 +97,9 @@ export class ApiService {
 
   async request<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const headers = new Headers(options.headers || {});
-    headers.set('Content-Type', 'application/json');
+    if (!(options.body instanceof FormData)) {
+      headers.set('Content-Type', 'application/json');
+    }
 
     if (this.token) {
       headers.set('Authorization', `Bearer ${this.token}`);
@@ -151,6 +154,26 @@ export class ApiService {
     });
     this.setToken(res.access_token);
     return res;
+  }
+
+  async googleAuth(credential: string) {
+    return this.loginWithGoogle(credential);
+  }
+
+  async updateProfile(userId: number, updates: { full_name?: string; skills?: string }) {
+    return this.request<UserProfile>(`/users/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(updates)
+    });
+  }
+
+  async uploadAvatar(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.request<UserProfile>('/users/me/avatar', {
+      method: 'POST',
+      body: formData
+    });
   }
 
   async getMe() {

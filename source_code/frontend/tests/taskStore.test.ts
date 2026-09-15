@@ -21,6 +21,8 @@ vi.mock('../src/services/api', () => ({
     rejectPriority: vi.fn(),
     getSprints: vi.fn(),
     logout: vi.fn(),
+    updateProfile: vi.fn().mockImplementation((id, updates) => Promise.resolve({ id, ...updates })),
+    uploadAvatar: vi.fn().mockImplementation((file) => Promise.resolve({ avatar_url: '/api/users/42/avatar?v=12345678', avatar_file: '12345678.png' })),
   },
 }));
 
@@ -154,6 +156,40 @@ describe('TaskStore & Multi-Key Comparator', () => {
       expect(store.tasks[0].priority).toBe('HIGH');
       expect(store.tasks[0].requestedPriority).toBeNull();
       expect(store.tasks[0].priorityRequestReason).toBeNull();
+    });
+
+    it('manages appView state transitions (LANDING, BOARD, PROFILE)', async () => {
+      const store = useTaskStore();
+      // Without token in mock, defaults to LANDING
+      expect(store.appView).toBe('LANDING');
+
+      store.setAppView('BOARD');
+      expect(store.appView).toBe('BOARD');
+
+      store.setAppView('PROFILE');
+      expect(store.appView).toBe('PROFILE');
+
+      store.logout();
+      expect(store.appView).toBe('LANDING');
+    });
+
+    it('updates user profile information reactively', async () => {
+      const store = useTaskStore();
+      store.currentUser = {
+        id: 42,
+        email: 'dev@koshi.io',
+        full_name: 'Original Name',
+        role: 'MEMBER',
+        skills: 'javascript'
+      };
+
+      await store.updateCurrentUser({
+        full_name: 'Updated Name',
+        skills: 'vue,pinia,typescript'
+      });
+
+      expect(store.currentUser.full_name).toBe('Updated Name');
+      expect(store.currentUser.skills).toBe('vue,pinia,typescript');
     });
   });
 });

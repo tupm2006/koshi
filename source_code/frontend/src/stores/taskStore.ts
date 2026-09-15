@@ -143,6 +143,7 @@ export function compareTasks(a: Task, b: Task, criticalSet: Set<string> = new Se
 
 export const useTaskStore = defineStore('taskStore', {
   state: () => ({
+    appView: ((typeof window !== 'undefined' && (localStorage.getItem('koshi_jwt_token') || api.getToken())) ? 'BOARD' : 'LANDING') as 'LANDING' | 'BOARD' | 'PROFILE',
     tasks: [] as Task[],
     selectedIndex: 0,
     kanbanColIndex: 0,
@@ -284,14 +285,31 @@ export const useTaskStore = defineStore('taskStore', {
       const blocked = state.tasks.filter((t) => t.status === 'BLOCKED').length;
       const todo = state.tasks.filter((t) => t.status === 'TODO').length;
       const rate = total > 0 ? Math.round((done / total) * 100) : 0;
-
       return { total, done, inProgress, blocked, todo, rate };
     },
   },
 
   actions: {
+    setAppView(view: 'LANDING' | 'BOARD' | 'PROFILE') {
+      this.appView = view;
+      if (view === 'BOARD' && api.getToken() && !this.isBackendConnected) {
+        this.syncWithBackend();
+      }
+    },
+
     async init() {
       try {
+        if (this.appView === 'LANDING') {
+          const stored = await get<Task[]>(DB_KEY);
+          if (stored && Array.isArray(stored) && stored.length > 0) {
+            this.tasks = stored;
+          } else {
+            this.tasks = INITIAL_TASKS;
+          }
+          this.isLoaded = true;
+          return;
+        }
+
         if (api.getToken()) {
           try {
             const user = await api.getMe();
@@ -310,6 +328,9 @@ export const useTaskStore = defineStore('taskStore', {
             return;
           } catch (e) {
             console.warn('Backend offline or expired token, using local storage fallback:', e);
+            if (!api.getToken()) {
+              this.appView = 'LANDING';
+            }
           }
         }
 
@@ -329,6 +350,9 @@ export const useTaskStore = defineStore('taskStore', {
     },
 
     async syncWithBackend(projectId: number = 1) {
+      if (this.appView === 'LANDING' && !this.currentUser) {
+        return;
+      }
       try {
         const backendTasks = await api.getTasks(projectId);
         if (backendTasks && Array.isArray(backendTasks)) {
@@ -714,9 +738,44 @@ export const useTaskStore = defineStore('taskStore', {
       }
     },
 
+    async updateCurrentUser(updates: { full_name?: string; skills?: string }) {
+      if (!this.currentUser) return { success: false, error: 'Not authenticated' };
+      if (updates.full_name !== undefined) {
+        this.currentUser.full_name = updates.full_name;
+      }
+      if (updates.skills !== undefined) {
+        this.currentUser.skills = updates.skills;
+      }
+      try {
+        const updated = await api.updateProfile(this.currentUser.id, updates);
+        if (updated) {
+          this.currentUser = { ...this.currentUser, ...updated };
+        }
+        return { success: true };
+      } catch (err: any) {
+        console.error('Failed to update profile:', err);
+        return { success: false, error: err.message || 'Failed to update profile' };
+      }
+    },
+
+    async uploadCurrentUserAvatar(file: File) {
+      if (!this.currentUser) return { success: false, error: 'Not authenticated' };
+      try {
+        const updated = await api.uploadAvatar(file);
+        if (updated) {
+          this.currentUser = { ...this.currentUser, ...updated };
+        }
+        return { success: true };
+      } catch (err: any) {
+        console.error('Failed to upload avatar:', err);
+        return { success: false, error: err.message || 'Failed to upload avatar' };
+      }
+    },
+
     logout() {
       api.logout();
       this.currentUser = null;
+      this.appView = 'LANDING';
     },
 
     async resetToDefault() {
