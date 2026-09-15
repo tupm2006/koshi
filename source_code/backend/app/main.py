@@ -176,6 +176,9 @@ def migrate_database():
                     UNIQUE(project_id, user_id)
                 )
             """))
+            conn.execute(text("UPDATE projects SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL"))
+            conn.execute(text("UPDATE sprints SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL"))
+            conn.execute(text("UPDATE project_members SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL"))
     except Exception as e:
         print("Migration notice:", e)
 

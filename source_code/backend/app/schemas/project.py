@@ -14,7 +14,7 @@ class ProjectCreate(ProjectBase):
 class ProjectOut(ProjectBase):
     id: int
     owner_id: Optional[int] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -32,7 +32,7 @@ class ProjectMemberOut(BaseModel):
     project_id: int
     user_id: int
     role: ProjectMemberRoleEnum
-    created_at: datetime
+    created_at: Optional[datetime] = None
     user: Optional[UserOut] = None
 
     class Config:

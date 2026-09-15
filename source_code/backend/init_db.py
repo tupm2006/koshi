@@ -99,13 +99,13 @@ def init_database():
     cursor.execute("SELECT id FROM projects WHERE id = 1")
     if not cursor.fetchone():
         cursor.execute("""
-            INSERT INTO projects (id, name, description, owner_id)
-            VALUES (1, 'Koshi Core Engine', 'High-velocity project management tracker', ?)
-        """, (pm_id,))
+            INSERT INTO projects (id, name, description, owner_id, created_at)
+            VALUES (1, 'Koshi Core Engine', 'High-velocity project management tracker', ?, ?)
+        """, (pm_id, now_str))
     else:
         cursor.execute("""
-            UPDATE projects SET name = 'Koshi Core Engine', description = 'High-velocity project management tracker', owner_id = ? WHERE id = 1
-        """, (pm_id,))
+            UPDATE projects SET name = 'Koshi Core Engine', description = 'High-velocity project management tracker', owner_id = ?, created_at = COALESCE(created_at, ?) WHERE id = 1
+        """, (pm_id, now_str))
 
     # Map seed accounts to Project #1 with appropriate roles
     membership_data = [
@@ -119,10 +119,10 @@ def init_database():
 
     for proj_id, uid, role in membership_data:
         cursor.execute("""
-            INSERT INTO project_members (project_id, user_id, role)
-            VALUES (?, ?, ?)
-            ON CONFLICT(project_id, user_id) DO UPDATE SET role = excluded.role
-        """, (proj_id, uid, role))
+            INSERT INTO project_members (project_id, user_id, role, created_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(project_id, user_id) DO UPDATE SET role = excluded.role, created_at = COALESCE(project_members.created_at, excluded.created_at)
+        """, (proj_id, uid, role, now_str))
 
     # Seed two sprints for Project #1:
     # Sprint 1: Core Engine (is_active=True, dates covering current week)
@@ -135,30 +135,30 @@ def init_database():
     cursor.execute("SELECT id FROM sprints WHERE id = 1")
     if not cursor.fetchone():
         cursor.execute("""
-            INSERT INTO sprints (id, project_id, name, goal, start_date, end_date, is_active)
-            VALUES (1, 1, 'Sprint 1: Core Engine', 'Complete Table, Kanban, DAG and AI PM workflows', ?, ?, 1)
-        """, (sprint1_start, sprint1_end))
+            INSERT INTO sprints (id, project_id, name, goal, start_date, end_date, is_active, created_at)
+            VALUES (1, 1, 'Sprint 1: Core Engine', 'Complete Table, Kanban, DAG and AI PM workflows', ?, ?, 1, ?)
+        """, (sprint1_start, sprint1_end, now_str))
     else:
         cursor.execute("""
             UPDATE sprints
             SET name = 'Sprint 1: Core Engine', goal = 'Complete Table, Kanban, DAG and AI PM workflows',
-                start_date = ?, end_date = ?, is_active = 1
+                start_date = ?, end_date = ?, is_active = 1, created_at = COALESCE(created_at, ?)
             WHERE id = 1
-        """, (sprint1_start, sprint1_end))
+        """, (sprint1_start, sprint1_end, now_str))
 
     cursor.execute("SELECT id FROM sprints WHERE id = 2")
     if not cursor.fetchone():
         cursor.execute("""
-            INSERT INTO sprints (id, project_id, name, goal, start_date, end_date, is_active)
-            VALUES (2, 1, 'Sprint 2: Extensibility', 'Scale integrations, webhooks, and analytics', ?, ?, 0)
-        """, (sprint2_start, sprint2_end))
+            INSERT INTO sprints (id, project_id, name, goal, start_date, end_date, is_active, created_at)
+            VALUES (2, 1, 'Sprint 2: Extensibility', 'Scale integrations, webhooks, and analytics', ?, ?, 0, ?)
+        """, (sprint2_start, sprint2_end, now_str))
     else:
         cursor.execute("""
             UPDATE sprints
             SET name = 'Sprint 2: Extensibility', goal = 'Scale integrations, webhooks, and analytics',
-                start_date = ?, end_date = ?, is_active = 0
+                start_date = ?, end_date = ?, is_active = 0, created_at = COALESCE(created_at, ?)
             WHERE id = 2
-        """, (sprint2_start, sprint2_end))
+        """, (sprint2_start, sprint2_end, now_str))
 
     # Distribute seeded tasks across sprint_id = 1 and sprint_id = None (Backlog)
     now_str = now.strftime("%Y-%m-%d %H:%M:%S")

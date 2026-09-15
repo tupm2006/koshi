@@ -15,7 +15,7 @@ class SprintCreate(SprintBase):
 class SprintOut(SprintBase):
     id: int
     project_id: int
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
