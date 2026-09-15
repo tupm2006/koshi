@@ -31,7 +31,7 @@ class UserOut(BaseModel):
     avatar_file: Optional[str] = None
     role: RoleEnum
     skills: str
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

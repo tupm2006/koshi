@@ -150,6 +150,7 @@ def migrate_database():
                     conn.execute(text("ALTER TABLE users ADD COLUMN avatar_url VARCHAR(500)"))
                 if "avatar_file" not in columns:
                     conn.execute(text("ALTER TABLE users ADD COLUMN avatar_file VARCHAR(255)"))
+                conn.execute(text("UPDATE users SET created_at = CURRENT_TIMESTAMP WHERE created_at IS NULL"))
             # Ensure priority governance columns exist in tasks
             result_tasks = conn.execute(text("PRAGMA table_info(tasks)"))
             t_cols = [row[1] for row in result_tasks.fetchall()]

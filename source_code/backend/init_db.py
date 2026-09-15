@@ -77,13 +77,13 @@ def init_database():
         row = cursor.fetchone()
         if not row:
             cursor.execute("""
-                INSERT INTO users (email, hashed_password, full_name, role, skills)
-                VALUES (?, ?, ?, ?, ?)
-            """, (email, pwd, name, role, skills))
+                INSERT INTO users (email, hashed_password, full_name, role, skills, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (email, pwd, name, role, skills, now.strftime("%Y-%m-%d %H:%M:%S")))
         else:
             cursor.execute("""
-                UPDATE users SET hashed_password = ?, full_name = ?, role = ?, skills = ? WHERE email = ?
-            """, (pwd, name, role, skills, email))
+                UPDATE users SET hashed_password = ?, full_name = ?, role = ?, skills = ?, created_at = COALESCE(created_at, ?) WHERE email = ?
+            """, (pwd, name, role, skills, now.strftime("%Y-%m-%d %H:%M:%S"), email))
 
     # Fetch user IDs
     user_map = {}
