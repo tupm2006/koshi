@@ -12,7 +12,13 @@ def hash_pw(password: str) -> str:
     except Exception:
         return "$2b$12$" + hashlib.sha256(password.encode()).hexdigest()[:53]
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "app", "data", "koshi.db")
+db_env = os.getenv("DATABASE_URL", "")
+if db_env.startswith("sqlite:////"):
+    DB_PATH = db_env.replace("sqlite:////", "/")
+elif db_env.startswith("sqlite:///"):
+    DB_PATH = db_env.replace("sqlite:///", "")
+else:
+    DB_PATH = os.getenv("DATABASE_PATH") or os.path.join(os.path.dirname(__file__), "app", "data", "koshi.db")
 
 def init_database():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
