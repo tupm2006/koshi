@@ -65,29 +65,29 @@ def init_database():
 
     # Seed Accounts: pm@tupm.qzz.io, dev@tupm.qzz.io, tupm.pm@ictu.edu.vn
     users_data = [
-        ("pm@tupm.qzz.io", pw_hash, "Phạm Minh Tú (PM)", "architecture,fastapi,vue,devops"),
-        ("dev@tupm.qzz.io", pw_hash, "Dev Member", "frontend,vue,tailwind,typescript"),
-        ("tupm.pm@ictu.edu.vn", pw_hash, "Tú PM (ICTU)", "management,scrum,agile"),
-        ("huynh@tupm.qzz.io", pw_hash, "Phạm Văn Huynh", "backend,python,testing,sql"),
-        ("don@tupm.qzz.io", pw_hash, "Đàm Đức Đôn", "frontend,vue,ui,css"),
+        ("pm@tupm.qzz.io", pw_hash, "Phạm Minh Tú (PM)", "PM", "architecture,fastapi,vue,devops"),
+        ("dev@tupm.qzz.io", pw_hash, "Dev Member", "MEMBER", "frontend,vue,tailwind,typescript"),
+        ("tupm.pm@ictu.edu.vn", pw_hash, "Tú PM (ICTU)", "PM", "management,scrum,agile"),
+        ("huynh@tupm.qzz.io", pw_hash, "Phạm Văn Huynh", "MEMBER", "backend,python,testing,sql"),
+        ("don@tupm.qzz.io", pw_hash, "Đàm Đức Đôn", "MEMBER", "frontend,vue,ui,css"),
     ]
 
-    for email, pwd, name, skills in users_data:
+    for email, pwd, name, role, skills in users_data:
         cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
         row = cursor.fetchone()
         if not row:
             cursor.execute("""
-                INSERT INTO users (email, hashed_password, full_name, skills)
-                VALUES (?, ?, ?, ?)
-            """, (email, pwd, name, skills))
+                INSERT INTO users (email, hashed_password, full_name, role, skills)
+                VALUES (?, ?, ?, ?, ?)
+            """, (email, pwd, name, role, skills))
         else:
             cursor.execute("""
-                UPDATE users SET hashed_password = ?, full_name = ?, skills = ? WHERE email = ?
-            """, (pwd, name, skills, email))
+                UPDATE users SET hashed_password = ?, full_name = ?, role = ?, skills = ? WHERE email = ?
+            """, (pwd, name, role, skills, email))
 
     # Fetch user IDs
     user_map = {}
-    for email, _, _, _ in users_data:
+    for email, _, _, _, _ in users_data:
         cursor.execute("SELECT id FROM users WHERE email = ?", (email,))
         user_map[email] = cursor.fetchone()[0]
 
