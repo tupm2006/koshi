@@ -42,3 +42,7 @@ pnpm-debug.log*
 *.db-wal
 source_code/backend/data/
 data/backups/*.db
+
+# Archives & submission
+submission/
+*.zip

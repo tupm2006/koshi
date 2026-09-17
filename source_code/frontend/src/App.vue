@@ -2,8 +2,9 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useTaskStore } from './stores/taskStore';
 import { useThemeStore } from './stores/themeStore';
+import { useI18nStore } from './stores/i18nStore';
 import { createKeyboardHandler } from './lib/keyboard';
-import LandingPage from './components/LandingPage.vue';
+import LandingPage from './components/landing/LandingPage.vue';
 import ProfileView from './components/ProfileView.vue';
 import TaskTable from './components/TaskTable.vue';
 import KanbanBoard from './components/KanbanBoard.vue';
@@ -45,6 +46,10 @@ import type { FilterStatus } from './types/task';
 
 const taskStore = useTaskStore();
 const themeStore = useThemeStore();
+const i18n = useI18nStore();
+
+// Default to BOARD if already authenticated or if demo session exists; otherwise LANDING
+const currentView = ref<'LANDING' | 'BOARD'>('BOARD');
 
 // Modal visibility states
 const isAIDecomposerOpen = ref(false);
@@ -52,6 +57,7 @@ const isWeeklySummaryOpen = ref(false);
 const isMeetingMinutesOpen = ref(false);
 const isWorkloadAssignOpen = ref(false);
 const isAuthModalOpen = ref(false);
+const showAuthModal = isAuthModalOpen;
 const isProjectMembersOpen = ref(false);
 const isGitDiffOpen = ref(false);
 const isDAGOpen = ref(false);
@@ -140,14 +146,15 @@ function handleWindowClick(e: MouseEvent) {
 function handleAuthClose() {
   isAuthModalOpen.value = false;
   if (taskStore.currentUser) {
+    currentView.value = 'BOARD';
     taskStore.setAppView('BOARD');
   }
 }
 
 watch(
-  () => taskStore.appView,
-  (newView) => {
-    if (newView === 'BOARD') {
+  [currentView, () => taskStore.appView],
+  ([view, appView]) => {
+    if (view === 'BOARD' && appView === 'BOARD') {
       keyboard.mount();
     } else {
       keyboard.unmount();
@@ -155,9 +162,18 @@ watch(
   }
 );
 
+watch(
+  () => taskStore.appView,
+  (newAppView) => {
+    if (newAppView === 'LANDING') {
+      currentView.value = 'LANDING';
+    }
+  }
+);
+
 onMounted(() => {
   taskStore.init();
-  if (taskStore.appView === 'BOARD') {
+  if (currentView.value === 'BOARD' && taskStore.appView === 'BOARD') {
     keyboard.mount();
   }
   window.addEventListener('click', handleWindowClick);
@@ -200,65 +216,57 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 
 <template>
   <div class="h-screen h-[100dvh] flex flex-col bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans text-xs md:text-sm safe-top overflow-hidden">
-    <!-- 1. LANDING PAGE VIEW -->
-    <LandingPage
-      v-if="taskStore.appView === 'LANDING'"
-      @open-auth="isAuthModalOpen = true"
-    />
+    <!-- Top Navigation Header -->
+    <header class="h-12 border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 px-3 md:px-6 flex items-center justify-between z-30 shadow-xs">
+      <div class="w-full max-w-[1720px] mx-auto flex items-center justify-between gap-2">
+        <!-- Left: Logo & View Switcher -->
+        <div class="flex items-center gap-2">
+          <h1
+            class="text-sm font-bold tracking-wider text-slate-900 dark:text-slate-100 font-mono cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+            @click="currentView = 'BOARD'; taskStore.setAppView('BOARD')"
+            title="Go to Board"
+          >
+            KOSHI
+          </h1>
 
-    <!-- 2. AUTHENTICATED WORKSPACE SHELL (BOARD & PROFILE) -->
-    <div v-else class="h-full flex flex-col overflow-hidden">
-      <!-- Top Navigation Header -->
-      <header class="h-12 border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0 px-3 md:px-6 flex items-center justify-between z-30 shadow-xs">
-        <div class="w-full max-w-[1720px] mx-auto flex items-center justify-between gap-2">
-          <!-- Left: Logo & View Switcher -->
-          <div class="flex items-center gap-2">
-            <h1
-              class="text-sm font-bold tracking-wider text-slate-900 dark:text-slate-100 font-mono cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-              @click="taskStore.setAppView('BOARD')"
-              title="Go to Board"
-            >
-              KOSHI
-            </h1>
-
-            <!-- View Switcher Tabs: Board vs Profile -->
-            <div class="inline-flex rounded-md border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-0.5 shadow-2xs font-mono text-xs">
-              <button
-                type="button"
-                :class="[
-                  'h-7 px-2.5 rounded-sm cursor-pointer transition-colors font-medium flex items-center gap-1.5',
-                  taskStore.appView === 'BOARD'
-                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs font-semibold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                ]"
-                @click="taskStore.setAppView('BOARD')"
-              >
-                <LayoutGrid class="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
-                <span>Board</span>
-              </button>
-              <button
-                type="button"
-                :class="[
-                  'h-7 px-2.5 rounded-sm cursor-pointer transition-colors font-medium flex items-center gap-1.5',
-                  taskStore.appView === 'PROFILE'
-                    ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs font-semibold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                ]"
-                @click="taskStore.setAppView('PROFILE')"
-              >
-                <Shield class="w-3 h-3 text-sky-600 dark:text-sky-400" />
-                <span>Profile</span>
-              </button>
-            </div>
-
-            <!-- Board View Mode Toggle (Table / Kanban) - visible on Board -->
+          <!-- View Switcher Tabs: Board vs Profile -->
+          <div class="inline-flex rounded-md border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 p-0.5 shadow-2xs font-mono text-xs">
             <button
-              v-if="taskStore.appView === 'BOARD'"
               type="button"
-              class="h-8 flex items-center gap-1.5 px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-mono text-slate-800 dark:text-slate-200 cursor-pointer shadow-2xs"
-              @click="taskStore.toggleViewMode()"
-              title="Toggle Table / Kanban View (b)"
+              :class="[
+                'h-7 px-2.5 rounded-sm cursor-pointer transition-colors font-medium flex items-center gap-1.5',
+                (currentView === 'BOARD' && taskStore.appView === 'BOARD')
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs font-semibold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              ]"
+              @click="currentView = 'BOARD'; taskStore.setAppView('BOARD')"
             >
+              <LayoutGrid class="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+              <span>Board</span>
+            </button>
+            <button
+              type="button"
+              :class="[
+                'h-7 px-2.5 rounded-sm cursor-pointer transition-colors font-medium flex items-center gap-1.5',
+                (currentView === 'BOARD' && taskStore.appView === 'PROFILE')
+                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-2xs font-semibold'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+              ]"
+              @click="currentView = 'BOARD'; taskStore.setAppView('PROFILE')"
+            >
+              <Shield class="w-3 h-3 text-sky-600 dark:text-sky-400" />
+              <span>Profile</span>
+            </button>
+          </div>
+
+          <!-- Board View Mode Toggle (Table / Kanban) - visible on Board -->
+          <button
+            v-if="currentView === 'BOARD' && taskStore.appView === 'BOARD'"
+            type="button"
+            class="h-8 flex items-center gap-1.5 px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-mono text-slate-800 dark:text-slate-200 cursor-pointer shadow-2xs"
+            @click="taskStore.toggleViewMode()"
+            title="Toggle Table / Kanban View (b)"
+          >
               <LayoutGrid class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" v-if="taskStore.viewMode === 'TABLE'"/>
               <List class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" v-else/>
               <span class="hidden sm:inline">{{ taskStore.viewMode === 'TABLE' ? 'Kanban' : 'Table' }}</span>
@@ -272,7 +280,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
               <button
                 type="button"
                 class="h-8 inline-flex items-center gap-1 px-2 rounded-md border text-xs font-mono cursor-pointer shadow-2xs bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold max-w-[140px] sm:max-w-none truncate"
-                @click="taskStore.setAppView('PROFILE')"
+                @click="currentView = 'BOARD'; taskStore.setAppView('PROFILE')"
                 title="Account Details (Switch to Profile)"
               >
                 <img
@@ -287,7 +295,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
               <button
                 type="button"
                 class="hidden sm:inline-flex h-8 px-2 items-center justify-center rounded-md border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-600 dark:hover:text-rose-400 text-[11px] font-mono text-slate-500 cursor-pointer shadow-2xs"
-                @click="taskStore.logout()"
+                @click="taskStore.logout(); currentView = 'LANDING'"
                 title="Sign Out to Landing"
               >
                 Sign Out
@@ -296,7 +304,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             <button
               v-else
               type="button"
-              class="h-8 inline-flex items-center gap-1 px-2.5 rounded-md border text-xs font-mono cursor-pointer shadow-2xs bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+              class="h-8 inline-flex items-center gap-1 px-2.5 rounded-md border text-xs font-mono cursor-pointer shadow-2xs bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
               @click="isAuthModalOpen = true"
             >
               <Shield class="w-3.5 h-3.5"/>
@@ -391,8 +399,19 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             <CircleHelp class="w-4 h-4"/>
           </button>
 
+          <!-- Guide / Workspace View Toggle -->
+          <button 
+            type="button"
+            @click="currentView = currentView === 'BOARD' ? 'LANDING' : 'BOARD'"
+            class="px-2 py-1 text-xs font-mono rounded border border-slate-700 hover:bg-slate-800 text-slate-300 transition-colors cursor-pointer"
+            :title="currentView === 'BOARD' ? 'View Landing & Architecture Guide' : 'Return to Workspace'"
+          >
+            {{ currentView === 'BOARD' ? 'Guide' : 'Workspace' }}
+          </button>
+
           <!-- Create Task Button (Desktop) -->
           <button
+            v-if="currentView === 'BOARD'"
             type="button"
             class="hidden sm:inline-flex h-8 items-center gap-1.5 px-3 rounded-md bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-white dark:text-slate-950 font-mono font-medium text-xs cursor-pointer shadow-xs"
             @click="isCreateModalOpen = true"
@@ -404,8 +423,10 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
       </div>
     </header>
 
-    <!-- 2A. BOARD VIEW -->
-    <template v-if="taskStore.appView === 'BOARD'">
+    <!-- Operational Workspace vs Landing Page -->
+    <template v-if="currentView === 'BOARD'">
+      <!-- 2A. BOARD VIEW -->
+      <template v-if="taskStore.appView === 'BOARD'">
       <!-- Sub-Header: Search & Filter Tabs (Auto-Height on Mobile to prevent clipping) -->
       <section class="min-h-[44px] h-auto py-2 sm:h-11 sm:py-0 border-b border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900/60 px-3 md:px-6 flex items-center shrink-0 z-20 shadow-2xs">
         <div class="w-full max-w-[1720px] mx-auto flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2">
@@ -532,12 +553,18 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
       />
     </template>
 
-    <!-- 2B. PROFILE VIEW -->
-    <ProfileView
-      v-else-if="taskStore.appView === 'PROFILE'"
-      @open-auth="isAuthModalOpen = true"
+      <!-- 2B. PROFILE VIEW -->
+      <ProfileView
+        v-else-if="taskStore.appView === 'PROFILE'"
+        @open-auth="isAuthModalOpen = true"
+      />
+    </template>
+
+    <LandingPage
+      v-else
+      @launch="currentView = 'BOARD'"
+      @open-auth="showAuthModal = true"
     />
-  </div>
 
   <!-- Modals -->
   <WeeklySummaryModal v-if="isWeeklySummaryOpen" :on-close="() => (isWeeklySummaryOpen = false)" />
