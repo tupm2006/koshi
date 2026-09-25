@@ -56,6 +56,8 @@ services:
       - OLLAMA_URL=http://host.docker.internal:11434/v1/chat/completions
     volumes:
       - koshi-data:/app/data
+    ports:
+      - "${BACKEND_PORT:-8008}:8000"
     networks:
       - koshi-internal
 
@@ -65,6 +67,8 @@ services:
       dockerfile: Dockerfile
     container_name: koshi
     restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-12321}:80"
     depends_on:
       - koshi-backend
     networks:

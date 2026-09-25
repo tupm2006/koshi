@@ -240,6 +240,8 @@ app.include_router(ai.router, prefix=settings.API_V1_PREFIX)
 app.include_router(notifications.router, prefix=settings.API_V1_PREFIX)
 
 @app.get(f"{settings.API_V1_PREFIX}/health", tags=["Health"])
+@app.get("/api/health", tags=["Health"])
+@app.get("/health", tags=["Health"])
 def health_check():
     return {
         "status": "healthy",
