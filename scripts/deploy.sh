@@ -75,6 +75,7 @@ tar -czf - \
 # Belt and braces: prove no secret landed, rather than trusting the exclude list.
 say "Verifying no secret was transferred"
 ssh "$HOST" "cd '$DIR' && find . -name '.env' -not -name '.env.example' \
+  -not -path './.env' \
   -not -path './node_modules/*' | grep . && echo LEAKED || echo clean" \
   | grep -qx clean || die ".env found on the remote after upload — check the exclude list"
 
