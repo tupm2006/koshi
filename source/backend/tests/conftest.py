@@ -158,3 +158,12 @@ def project_with_pending_invite(client, pm_auth_headers, member_auth_headers):
     )
     assert add.status_code == 201, add.text
     return project_id, me["id"]
+
+
+@pytest.fixture(autouse=True)
+def reset_ai_key_rotator():
+    """Ensure each test runs with a fresh KeyRotator state."""
+    from app.services.ai_service import AIService
+    AIService.reset_rotator()
+    yield
+    AIService.reset_rotator()

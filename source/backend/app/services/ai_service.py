@@ -1,10 +1,17 @@
 import enum
 import json
 import logging
+import os
 import re
 import httpx
 from typing import List, Dict, Any, Optional, Tuple
 from app.config import settings
+from app.services.key_rotator import (
+    KeyRotator,
+    AllKeysExhaustedException,
+    NoKeysConfiguredException,
+    mask_key,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -42,13 +49,38 @@ class AITier(str, enum.Enum):
 
 
 class AIService:
+    _key_rotator: Optional[KeyRotator] = None
+
+    @classmethod
+    def set_rotator(cls, rotator: Optional[KeyRotator]) -> None:
+        cls._key_rotator = rotator
+
+    @classmethod
+    def reset_rotator(cls) -> None:
+        cls._key_rotator = None
+
+    @classmethod
+    def get_rotator(cls) -> KeyRotator:
+        if cls._key_rotator is not None:
+            return cls._key_rotator
+
+        raw_keys = (
+            getattr(settings, "AI_API_KEY", "")
+            or getattr(settings, "AI_API_KEYS", "")
+            or os.getenv("GEMINI_API_KEYS", "")
+            or os.getenv("AI_API_KEYS", "")
+            or os.getenv("AI_API_KEY", "")
+        )
+        cls._key_rotator = KeyRotator(keys=raw_keys)
+        return cls._key_rotator
+
     @classmethod
     async def _call_llm(
         cls, feature: "AIFeature", system_prompt: str, user_prompt: str
     ) -> Tuple[str, "AITier"]:
         """
         Executes LLM request with graceful fallback cascade:
-        1. Configured OpenAI-compatible endpoint (if key present)
+        1. Configured OpenAI-compatible endpoint with KeyRotator & retry loop
         2. Local Ollama server (http://localhost:11434)
         3. Deterministic heuristic compiler (offline zero-failure guarantee)
 
@@ -57,31 +89,70 @@ class AIService:
         returning it is that falling through to tier 3 is a degradation, not a
         success, even though it never raises.
         """
-        # 1. Cloud API, whenever a key is configured. This used to also require
-        #    "openai" in the URL, which silently disabled tier 1 for every other
-        #    OpenAI-compatible vendor even with a valid key (F-11).
-        if settings.AI_API_KEY:
-            try:
-                headers = {"Authorization": f"Bearer {settings.AI_API_KEY}"}
-                payload = {
-                    "model": settings.AI_MODEL_NAME,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ],
-                    "temperature": 0.2
-                }
-                async with httpx.AsyncClient(timeout=10.0) as client:
-                    res = await client.post(settings.AI_API_URL, headers=headers, json=payload)
-                    if res.status_code == 200:
-                        data = res.json()
-                        return data["choices"][0]["message"]["content"], AITier.CLOUD
-                    logger.warning(
-                        "AI tier 1 (%s) returned HTTP %s for %s; falling through",
-                        settings.AI_API_URL, res.status_code, feature.value,
-                    )
-            except Exception as exc:
-                logger.warning("AI tier 1 failed for %s: %s", feature.value, exc)
+        # 1. Cloud API Tier with KeyRotator round-robin & error-triggered retry
+        rotator = cls.get_rotator()
+        if rotator.has_keys():
+            max_attempts = 2  # Initial attempt + 1 retry with next healthy key on quota error
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    active_key = rotator.get_key()
+                except AllKeysExhaustedException as exc:
+                    logger.warning("AI tier 1: %s; falling through to tier 2 (Ollama)", exc)
+                    break
+                except NoKeysConfiguredException:
+                    break
+
+                masked = mask_key(active_key)
+                try:
+                    headers = {"Authorization": f"Bearer {active_key}"}
+                    payload = {
+                        "model": settings.AI_MODEL_NAME,
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ],
+                        "temperature": 0.2
+                    }
+                    async with httpx.AsyncClient(timeout=10.0) as client:
+                        res = await client.post(settings.AI_API_URL, headers=headers, json=payload)
+                        if res.status_code == 200:
+                            data = res.json()
+                            return data["choices"][0]["message"]["content"], AITier.CLOUD
+
+                        # Detect 429, 403 quota, or RESOURCE_EXHAUSTED safely without assuming .text exists
+                        res_text = getattr(res, "text", "") or ""
+                        is_quota_error = (
+                            res.status_code == 429
+                            or (res.status_code == 403 and any(
+                                w in res_text.lower() for w in ("quota", "limit", "exhausted", "resource_exhausted")
+                            ))
+                            or "RESOURCE_EXHAUSTED" in res_text
+                        )
+
+                        if is_quota_error:
+                            logger.warning(
+                                "AI tier 1: API key %s encountered quota/rate limit (HTTP %s). "
+                                "Marking exhausted and rotating (attempt %d/%d)...",
+                                masked, res.status_code, attempt, max_attempts,
+                            )
+                            rotator.mark_exhausted(active_key, cooldown_seconds=60.0)
+                            if attempt < max_attempts:
+                                continue  # Retry once with next healthy key
+                            else:
+                                logger.warning("AI tier 1: Max retries reached after quota exhaustion; falling through to tier 2")
+                                break
+
+                        logger.warning(
+                            "AI tier 1 (%s with key %s) returned HTTP %s for %s; falling through",
+                            settings.AI_API_URL, masked, res.status_code, feature.value,
+                        )
+                        break
+                except httpx.RequestError as exc:
+                    logger.warning("AI tier 1 network failure with key %s for %s: %s", masked, feature.value, exc)
+                    break
+                except Exception as exc:
+                    logger.warning("AI tier 1 failed with key %s for %s: %s", masked, feature.value, exc)
+                    break
 
         # 2. Try Local Ollama endpoint
         try:
