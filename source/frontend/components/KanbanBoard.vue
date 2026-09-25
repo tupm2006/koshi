@@ -9,7 +9,7 @@ import { urgencyOf, dueLabel } from '../lib/urgency';
 const now = Date.now();
 
 defineProps<{
-  onOpenCreate: () => void;
+  onOpenCreate: (status?: TaskStatus) => void;
 }>();
 
 const taskStore = useTaskStore();
@@ -220,7 +220,7 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
       <button
         type="button"
         class="h-8 w-full mt-2 border border-dashed border-slate-300 dark:border-slate-700 rounded-md hover:bg-white dark:hover:bg-slate-800 text-xs font-mono flex items-center justify-center gap-1.5 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer shrink-0"
-        @click="onOpenCreate"
+        @click="onOpenCreate(col.status)"
       >
         <Plus class="w-3.5 h-3.5" />
         <span>New Task</span>

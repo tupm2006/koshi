@@ -30,6 +30,17 @@ async function submit() {
   await thread.value?.post('EVIDENCE');
   taskStore.dismissEvidencePrompt();
 }
+
+let isBackdropClick = false;
+function onBackdropMouseDown(e: MouseEvent) {
+  isBackdropClick = e.target === e.currentTarget;
+}
+function onBackdropMouseUp(e: MouseEvent) {
+  if (isBackdropClick && e.target === e.currentTarget) {
+    taskStore.dismissEvidencePrompt();
+  }
+  isBackdropClick = false;
+}
 </script>
 
 <template>
@@ -39,7 +50,8 @@ async function submit() {
     role="dialog"
     aria-modal="true"
     class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6"
-    @click.self="taskStore.dismissEvidencePrompt()"
+    @mousedown="onBackdropMouseDown"
+    @mouseup="onBackdropMouseUp"
   >
     <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-lg shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col max-h-[90vh]">
       <div class="flex items-center justify-between p-5 pb-3 border-b border-slate-200 dark:border-slate-800">

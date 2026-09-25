@@ -14,11 +14,49 @@ import { api, type ProjectMember, type ProjectRole } from '../services/api';
 import InvitationsPanel from './InvitationsPanel.vue';
 import {
   X, FolderPlus, Users, Shield, User as UserIcon, Trash2,
-  AlertCircle, Check, LayoutGrid, Loader2,
+  AlertCircle, Check, LayoutGrid, Loader2, ArrowRight, RefreshCw,
 } from 'lucide-vue-next';
 
-const emit = defineEmits<{ (e: 'close'): void }>();
+const props = withDefaults(
+  defineProps<{
+    isFullView?: boolean;
+  }>(),
+  {
+    isFullView: false,
+  },
+);
+
+const emit = defineEmits<{
+  (e: 'close'): void;
+  (e: 'open-board'): void;
+}>();
 const taskStore = useTaskStore();
+
+let isBackdropClick = false;
+function onBackdropMouseDown(e: MouseEvent) {
+  isBackdropClick = e.target === e.currentTarget;
+}
+function onBackdropMouseUp(e: MouseEvent) {
+  if (isBackdropClick && e.target === e.currentTarget) {
+    emit('close');
+  }
+  isBackdropClick = false;
+}
+
+function openBoard() {
+  if (selectedId.value !== null) {
+    taskStore.appView = 'BOARD';
+    emit('open-board');
+    emit('close');
+  }
+}
+
+async function handleSelfRoleToggle() {
+  await taskStore.toggleMyRole();
+  await refreshMembers();
+  flashNotice(`Role toggled to ${taskStore.myRole}.`);
+}
+
 
 const newProjectName = ref('');
 const newProjectDesc = ref('');
@@ -135,10 +173,16 @@ onMounted(async () => {
 
 <template>
   <div
-    class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 flex items-start md:items-center justify-center p-0 md:p-6 overflow-y-auto"
-    @click.self="emit('close')"
+    :class="isFullView
+      ? 'w-full max-w-5xl mx-auto py-4 md:py-6 px-3 md:px-4'
+      : 'fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 flex items-start md:items-center justify-center p-0 md:p-6 overflow-y-auto'"
+    @mousedown="!isFullView && onBackdropMouseDown($event)"
+    @mouseup="!isFullView && onBackdropMouseUp($event)"
   >
-    <div class="bg-white dark:bg-slate-900 w-full max-w-4xl md:rounded-lg shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col min-h-screen md:min-h-0">
+    <div
+      class="bg-white dark:bg-slate-900 w-full rounded-lg border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col"
+      :class="isFullView ? 'shadow-sm' : 'max-w-4xl shadow-2xl min-h-screen md:min-h-0'"
+    >
       <!-- Header -->
       <div class="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-slate-800">
         <div class="flex items-center gap-2.5">
@@ -146,15 +190,26 @@ onMounted(async () => {
             <LayoutGrid class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-semibold font-sans">My Dashboard</h2>
+            <h2 class="text-sm md:text-base font-semibold font-sans">Không gian Dự án (Projects)</h2>
             <p class="text-[11px] text-slate-500 dark:text-slate-400">
-              {{ taskStore.currentUser?.full_name || 'Not signed in' }} · roles are set per project
+              {{ taskStore.currentUser?.full_name || 'Not signed in' }} · vai trò độc lập theo từng dự án
             </p>
           </div>
         </div>
-        <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="emit('close')">
-          <X class="w-5 h-5" />
-        </button>
+        <div class="flex items-center gap-2">
+          <button
+            v-if="selectedId !== null"
+            type="button"
+            class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-mono text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
+            @click="openBoard"
+          >
+            <span>Mở bảng việc (Open Board)</span>
+            <ArrowRight class="w-3.5 h-3.5" />
+          </button>
+          <button v-if="!isFullView" type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="emit('close')">
+            <X class="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <div v-if="errorMsg" class="mx-5 mt-3 p-2.5 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 flex items-center gap-1.5 font-mono text-[11px]">
@@ -201,16 +256,27 @@ onMounted(async () => {
                     {{ p.member_count }} member{{ p.member_count === 1 ? '' : 's' }}
                   </span>
                 </span>
-                <span
-                  class="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold flex items-center gap-1"
-                  :class="p.my_role === 'PM'
-                    ? 'bg-indigo-100 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300'
-                    : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'"
-                >
-                  <Shield v-if="p.my_role === 'PM'" class="w-3 h-3" />
-                  <UserIcon v-else class="w-3 h-3" />
-                  {{ p.my_role }}
-                </span>
+                <div class="flex items-center gap-2">
+                  <span
+                    class="shrink-0 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold flex items-center gap-1"
+                    :class="p.my_role === 'PM'
+                      ? 'bg-indigo-100 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300'
+                      : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'"
+                  >
+                    <Shield v-if="p.my_role === 'PM'" class="w-3 h-3" />
+                    <UserIcon v-else class="w-3 h-3" />
+                    {{ p.my_role }}
+                  </span>
+                  <button
+                    v-if="p.id === selectedId"
+                    type="button"
+                    class="px-2 py-0.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-mono font-semibold flex items-center gap-1 shadow-2xs"
+                    @click.stop="openBoard"
+                  >
+                    <span>Vào bảng</span>
+                    <ArrowRight class="w-2.5 h-2.5" />
+                  </button>
+                </div>
               </button>
             </li>
           </ul>
@@ -255,9 +321,20 @@ onMounted(async () => {
           </p>
 
           <template v-else>
-            <p v-if="!isPM" class="text-[11px] font-mono text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg px-2.5 py-1.5">
-              You are a MEMBER of this project. Only a PM can change roles.
-            </p>
+            <div class="flex items-center justify-between gap-2 p-2 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800">
+              <span class="text-[11px] font-mono text-slate-700 dark:text-slate-300">
+                Vai trò của bạn: <strong class="text-indigo-600 dark:text-indigo-400">{{ taskStore.myRole }}</strong>
+              </span>
+              <button
+                type="button"
+                class="px-2 py-1 rounded text-[10px] font-mono font-medium border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 flex items-center gap-1 cursor-pointer"
+                @click="handleSelfRoleToggle"
+                title="Chuyển đổi vai trò PM / MEMBER"
+              >
+                <RefreshCw class="w-3 h-3" />
+                <span>Chuyển sang {{ taskStore.myRole === 'PM' ? 'MEMBER' : 'PM' }}</span>
+              </button>
+            </div>
 
             <p v-if="isLoadingMembers" class="text-xs text-slate-500 dark:text-slate-400">Loading…</p>
 

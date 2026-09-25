@@ -24,12 +24,17 @@ async def generate_weekly_summary(
     require_member(db, project_id, current_user)
     tasks = db.query(Task).filter(Task.project_id == project_id).all()
     if not tasks:
-        # Provide sample context if empty
-        task_payload = [
-            {"id": "TSK-1", "title": "Setup repository & architecture", "status": "DONE", "priority": "HIGH", "assignee": current_user.full_name},
-            {"id": "TSK-2", "title": "Implement core backend API", "status": "IN_PROGRESS", "priority": "CRITICAL", "assignee": current_user.full_name},
-            {"id": "TSK-3", "title": "Fix database migration lock", "status": "BLOCKED", "priority": "HIGH", "assignee": current_user.full_name, "blocking_reason": "Waiting for schema lock resolution"}
-        ]
+        summary_text = (
+            "### Báo Cáo Tiến Độ Tuần & Nhận Diện Rủi Ro\n\n"
+            "**1. Tổng quan tiến độ:**\n"
+            f"- Dự án hiện chưa có nhiệm vụ nào được tạo bởi {current_user.full_name}.\n"
+            "- Tiến độ tổng thể đang ở giai đoạn khởi tạo không gian làm việc.\n\n"
+            "**2. Nhận diện rủi ro & Điểm nghẽn (Blockers):**\n"
+            "- Không có điểm nghẽn hay nhiệm vụ bị tắc nghẽn.\n\n"
+            "**3. Việc cần ưu tiên:**\n"
+            "- Tạo các nhiệm vụ ban đầu cho sprint và phân công người thực hiện để AI theo dõi tiến độ."
+        )
+        return WeeklySummaryResponse(project_id=project_id, summary=summary_text)
     else:
         task_payload = [
             {

@@ -184,12 +184,24 @@ function getStatusBadge(s: TaskStatus) {
       return 'bg-slate-200 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';
   }
 }
+
+let isBackdropClick = false;
+function onBackdropMouseDown(e: MouseEvent) {
+  isBackdropClick = e.target === e.currentTarget;
+}
+function onBackdropMouseUp(e: MouseEvent) {
+  if (isBackdropClick && e.target === e.currentTarget) {
+    emit('close');
+  }
+  isBackdropClick = false;
+}
 </script>
 
 <template>
   <div
     class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6"
-    @click.self="emit('close')"
+    @mousedown="onBackdropMouseDown"
+    @mouseup="onBackdropMouseUp"
   >
     <div
       v-if="task"

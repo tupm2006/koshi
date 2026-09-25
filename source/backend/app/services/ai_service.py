@@ -150,14 +150,81 @@ class AIService:
 
         # Assignment Recommendation (Feature C)
         if feature is AIFeature.ASSIGNMENT:
+            try:
+                json_match = re.search(r"(\[.*\])", user_prompt, re.DOTALL)
+                workload_data = json.loads(json_match.group(1)) if json_match else []
+            except Exception:
+                workload_data = []
+
+            if workload_data:
+                best_member = min(
+                    workload_data,
+                    key=lambda m: (m.get("active_tasks_count", 0), m.get("total_complexity_points", 0))
+                )
+                return json.dumps({
+                    "recommended_user_id": best_member.get("user_id"),
+                    "recommended_name": best_member.get("name"),
+                    "rationale": f"Thành viên {best_member.get('name')} có tải công việc tối ưu nhất hiện tại ({best_member.get('active_tasks_count', 0)} nhiệm vụ, {best_member.get('total_complexity_points', 0)} điểm độ khó) và phù hợp để nhận việc mới.",
+                    "risk_assessment": "Khối lượng công việc khả thi; không có nguy cơ trễ hạn sprint."
+                }, ensure_ascii=False)
+
             return json.dumps({
                 "recommended_user_id": 1,
-                "recommended_name": "Phạm Minh Tú",
+                "recommended_name": "Thành viên đội ngũ",
                 "rationale": "Thành viên có năng lực phù hợp nhất với mô tả công việc và đang có khối lượng công việc trong ngưỡng an toàn.",
                 "risk_assessment": "Khối lượng công việc khả thi; không có nguy cơ trễ hạn sprint."
             }, ensure_ascii=False)
 
         # Default: Weekly Summary (Feature A)
+        try:
+            json_match = re.search(r"(\[.*\])", user_prompt, re.DOTALL)
+            tasks_data = json.loads(json_match.group(1)) if json_match else []
+        except Exception:
+            tasks_data = []
+
+        if tasks_data:
+            total = len(tasks_data)
+            done = [t for t in tasks_data if t.get("status") == "DONE"]
+            blocked = [t for t in tasks_data if t.get("status") == "BLOCKED"]
+            in_prog = [t for t in tasks_data if t.get("status") == "IN_PROGRESS"]
+            todo = [t for t in tasks_data if t.get("status") == "TODO"]
+            high_crit = [t for t in tasks_data if t.get("priority") in ("HIGH", "CRITICAL") and t.get("status") != "DONE"]
+
+            overview_lines = [
+                f"- Tổng số nhiệm vụ: {total} (Hoàn thành: {len(done)}, Đang thực hiện: {len(in_prog)}, Đang chờ: {len(todo)}).",
+                f"- Tỉ lệ hoàn thành hiện tại đạt {int((len(done) / total) * 100)}%." if total > 0 else "- Chưa có nhiệm vụ nào.",
+            ]
+            if done:
+                overview_lines.append(f"- Đã hoàn thành gần nhất: {', '.join(t.get('title', '') for t in done[:3])}.")
+
+            blocker_lines = []
+            if blocked:
+                for b in blocked:
+                    reason = b.get("blocking_reason") or "đang chờ xử lý"
+                    blocker_lines.append(f"- [BLOCKED] {b.get('title')}: {reason} (Người phụ trách: {b.get('assignee', 'Chưa giao')}).")
+            else:
+                blocker_lines.append("- Không có nhiệm vụ nào đang bị tắc nghẽn (Không có blocker).")
+
+            priority_lines = []
+            if high_crit:
+                for h in high_crit[:4]:
+                    priority_lines.append(f"- [{h.get('priority')}] {h.get('title')} ({h.get('status')}) - phụ trách: {h.get('assignee', 'Chưa giao')}.")
+            elif in_prog:
+                for p in in_prog[:3]:
+                    priority_lines.append(f"- Đẩy nhanh tiến độ: {p.get('title')}.")
+            else:
+                priority_lines.append("- Rà soát backlog và bắt đầu các nhiệm vụ TODO trong sprint.")
+
+            return (
+                "### Báo Cáo Tiến Độ Tuần & Nhận Diện Rủi Ro\n\n"
+                "**1. Tổng quan tiến độ:**\n"
+                + "\n".join(overview_lines) + "\n\n"
+                "**2. Nhận diện rủi ro & Điểm nghẽn (Blockers):**\n"
+                + "\n".join(blocker_lines) + "\n\n"
+                "**3. Việc cần ưu tiên:**\n"
+                + "\n".join(priority_lines)
+            )
+
         return (
             "### Báo Cáo Tiến Độ Tuần & Nhận Diện Rủi Ro\n\n"
             "**1. Tổng quan tiến độ:**\n"

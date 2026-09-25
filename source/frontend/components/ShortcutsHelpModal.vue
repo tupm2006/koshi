@@ -23,12 +23,24 @@ const SHORTCUTS = [
   { key: '?', desc: 'Show Keyboard Shortcuts' },
   { key: 'Esc', desc: 'Exit editing / Dismiss dialogs' },
 ];
+
+let isBackdropClick = false;
+function onBackdropMouseDown(e: MouseEvent) {
+  isBackdropClick = e.target === e.currentTarget;
+}
+function onBackdropMouseUp(e: MouseEvent) {
+  if (isBackdropClick && e.target === e.currentTarget) {
+    emit('close');
+  }
+  isBackdropClick = false;
+}
 </script>
 
 <template>
   <div
     class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6"
-    @click.self="emit('close')"
+    @mousedown="onBackdropMouseDown"
+    @mouseup="onBackdropMouseUp"
   >
     <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-lg p-5 md:p-6 shadow-2xl border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col">
       <!-- Header -->

@@ -42,3 +42,5 @@ pnpm-debug.log*
 # Build cache / local databases (F-14)
 tsconfig.tsbuildinfo
 *.db
+data/
+

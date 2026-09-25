@@ -40,7 +40,7 @@ import {
   FolderKanban,
   Bell,
 } from 'lucide-vue-next';
-import type { FilterStatus } from './types/task';
+import type { FilterStatus, TaskStatus } from './types/task';
 
 const taskStore = useTaskStore();
 const themeStore = useThemeStore();
@@ -66,6 +66,24 @@ const isShortcutsHelpOpen = ref(false);
 const isCreateModalOpen = ref(false);
 const isExportImportOpen = ref(false);
 const isAIMenuOpen = ref(false);
+const createModalInitialStatus = ref<TaskStatus>('TODO');
+
+function openCreateModal(initialStatus: TaskStatus = 'TODO') {
+  createModalInitialStatus.value = initialStatus;
+  isCreateModalOpen.value = true;
+}
+
+const criticalTasksCount = computed(
+  () => taskStore.tasks.filter((t) => t.priority === 'CRITICAL').length,
+);
+
+function toggleCriticalFilter() {
+  if (taskStore.filter.priority === 'CRITICAL') {
+    taskStore.setFilterPriority('ALL');
+  } else {
+    taskStore.setFilterPriority('CRITICAL');
+  }
+}
 
 const searchInputEl = ref<HTMLInputElement | null>(null);
 const importJsonBuffer = ref('');
@@ -73,7 +91,7 @@ const importStatusMsg = ref<string | null>(null);
 
 // Mount keyboard handler
 const keyboard = createKeyboardHandler({
-  onOpenQuickCreate: () => (isCreateModalOpen.value = true),
+  onOpenQuickCreate: () => openCreateModal('TODO'),
   onOpenAIDecomposer: () => (isAIDecomposerOpen.value = true),
   onOpenGitDiff: () => (isGitDiffOpen.value = true),
   onOpenDAG: () => (isDAGOpen.value = true),
@@ -144,6 +162,17 @@ function handleWindowClick(e: MouseEvent) {
   }
 }
 
+let isExportImportBackdropClick = false;
+function onExportImportMouseDown(e: MouseEvent) {
+  isExportImportBackdropClick = e.target === e.currentTarget;
+}
+function onExportImportMouseUp(e: MouseEvent) {
+  if (isExportImportBackdropClick && e.target === e.currentTarget) {
+    isExportImportOpen.value = false;
+  }
+  isExportImportBackdropClick = false;
+}
+
 onMounted(() => {
   taskStore.init();
   keyboard.mount();
@@ -203,6 +232,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 
           <!-- View Toggle (Table / Kanban) -->
           <button
+            v-if="taskStore.appView === 'BOARD'"
             type="button"
             class="h-8 flex items-center gap-1.5 px-3 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-mono text-slate-800 dark:text-slate-200 cursor-pointer shadow-2xs"
             @click="taskStore.toggleViewMode()"
@@ -213,16 +243,19 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             <span>{{ taskStore.viewMode === 'TABLE' ? 'Kanban' : 'Table' }}</span>
           </button>
 
-          <!-- Project switcher / dashboard -->
+          <!-- Projects Dashboard switcher -->
           <button
             v-if="taskStore.currentUser"
             type="button"
-            class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md border text-xs font-mono cursor-pointer shadow-2xs bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 max-w-[220px]"
-            title="My dashboard: projects and per-project roles"
-            @click="taskStore.isDashboardOpen = true"
+            class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md border text-xs font-mono cursor-pointer shadow-2xs max-w-[220px]"
+            :class="taskStore.appView === 'PROJECTS'
+              ? 'bg-indigo-600 border-indigo-600 text-white font-semibold'
+              : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100'"
+            title="Quản lý dự án & vai trò thành viên"
+            @click="taskStore.appView === 'PROJECTS' ? (taskStore.currentProjectId ? taskStore.appView = 'BOARD' : null) : taskStore.showProjects()"
           >
             <FolderKanban class="w-3.5 h-3.5 shrink-0" />
-            <span class="truncate">{{ taskStore.currentProject?.name ?? 'No project' }}</span>
+            <span class="truncate">{{ taskStore.appView === 'PROJECTS' ? 'Dự án (Projects)' : (taskStore.currentProject?.name ?? 'Chọn dự án') }}</span>
           </button>
 
           <!-- Bell. Placed next to the identity pill rather than among the
@@ -243,16 +276,38 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             >{{ taskStore.unreadCount > 99 ? '99+' : taskStore.unreadCount }}</span>
           </button>
 
-          <!-- Auth Status Pill -->
+          <!-- Auth Status Pill with quick role toggle -->
+          <div
+            v-if="taskStore.currentUser"
+            class="h-8 hidden sm:inline-flex items-center rounded-md border border-indigo-300 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-xs font-mono shadow-2xs overflow-hidden"
+          >
+            <button
+              type="button"
+              class="h-full inline-flex items-center gap-1.5 px-2.5 text-indigo-700 dark:text-indigo-300 font-semibold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 cursor-pointer"
+              title="Click để đổi vai trò PM / MEMBER trong dự án này"
+              @click="taskStore.toggleMyRole()"
+            >
+              <Shield class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>{{ taskStore.myRole ?? 'MEMBER' }}</span>
+              <span class="text-indigo-500/80 font-normal">({{ taskStore.currentUser.full_name }})</span>
+            </button>
+            <button
+              type="button"
+              class="h-full px-2 border-l border-indigo-200 dark:border-indigo-800 text-[10px] text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 cursor-pointer"
+              title="Hồ sơ tài khoản"
+              @click="taskStore.showProfile()"
+            >
+              Hồ sơ
+            </button>
+          </div>
           <button
+            v-else
             type="button"
-            class="h-8 hidden sm:inline-flex items-center gap-1.5 px-3 rounded-md border text-xs font-mono cursor-pointer shadow-2xs"
-            :class="taskStore.currentUser ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold' : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'"
-            :title="taskStore.currentUser ? 'Your profile' : 'Sign in'"
-            @click="taskStore.currentUser ? taskStore.showProfile() : taskStore.logout()"
+            class="h-8 hidden sm:inline-flex items-center gap-1.5 px-3 rounded-md border text-xs font-mono cursor-pointer shadow-2xs bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+            @click="taskStore.logout()"
           >
             <Shield class="w-3.5 h-3.5" />
-            <span>{{ taskStore.currentUser ? `${taskStore.myRole ?? '—'}: ${taskStore.currentUser.full_name}` : 'Guest — sign in' }}</span>
+            <span>Guest — sign in</span>
           </button>
         </div>
 
@@ -364,7 +419,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <button
             type="button"
             class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-slate-900 hover:bg-slate-800 text-slate-50 dark:bg-slate-100 dark:hover:bg-white dark:text-slate-950 text-xs font-mono font-medium cursor-pointer shadow-xs"
-            @click="isCreateModalOpen = true"
+            @click="openCreateModal(taskStore.filter.status !== 'ALL' ? (taskStore.filter.status as TaskStatus) : 'TODO')"
             title="Create Task (n)"
           >
             <Plus class="w-3.5 h-3.5" />
@@ -463,12 +518,12 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <button
             type="button"
             class="h-6 ml-1 inline-flex items-center gap-1 px-2.5 rounded-md cursor-pointer shrink-0 text-[11px]"
-            :class="taskStore.filter.onlyCriticalPath ? 'bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/50 font-semibold shadow-2xs' : 'text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'"
-            @click="taskStore.toggleCriticalPathOnly()"
-            title="Toggle Critical Path Only"
+            :class="taskStore.filter.priority === 'CRITICAL' ? 'bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/50 font-semibold shadow-2xs' : 'text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'"
+            @click="toggleCriticalFilter"
+            title="Lọc tác vụ mức CRITICAL"
           >
             <Flame class="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-            <span>Crit ({{ taskStore.criticalPathIds.size }})</span>
+            <span>Crit ({{ criticalTasksCount }})</span>
           </button>
         </div>
       </div>
@@ -476,26 +531,9 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
 
     <!-- Workspace Body (Full-Viewport Docked Layout) -->
     <div class="flex-1 min-h-0 w-full max-w-[1720px] mx-auto p-4 flex flex-col overflow-hidden">
-      <!-- Nothing to show: point at the dashboard rather than an empty grid. -->
-      <div v-if="hasNoProject" class="flex-1 min-h-0 flex items-center justify-center">
-        <div class="max-w-md text-center p-8 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900">
-          <div class="mx-auto w-11 h-11 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-            <FolderKanban class="w-5 h-5" />
-          </div>
-          <h2 class="mt-3 text-sm font-semibold font-sans">No projects yet</h2>
-          <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-            Create your first project and you will be its Project Manager — or ask a
-            PM to add you to theirs. Roles are set per project.
-          </p>
-          <button
-            type="button"
-            class="mt-4 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-mono font-medium text-xs inline-flex items-center gap-1.5 cursor-pointer"
-            @click="taskStore.isDashboardOpen = true"
-          >
-            <FolderKanban class="w-3.5 h-3.5" />
-            <span>Open dashboard</span>
-          </button>
-        </div>
+      <!-- Projects View (when in PROJECTS mode or user has no projects selected) -->
+      <div v-if="taskStore.appView === 'PROJECTS' || hasNoProject" class="flex-1 min-h-0 overflow-y-auto">
+        <ProjectDashboard :is-full-view="true" @open-board="taskStore.appView = 'BOARD'" />
       </div>
 
       <template v-else>
@@ -508,11 +546,11 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
         </div>
 
         <div v-if="taskStore.viewMode === 'TABLE'" class="flex-1 min-h-0 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg shadow-xs overflow-y-auto">
-          <TaskTable :on-open-create="() => (isCreateModalOpen = true)" />
+          <TaskTable :on-open-create="() => openCreateModal('TODO')" />
         </div>
 
         <div v-else class="flex-1 min-h-0 overflow-x-auto overflow-y-hidden">
-          <KanbanBoard :on-open-create="() => (isCreateModalOpen = true)" />
+          <KanbanBoard :on-open-create="openCreateModal" />
         </div>
       </template>
     </div>
@@ -575,7 +613,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
     <GitDiffModal v-if="isGitDiffOpen" @close="isGitDiffOpen = false" />
     <DAGVisualizerModal v-if="isDAGOpen" @close="isDAGOpen = false" />
     <ShortcutsHelpModal v-if="isShortcutsHelpOpen" @close="isShortcutsHelpOpen = false" />
-    <CreateTaskModal v-if="isCreateModalOpen" @close="isCreateModalOpen = false" />
+    <CreateTaskModal v-if="isCreateModalOpen" :initial-status="createModalInitialStatus" @close="isCreateModalOpen = false" />
     <!-- Opened by the store from every path a task can reach DONE by, so no
          caller has to remember to ask. -->
     <EvidenceModal v-if="taskStore.evidenceForTaskId" />
@@ -589,7 +627,8 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
     <div
       v-if="isExportImportOpen"
       class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/70 backdrop-blur-xs flex items-center justify-center p-3"
-      @click.self="isExportImportOpen = false"
+      @mousedown="onExportImportMouseDown"
+      @mouseup="onExportImportMouseUp"
     >
       <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-lg p-4 shadow-2xl border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col">
         <div class="flex items-center justify-between pb-2 border-b border-slate-300 dark:border-slate-800">

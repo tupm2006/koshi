@@ -4,6 +4,15 @@ import { useTaskStore } from '../stores/taskStore';
 import type { TaskPriority, TaskStatus } from '../types/task';
 import { Plus, X, CalendarDays, UserPlus } from 'lucide-vue-next';
 
+const props = withDefaults(
+  defineProps<{
+    initialStatus?: TaskStatus;
+  }>(),
+  {
+    initialStatus: 'TODO',
+  },
+);
+
 const emit = defineEmits<{
   (e: 'close'): void;
 }>();
@@ -12,10 +21,22 @@ const taskStore = useTaskStore();
 
 const title = ref('');
 const priority = ref<TaskPriority>('MEDIUM');
-const status = ref<TaskStatus>('TODO');
+const status = ref<TaskStatus>(props.initialStatus);
 const dueDate = ref('');
 const assigneeIds = ref<number[]>([]);
 const inputRef = ref<HTMLInputElement | null>(null);
+
+let isBackdropClick = false;
+function onBackdropMouseDown(e: MouseEvent) {
+  isBackdropClick = e.target === e.currentTarget;
+}
+function onBackdropMouseUp(e: MouseEvent) {
+  if (isBackdropClick && e.target === e.currentTarget) {
+    emit('close');
+  }
+  isBackdropClick = false;
+}
+
 
 /** Accepted members of the current project, from the store. */
 const members = computed(() => taskStore.members);
@@ -65,7 +86,8 @@ onMounted(() => {
 <template>
   <div
     class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6"
-    @click.self="emit('close')"
+    @mousedown="onBackdropMouseDown"
+    @mouseup="onBackdropMouseUp"
   >
     <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-lg p-5 md:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col">
       <!-- Header -->

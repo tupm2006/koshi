@@ -53,6 +53,17 @@ async function handleDemo(demoEmail: string) {
   await handleSubmit();
 }
 
+let isBackdropClick = false;
+function onBackdropMouseDown(e: MouseEvent) {
+  isBackdropClick = e.target === e.currentTarget;
+}
+function onBackdropMouseUp(e: MouseEvent) {
+  if (isBackdropClick && e.target === e.currentTarget) {
+    emit('close');
+  }
+  isBackdropClick = false;
+}
+
 onMounted(() => emailEl.value?.focus());
 </script>
 
@@ -61,7 +72,8 @@ onMounted(() => emailEl.value?.focus());
     class="fixed inset-0 z-50 bg-slate-900/50 dark:bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
     role="dialog"
     aria-modal="true"
-    @click.self="emit('close')"
+    @mousedown="onBackdropMouseDown"
+    @mouseup="onBackdropMouseUp"
   >
     <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 my-8">
       <div class="flex items-start justify-between">

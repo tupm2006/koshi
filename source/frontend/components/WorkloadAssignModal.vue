@@ -4,18 +4,31 @@ import { api } from '../services/api';
 import { useTaskStore } from '../stores/taskStore';
 import { Users, X, Sparkles, UserCheck, AlertTriangle, ShieldCheck, RefreshCw } from 'lucide-vue-next';
 
-defineProps<{
+const props = defineProps<{
   onClose: () => void;
 }>();
 
 const taskStore = useTaskStore();
 
-const taskTitle = ref<string>('Implement Redis Distributed Caching Layer');
-const taskDesc = ref<string>('Configure Redis cluster with cache invalidation rules and hit-rate telemetry.');
+const initialTask = taskStore.tasks.find((t) => (!t.assignees || t.assignees.length === 0) && t.status !== 'DONE') || taskStore.tasks[0];
+const taskTitle = ref<string>(initialTask ? initialTask.title : 'Phát triển tính năng mới cho dự án');
+const taskDesc = ref<string>(initialTask ? (initialTask.description || '') : 'Phân tích yêu cầu và hiện thực hóa logic theo kiến trúc.');
 const workloads = ref<any[]>([]);
 const recommendation = ref<any | null>(null);
 const isLoadingRec = ref<boolean>(false);
 const isLoadingWorkload = ref<boolean>(true);
+
+let isBackdropClick = false;
+function onBackdropMouseDown(e: MouseEvent) {
+  isBackdropClick = e.target === e.currentTarget;
+}
+function onBackdropMouseUp(e: MouseEvent) {
+  if (isBackdropClick && e.target === e.currentTarget) {
+    props.onClose();
+  }
+  isBackdropClick = false;
+}
+
 
 async function loadWorkloads() {
   const projectId = taskStore.currentProjectId;
@@ -56,7 +69,8 @@ onMounted(() => {
 <template>
   <div
     class="fixed inset-0 z-50 bg-slate-900/40 dark:bg-black/75 backdrop-blur-xs flex items-center justify-center p-3 md:p-6"
-    @click.self="onClose"
+    @mousedown="onBackdropMouseDown"
+    @mouseup="onBackdropMouseUp"
   >
     <div class="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-lg p-5 md:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col max-h-[88vh]">
       <!-- Header -->
@@ -113,6 +127,27 @@ onMounted(() => {
         <!-- Recommendation Inputs -->
         <div class="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2.5">
           <h3 class="font-mono text-slate-500 dark:text-slate-400 font-semibold uppercase text-[11px] tracking-wider">Test Task Assignment Recommendation:</h3>
+          <div v-if="taskStore.tasks.length > 0">
+            <label for="select-project-task" class="block text-slate-700 dark:text-slate-300 font-mono text-[11px] mb-1 font-medium">Chọn nhiệm vụ từ dự án hiện tại</label>
+            <select
+              id="select-project-task"
+              class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-amber-500 font-sans"
+              @change="(e) => {
+                const id = (e.target as HTMLSelectElement).value;
+                const found = taskStore.tasks.find((t) => t.id === id);
+                if (found) {
+                  taskTitle = found.title;
+                  taskDesc = found.description || '';
+                  handleRecommend();
+                }
+              }"
+            >
+              <option value="">-- Hoặc nhập tay bên dưới --</option>
+              <option v-for="t in taskStore.tasks" :key="t.id" :value="t.id">
+                [{{ t.id }}] {{ t.title }} ({{ t.priority }}, {{ t.status }})
+              </option>
+            </select>
+          </div>
           <div>
             <label for="vue-task-assign-title" class="block text-slate-700 dark:text-slate-300 font-mono text-[11px] mb-1 font-medium">Task Title</label>
             <input

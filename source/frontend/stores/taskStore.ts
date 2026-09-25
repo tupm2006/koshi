@@ -44,7 +44,8 @@ export const useTaskStore = defineStore('taskStore', {
      * router — there are three screens and no URLs to preserve, so a dependency
      * would buy nothing.
      */
-    appView: 'LANDING' as 'LANDING' | 'BOARD' | 'PROFILE' | 'NOTIFICATIONS',
+    appView: 'LANDING' as 'LANDING' | 'BOARD' | 'PROFILE' | 'NOTIFICATIONS' | 'PROJECTS',
+    simulatedRole: null as ProjectRole | null,
     /** The feed, newest first. Loaded on demand and after posting. */
     notifications: [] as AppNotification[],
     /** Kept separately from `notifications.length` so the badge is correct
@@ -87,6 +88,7 @@ export const useTaskStore = defineStore('taskStore', {
 
     /** The caller's role in the *selected* project, not a global role. */
     myRole(): ProjectRole | null {
+      if ((this as any).simulatedRole) return (this as any).simulatedRole;
       return (this as any).currentProject?.my_role ?? null;
     },
 
@@ -315,6 +317,28 @@ export const useTaskStore = defineStore('taskStore', {
       this.loadNotifications();
     },
 
+    showProjects() {
+      this.appView = 'PROJECTS';
+      this.loadProjects();
+    },
+
+    async toggleMyRole() {
+      if (!this.currentProject) return;
+      const targetRole: ProjectRole = this.myRole === 'PM' ? 'MEMBER' : 'PM';
+      if (this.currentUser) {
+        try {
+          await api.updateMemberRole(this.currentProject.id, this.currentUser.id, targetRole);
+          await this.loadProjects();
+          await this.loadMembers(this.currentProject.id);
+          this.simulatedRole = null;
+        } catch {
+          this.simulatedRole = targetRole;
+        }
+      } else {
+        this.simulatedRole = targetRole;
+      }
+    },
+
     /**
      * Open the task a notification points at.
      *
@@ -445,6 +469,9 @@ export const useTaskStore = defineStore('taskStore', {
 
     async selectProject(projectId: number) {
       this.currentProjectId = projectId;
+      this.simulatedRole = null;
+      this.appView = 'BOARD';
+      this.isDashboardOpen = false;
       // A PM's job is the whole project; a member's is their own queue. This is
       // the default view, not a permission — either role can switch.
       this.scope = this.projects.find((p) => p.id === projectId)?.my_role === 'PM'
