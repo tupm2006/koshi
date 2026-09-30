@@ -46,3 +46,6 @@ data/backups/*.db
 # Archives & submission
 submission/
 *.zip
+
+# Test database artifacts
+data/test_koshi.db*

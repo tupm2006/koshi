@@ -7,7 +7,12 @@
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit tests/component",
+    "test:coverage": "vitest run tests/unit tests/component --coverage",
+    "test:e2e": "playwright test --project=chromium --project=firefox --project=webkit --project=\"Mobile Chrome\"",
+    "test:perf": "vitest run --config vitest.perf.config.ts && playwright test --project=perf",
+    "test:all": "npm run test:unit && npm run test:e2e"
   },
   "dependencies": {
     "clsx": "^2.1.1",
@@ -18,9 +23,14 @@
     "vue": "^3.5.13"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@pinia/testing": "^0.1.7",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.0.0",
     "@vitejs/plugin-vue": "^5.2.1",
+    "@vitest/coverage-v8": "^4.1.11",
     "@vue/test-utils": "^2.5.0",
+    "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.14.5",
     "jsdom": "^29.1.1",
     "tailwindcss": "^4.0.0",

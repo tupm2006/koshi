@@ -1,0 +1,13 @@
+{
+  "name": "koshi-workspace",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "test:unit": "npm --prefix source_code/frontend run test:unit",
+    "test:api": "python -m pytest source_code/backend/tests",
+    "test:e2e": "npm --prefix source_code/frontend run test:e2e",
+    "test:perf": "npm --prefix source_code/frontend run test:perf",
+    "test:coverage": "npm --prefix source_code/frontend run test:coverage && python -m pytest --cov=source_code/backend/app --cov-report=html:docs/testing/coverage-backend --cov-report=term source_code/backend/tests",
+    "test:all": "npm run test:unit && npm run test:api && npm run test:e2e"
+  }
+}
