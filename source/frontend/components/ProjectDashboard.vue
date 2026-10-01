@@ -321,6 +321,9 @@ onMounted(async () => {
           </p>
 
           <template v-else>
+            <p v-if="!isPM" class="text-[11px] font-mono text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg px-2.5 py-1.5 mb-2">
+              You are a MEMBER of this project. Only a PM can change roles.
+            </p>
             <div class="flex items-center justify-between gap-2 p-2 rounded-lg bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800">
               <span class="text-[11px] font-mono text-slate-700 dark:text-slate-300">
                 Vai trò của bạn: <strong class="text-indigo-600 dark:text-indigo-400">{{ taskStore.myRole }}</strong>

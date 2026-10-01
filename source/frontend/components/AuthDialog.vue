@@ -72,6 +72,7 @@ onMounted(() => emailEl.value?.focus());
     class="fixed inset-0 z-50 bg-slate-900/50 dark:bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
     role="dialog"
     aria-modal="true"
+    @click.self="emit('close')"
     @mousedown="onBackdropMouseDown"
     @mouseup="onBackdropMouseUp"
   >
