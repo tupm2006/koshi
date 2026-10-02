@@ -1,7 +1,9 @@
-/// <reference types="vitest/config" />
+import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
+
+const polyfillPath = resolve(__dirname, 'scripts/node20-polyfill.cjs');
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -21,6 +23,14 @@ export default defineConfig({
     environment: 'node',
     include: ['**/*.test.ts'],
     setupFiles: ['./test-setup.ts'],
+    poolOptions: {
+      forks: {
+        execArgv: ['--require', polyfillPath],
+      },
+      threads: {
+        execArgv: ['--require', polyfillPath],
+      },
+    },
   },
   server: {
     host: '0.0.0.0',
