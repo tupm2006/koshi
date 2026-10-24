@@ -71,7 +71,9 @@ services:
       # against the seeded demo data must not be valid here. `scripts/dev-env.sh`
       # generates both.
       - JWT_SECRET=${PROD_JWT_SECRET:?run scripts/dev-env.sh first (writes ./.env)}
-      - CORS_ORIGINS=http://localhost:8090
+      # PUBLIC_ORIGIN (e.g. https://koshi.huynhca.com) is appended when the
+      # instance is published through the Cloudflare tunnel below.
+      - CORS_ORIGINS=http://localhost:8090${PUBLIC_ORIGIN:+,${PUBLIC_ORIGIN}}
       - SEED_DEMO_DATA=false
       - ALLOW_UNVERIFIED_GOOGLE_TOKENS=false
       - AI_API_URL=${AI_API_URL:-https://api.groq.com/openai/v1/chat/completions}
@@ -95,6 +97,24 @@ services:
       - koshi-backend
     ports:
       - "127.0.0.1:8090:80"
+    networks:
+      - koshi-prod-local
+
+  # Publishes the frontend through a Cloudflare Tunnel — outbound only, so no
+  # router port is opened and the host's IP is never exposed. Opt-in:
+  #   docker compose -f docker-compose.prod-local.yml --profile public up -d
+  # Needs ~/.cloudflared/config.yml + the tunnel credentials (scripts/publish.sh).
+  cloudflared:
+    image: cloudflare/cloudflared:2025.8.1
+    container_name: koshi-tunnel
+    restart: unless-stopped
+    profiles: ["public"]
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    user: "${UID_GID:-1000:1000}"
+    volumes:
+      - ${HOME}/.cloudflared:/etc/cloudflared:ro
+    depends_on:
+      - koshi-frontend
     networks:
       - koshi-prod-local
 

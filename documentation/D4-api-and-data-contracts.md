@@ -203,6 +203,8 @@ Base URL: `/api`. All responses JSON. All endpoints except `POST /auth/register`
 | POST | `/sprints/{id}/complete` | **PM** | `{move_unfinished_to: int\|null}` — a PLANNED sprint of the **same** project, or `null` = backlog. DONE tasks stay. |
 | DELETE | `/sprints/{id}` | **PM** | `204`. Tasks return to the backlog; none are deleted. |
 | GET | `/sprints/{id}/burndown` | member | `{sprint_id, total_points, days:[{date, ideal, remaining\|null}]}` — `null` for days not yet reached. |
+| POST | `/ai/sprint-retro?sprint_id=` | member | `{sprint_id, went_well[], to_improve[], action_items[]}` — model first, else built from the sprint data. |
+| GET | `/tasks/{id}/history` | member | `[{id, field, old_value, new_value, actor, created_at}]`, newest first, max 200. `field` ∈ created, title, status, priority, complexity_points, due_date, blocking_reason, sprint_id, description, assignees. Values are display strings (migration 0009). |
 | GET | `/sprints/velocity/history?project_id=` | member | `[{sprint_id, sprint_name, committed_points, completed_points}]`, completed sprints only. |
 
 `SprintOut` gained (additive, migration 0008) `state: PLANNED|ACTIVE|COMPLETED` (derived), `completed_at`, `committed_points`.

@@ -55,6 +55,7 @@ koshi/
 | `scripts/seed-demo.py [url]` | Seeds 3 accounts (`huynh`, `tu`, `don` `@koshi.dev`, password `Koshi@2026`), a Scrum project, a Kanban project and a personal one — through the API. |
 | `scripts/seed-backdate.py` | Run inside the backend container after seeding: spreads completion dates so burndown/velocity have history. |
 | `scripts/smoke-test.py [url]` | End-to-end check of every feature area, permissions and the AI endpoints against a running seeded instance. |
+| `scripts/publish.sh <host>` | Cloudflare Tunnel: creates tunnel + DNS, writes `~/.cloudflared/config.yml`, sets `PUBLIC_ORIGIN`, starts the `cloudflared` compose profile. |
 | `scripts/demo-video/record.py`, `encode.sh` | Drive the real app with Playwright, capture via DevTools screencast, encode `public/demo.mp4`. |
 
 ## 2. Frontend module index
@@ -116,6 +117,7 @@ The frontend's contract surface: `TaskStatus`, `TaskPriority`, `Complexity`, `Ta
 | `ProjectDashboard.vue` | project pill in header | Personal dashboard: project list with the caller's role in each, project creation, member roster, add-member, per-project role assignment. PM-only controls hidden for members. |
 | `ShortcutsHelpModal.vue` | `?` | Key reference. |
 | `MobileBottomNav.vue` | narrow viewport | FR-INT-14. |
+| `TaskHistory.vue` | inside `TaskDetailModal` | Collapsible change log for a task (FR-HIST). |
 | `SprintPanel.vue` | **Scrum** header button | Sprints / Planning / Burndown / Velocity (FR-SCRUM). Calls the API directly; PM controls gated on `isProjectManager && canMutate`. |
 
 ## 3. Backend module index

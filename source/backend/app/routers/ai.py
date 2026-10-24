@@ -1,13 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models.entities import Task, TaskAssignee, User, Project, ProjectMember, TaskStatusEnum
+from app.models.entities import Task, TaskAssignee, User, Project, ProjectMember, TaskStatusEnum, Sprint
 from app.schemas.ai import (
+    SprintRetroResponse,
     MeetingNotesRequest, MeetingMinutesResponse,
     AssignmentRecommendRequest, AssignmentRecommendResponse, AssignmentRecommendation,
     WeeklySummaryResponse, AIDecomposeRequest, AIDecomposeResponse, DecomposedSubtask
 )
 from app.services.ai_service import AIService
+from app.utils.time import utcnow
 from app.security import get_current_user, require_member
 
 router = APIRouter(prefix="/ai", tags=["AI Services"])
@@ -168,3 +170,38 @@ async def decompose_goal(
         rationale=f"Đã phân tích mục tiêu '{goal}' thành 3 nhiệm vụ tuần tự với quan hệ phụ thuộc DAG.",
         subtasks=subtasks
     )
+
+
+@router.post("/sprint-retro", response_model=SprintRetroResponse)
+async def sprint_retro(
+    sprint_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Feature E: AI retrospective for a sprint, grounded in its own numbers."""
+    sprint = db.query(Sprint).filter(Sprint.id == sprint_id).first()
+    if not sprint:
+        raise HTTPException(status_code=404, detail="Sprint not found")
+    require_member(db, sprint.project_id, current_user)
+
+    tasks = db.query(Task).filter(Task.sprint_id == sprint.id).all()
+    done = [t for t in tasks if t.status == TaskStatusEnum.DONE]
+    now = utcnow()
+    end = sprint.completed_at or now
+    total = sum(t.complexity_points or 0 for t in tasks)
+    stats = {
+        "sprint": sprint.name,
+        "goal": sprint.goal,
+        "state": sprint.state,
+        "committed_points": sprint.committed_points if sprint.committed_points is not None else total,
+        "completed_points": sum(t.complexity_points or 0 for t in done),
+        "added_points": max(total - (sprint.committed_points or total), 0) if sprint.state == "ACTIVE" else 0,
+        "done_count": len(done),
+        "done": [t.title for t in done][:15],
+        "not_done": [f"{t.title} ({t.status.value})" for t in tasks if t.status != TaskStatusEnum.DONE][:15],
+        "blocked": [f"{t.title}: {t.blocking_reason or 'không rõ lý do'}" for t in tasks if t.status == TaskStatusEnum.BLOCKED],
+        "overdue": len([t for t in tasks if t.status != TaskStatusEnum.DONE and t.due_date and t.due_date < end]),
+        "members": sorted({a.user.full_name for t in tasks for a in t.assignees if a.user}),
+    }
+    out = await AIService.sprint_retrospective(stats)
+    return SprintRetroResponse(sprint_id=sprint.id, **out)

@@ -23,6 +23,7 @@ const { apiMock } = vi.hoisted(() => ({
     completeSprint: vi.fn(),
     deleteSprint: vi.fn(),
     setTaskSprint: vi.fn(),
+    sprintRetro: vi.fn(),
   },
 }));
 
@@ -46,7 +47,7 @@ const task = (over: any = {}) => ({ id: 10, key: 'TSK-10', title: 'Login', statu
 let store: ReturnType<typeof useTaskStore>;
 async function open(role: 'PM' | 'MEMBER' = 'PM', connected = true) {
   const w = mountWithPinia(SprintPanel, {
-    global: { stubs: stubIcons(['Play', 'CheckCircle2', 'Plus', 'Timer']) },
+    global: { stubs: stubIcons(['Play', 'CheckCircle2', 'Plus', 'Timer', 'Sparkles']) },
     setup: () => {
       store = useTaskStore();
       store.currentUser = { id: 1, email: 'a@b.c', full_name: 'A', skills: '' } as any;
@@ -146,5 +147,16 @@ describe('SprintPanel', () => {
     const w = await open();
     await w.find('[data-tab="VELOCITY"]').trigger('click');
     expect(w.find('[data-testid="velocity-avg"]').text()).toBe('9.5');
+  });
+
+  it('a member can run the AI retrospective and sees all three lists', async () => {
+    apiMock.listSprints.mockResolvedValue([sprint({ state: 'COMPLETED', completed_at: '2026-10-30T00:00:00' })]);
+    apiMock.sprintRetro.mockResolvedValue({ sprint_id: 1, went_well: ['w'], to_improve: ['i1', 'i2'], action_items: ['a'] });
+    const w = await open('MEMBER');
+    await w.find('[data-tab="RETRO"]').trigger('click');
+    await w.find('[data-action="retro"]').trigger('click');
+    await flushPromises();
+    expect(apiMock.sprintRetro).toHaveBeenCalledWith(1);
+    expect(w.findAll('[data-testid="retro"] li')).toHaveLength(4);
   });
 });

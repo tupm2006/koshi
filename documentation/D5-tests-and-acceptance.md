@@ -1,7 +1,7 @@
 # D5 — Tests & Acceptance Criteria
 
 **Purpose:** define what "correct" means, and record honestly what is currently verified.
-**Last verified by execution:** 2026-10-24 — backend `170 passed`, frontend `410 passed`.
+**Last verified by execution:** 2026-10-24 — backend `176 passed`, frontend `414 passed`.
 
 ---
 
@@ -15,7 +15,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pytest -q
 ```
-Expected: **170 passed**. (`app/database.py` creates the sqlite directory itself, so no `mkdir` is needed.) Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
+Expected: **176 passed**. (`app/database.py` creates the sqlite directory itself, so no `mkdir` is needed.) Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
 
 ### End-to-end against a running instance (DEC-028)
 
@@ -24,7 +24,7 @@ python3 scripts/seed-demo.py http://localhost:8090
 docker exec -i koshi-backend-prod-local python - < scripts/seed-backdate.py
 python3 scripts/smoke-test.py http://localhost:8090      # exit code = failed checks
 ```
-37 checks: auth, per-project roles and 404-for-outsiders, the status cycle, dependency/assignee
+39 checks (incl. history and retro): auth, per-project roles and 404-for-outsiders, the status cycle, dependency/assignee
 validation, comments and replies, the Scrum lifecycle and its guards, stats, notifications, and all
 four AI endpoints against the real model. Last run 2026-10-24: **0 failed**, AI answered by Groq
 (no `AI DEGRADED` in the log).
@@ -48,7 +48,7 @@ creates nothing and **refuses to start** unless the database is at head (D3 §5c
 
 ```bash
 pnpm install
-pnpm test                     # vitest run — 410 tests
+pnpm test                     # vitest run — 414 tests
 pnpm run test:watch           # vitest, watch mode
 pnpm run build                # vue-tsc -b && vite build
 pnpm run dev                  # manual verification at :5173

@@ -21,6 +21,7 @@ class AIFeature(str, enum.Enum):
     MEETING_MINUTES = "meeting_minutes"
     ASSIGNMENT = "assignment"
     DECOMPOSE = "decompose"
+    RETRO = "retro"
 
 
 class AITier(str, enum.Enum):
@@ -365,3 +366,53 @@ class AIService:
         except Exception:
             logger.warning("AI tier %s returned unusable JSON for decompose; serving the template.", tier.value)
             return None
+
+    @staticmethod
+    def _retro_from_data(stats: Dict[str, Any]) -> Dict[str, List[str]]:
+        """Deterministic retrospective built only from the sprint's numbers."""
+        committed, done = stats["committed_points"], stats["completed_points"]
+        pct = round(done / committed * 100) if committed else 0
+        well, improve, actions = [], [], []
+        if done:
+            well.append(f"Hoàn thành {done}/{committed} điểm ({pct}%), {stats['done_count']} nhiệm vụ.")
+        if pct >= 90:
+            well.append("Cam kết sát với năng lực thực tế của đội.")
+        else:
+            improve.append(f"Chỉ đạt {pct}% cam kết — ước lượng hoặc phạm vi sprint chưa sát.")
+            actions.append("Giảm cam kết sprint sau về gần velocity trung bình.")
+        if stats["blocked"]:
+            improve.append(f"{len(stats['blocked'])} nhiệm vụ bị chặn: " + "; ".join(stats["blocked"][:3]) + ".")
+            actions.append("Nêu điểm nghẽn ngay trong daily standup, không đợi cuối sprint.")
+        if stats["overdue"]:
+            improve.append(f"{stats['overdue']} nhiệm vụ trễ hạn.")
+        if stats["added_points"] > 0:
+            improve.append(f"Thêm {stats['added_points']} điểm sau khi sprint bắt đầu (scope creep).")
+            actions.append("Việc phát sinh đưa vào backlog, PM quyết định ở sprint planning.")
+        if not actions:
+            actions.append("Giữ nhịp hiện tại; thử tăng nhẹ cam kết sprint sau.")
+        return {"went_well": well or ["Đội đã duy trì sprint đến cuối."], "to_improve": improve or ["Không có vấn đề lớn."], "action_items": actions}
+
+    @classmethod
+    async def sprint_retrospective(cls, stats: Dict[str, Any]) -> Dict[str, List[str]]:
+        """Feature E: sprint retrospective (went well / to improve / actions)."""
+        system_prompt = (
+            "Bạn là Scrum Master. Từ số liệu sprint, viết retrospective ngắn gọn, cụ thể, dựa trên dữ liệu.\n"
+            "Trả về JSON: {\"went_well\": [str], \"to_improve\": [str], \"action_items\": [str]}, mỗi danh sách 2-4 ý. "
+            "Trả lời bằng cùng ngôn ngữ với dữ liệu đầu vào (mặc định tiếng Việt). "
+            "Không đoán giới tính: gọi thành viên bằng tên. Chỉ trả về JSON hợp lệ."
+        )
+        raw, tier = await cls._call_llm(AIFeature.RETRO, system_prompt, json.dumps(stats, ensure_ascii=False, default=str))
+        if tier is not AITier.DETERMINISTIC:
+            clean = raw.strip()
+            if clean.startswith("```"):
+                clean = re.sub(r"^```[a-zA-Z]*\n", "", clean)
+                clean = re.sub(r"\n```$", "", clean)
+            try:
+                data = json.loads(clean)
+                out = {k: [str(x) for x in data.get(k) or []] for k in ("went_well", "to_improve", "action_items")}
+                if any(out.values()):
+                    return out
+            except Exception:
+                pass
+            logger.warning("AI tier %s returned unusable JSON for retro; using the data-built one.", tier.value)
+        return cls._retro_from_data(stats)

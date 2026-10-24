@@ -149,6 +149,8 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 | FR-SCRUM-04 | Planning | `tasks.py::_validate_sprint`, `api.setTaskSprint`, `SprintPanel.vue` | ✅ `test_task_cannot_be_planned_into_another_projects_sprint`, `SprintPanel.test.ts` (re-sync) | ✅ |
 | FR-SCRUM-05 | Burndown | `sprints.py::sprint_burndown`, `tasks.py::_stamp_completion` | ✅ `test_burndown_counts_done_points`, `test_completed_at_follows_status` | ✅ |
 | FR-SCRUM-06 | Velocity | `sprints.py::velocity` | ✅ `test_complete_moves_unfinished_work_and_keeps_done`, `SprintPanel.test.ts` (average) | ✅ |
+| FR-SCRUM-08 | AI retrospective | `routers/ai.py::sprint_retro`, `ai_service.py::sprint_retrospective`, `SprintPanel.vue` (Retro tab) | ✅ `test_history_and_retro.py` (model, no model, 404) + `SprintPanel.test.ts` | ✅ |
+| FR-HIST-01/02 | Task history | `tasks.py::_snapshot/_record_changes`, `TaskEvent`, migration 0009, `TaskHistory.vue` | ✅ `test_history_and_retro.py` + `TaskHistory.test.ts` (lazy load, text-only, error) | ✅ |
 | FR-SCRUM-07 | Permissions | `require_project_pm`/`require_member`; `canEdit` in `SprintPanel.vue` | ✅ `test_member_cannot_run_the_lifecycle`, `test_outsider_gets_404_on_sprint_reads`, `SprintPanel.test.ts` (member, offline) | ✅ |
 
 ### 2.6 AI workflows

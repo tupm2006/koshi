@@ -107,3 +107,15 @@ class TaskOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class TaskEventOut(BaseModel):
+    id: int
+    field: str
+    old_value: Optional[str] = None
+    new_value: Optional[str] = None
+    actor: Optional[UserOut] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

@@ -1484,7 +1484,33 @@ so each change was read:
 The UX ideas in the rejected commits (create-in-column, backdrop drag-dismiss, "crit" counting
 CRITICAL tasks) are reasonable and can be redone within the invariants if wanted.
 
-## Part III — Timeline
+### DEC-031 — Task history, AI retrospective, and a public instance through Cloudflare Tunnel
+
+**Date:** 2026-10-24 · **Migration:** 0009
+
+Asked to "add whatever features make sense". Chosen for a team about to test together: when several
+people edit the same board, *who changed this?* is the first question, and Scrum (DEC-028) was
+missing its last ceremony.
+
+- **Task history** — `task_events`, one row per changed field. Values are stored as display strings,
+  not ids, so an entry still reads correctly after the sprint or person it names is renamed or
+  deleted. The diff is a before/after snapshot of the tracked fields, so a PATCH that changes nothing
+  records nothing, and assignee changes are captured as a field like any other.
+- **AI retrospective** — `/ai/sprint-retro`. The model receives the sprint's numbers (committed vs
+  done, blocked with reasons, overdue, scope added after start); without a model the same numbers
+  produce a plain data-built retro. Member-level, because it writes nothing.
+
+**Publishing.** A Cloudflare Tunnel (`cloudflared` compose profile, `scripts/publish.sh`) rather than
+port-forwarding: outbound-only, nothing opened on the router, the host IP never published, TLS
+terminated by Cloudflare. The tunnel points at the nginx container, so browser and API share one
+origin and `CORS_ORIGINS` gains exactly that origin (`PUBLIC_ORIGIN`). Authorising the tunnel
+(`cloudflared tunnel login`) was done by the domain owner in the browser — an OAuth grant is not
+something to perform on someone's behalf.
+
+**Risk accepted knowingly:** seeded accounts have a password that is in this public repository. On
+the public instance they were given a different, randomly generated password, shared with the team
+out of band. There is still no login rate limiting (RISK to record in D6).
+
 
 | Date | Event |
 |:--|:--|
@@ -1517,6 +1543,7 @@ CRITICAL tasks) are reasonable and can be redone within the invariants if wanted
 | **2026-08-29** | MySQL 8.4 adopted for production; live data migrated and verified; suite run on both engines (DEC-027). |
 | **2026-08-29** | Notification feed (DEC-026, migration 0007). Authed media fixed (F-45), nginx body limit (F-46), and SQLite foreign keys found to have never been enforced (F-47). Backend → 155, frontend → 399. |
 | **2026-10-24** | `origin/main` reviewed, partly taken (DEC-030). Groq adopted; decomposer made model-backed; F-50–F-52 (DEC-029). Scrum lifecycle, burndown, velocity (DEC-028, migration 0008). Seed + end-to-end smoke scripts; real screen-recorded landing video. Backend → 170, frontend → 410. |
+| **2026-10-24** | Task history (migration 0009) and AI sprint retrospective; Cloudflare Tunnel publishing (DEC-031). |
 
 ## Part IV — Open questions
 

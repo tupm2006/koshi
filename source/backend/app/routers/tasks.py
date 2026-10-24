@@ -7,13 +7,14 @@ from typing import List, Optional
 from datetime import datetime
 from app.database import get_db
 from app.models.entities import (
-    Sprint,
+    Sprint, TaskEvent,
     Attachment, Comment, CommentKindEnum, ProjectMember, Task, TaskAssignee,
     TaskStatusEnum, User,
 )
 from app.schemas.auth import UserOut
 from app.schemas.task import (
     AttachmentOut, TaskCreate, TaskUpdate, TaskOut, CommentCreate, CommentOut,
+    TaskEventOut,
 )
 from app.security import (
     get_current_user, get_membership, require_member, require_project_pm,
@@ -183,6 +184,7 @@ def create_task(req: TaskCreate, db: Session = Depends(get_db), current_user: Us
     db.flush()
     if req.assignee_ids:
         _set_assignees(db, task, req.assignee_ids)
+    db.add(TaskEvent(task_id=task.id, actor_id=current_user.id, field="created", new_value=task.title))
     db.commit()
     db.refresh(task)
     return _task_out(task)
@@ -233,6 +235,40 @@ def _stamp_completion(task: Task) -> None:
         task.completed_at = None
 
 
+
+# --- history (migration 0009) ----------------------------------------------
+
+_TRACKED = ("title", "status", "priority", "complexity_points", "due_date", "blocking_reason", "sprint_id", "description")
+
+
+def _display(db: Session, field: str, value) -> "str | None":
+    if value is None or value == "":
+        return None
+    if field == "sprint_id":
+        sp = db.query(Sprint).filter(Sprint.id == value).first()
+        return sp.name if sp else f"#{value}"
+    if field == "due_date":
+        return value.date().isoformat() if hasattr(value, "date") else str(value)[:10]
+    if hasattr(value, "value"):
+        return str(value.value)
+    text = str(value)
+    return text if len(text) <= 300 else text[:297] + "..."
+
+
+def _snapshot(db: Session, task: Task) -> dict:
+    snap = {f: _display(db, f, getattr(task, f)) for f in _TRACKED}
+    snap["assignees"] = ", ".join(sorted(a.user.full_name for a in task.assignees if a.user)) or None
+    return snap
+
+
+def _record_changes(db: Session, task: Task, before: dict, actor: User) -> None:
+    after = _snapshot(db, task)
+    for field, old in before.items():
+        new = after.get(field)
+        if old != new:
+            db.add(TaskEvent(task_id=task.id, actor_id=actor.id, field=field, old_value=old, new_value=new))
+
+
 def _get_task_for_member(db: Session, task_id: int, user: User) -> Task:
     """Load a task and assert the caller is a member of its project."""
     task = db.query(Task).filter(Task.id == task_id).first()
@@ -250,7 +286,8 @@ def get_task(task_id: int, db: Session = Depends(get_db), current_user: User = D
 @router.patch("/{task_id}", response_model=TaskOut)
 def update_task(task_id: int, req: TaskUpdate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     task = _get_task_for_member(db, task_id, current_user)
-    
+    before = _snapshot(db, task)
+
     update_data = req.model_dump(exclude_unset=True)
     
     if "dependencies" in update_data:
@@ -273,6 +310,9 @@ def update_task(task_id: int, req: TaskUpdate, db: Session = Depends(get_db), cu
     _stamp_completion(task)
 
     task.updated_at = utcnow()
+    db.flush()
+    db.refresh(task)
+    _record_changes(db, task, before, current_user)
     db.commit()
     db.refresh(task)
     return _task_out(task)
@@ -290,13 +330,21 @@ def cycle_task_status(task_id: int, db: Session = Depends(get_db), current_user:
         
     cycle = [TaskStatusEnum.TODO, TaskStatusEnum.IN_PROGRESS, TaskStatusEnum.BLOCKED, TaskStatusEnum.DONE]
     current_idx = cycle.index(task.status)
+    old_status = task.status.value
     task.status = cycle[(current_idx + 1) % len(cycle)]
     _stamp_completion(task)
     task.updated_at = utcnow()
+    db.add(TaskEvent(task_id=task.id, actor_id=current_user.id, field="status", old_value=old_status, new_value=task.status.value))
 
     db.commit()
     db.refresh(task)
     return _task_out(task)
+
+@router.get("/{task_id}/history", response_model=List[TaskEventOut])
+def task_history(task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    _get_task_for_member(db, task_id, current_user)
+    return db.query(TaskEvent).filter(TaskEvent.task_id == task_id).order_by(TaskEvent.id.desc()).limit(200).all()
+
 
 @router.get("/{task_id}/comments", response_model=List[CommentOut])
 def list_comments(task_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

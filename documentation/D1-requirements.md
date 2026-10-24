@@ -166,6 +166,13 @@ project it belongs to, and may be `PM` of one project while being `MEMBER` of an
 | FR-PROJ-10 | The user may edit their own display name and skills from the profile page. | Should | Implemented |
 | FR-PROJ-11 | The profile page lists every project the user belongs to with their role in each, and switching to one opens its board. | Should | Implemented |
 
+### 3.6a Functional — Task history (FR-HIST)
+
+| ID | Requirement | Priority | Status |
+|:--|:--|:--|:--|
+| FR-HIST-01 | Every change to a task's tracked fields (title, status, priority, points, due date, blocking reason, sprint, description, assignees) and its creation is recorded with who and when; a no-op edit records nothing. | Should | Implemented |
+| FR-HIST-02 | Members read a task's history in its inspector, newest first; non-members get 404. Values are shown as text, never markup. | Should | Implemented |
+
 ### 3.6b Functional — Scrum (FR-SCRUM)
 
 | ID | Requirement | Priority | Status |
@@ -176,6 +183,7 @@ project it belongs to, and may be `PM` of one project while being `MEMBER` of an
 | FR-SCRUM-04 | Planning: items move between the product backlog (no sprint) and a sprint; only sprints of the same project, never a completed one. | Must | Implemented |
 | FR-SCRUM-05 | Burndown per sprint: ideal line vs remaining points per elapsed day. | Should | Implemented |
 | FR-SCRUM-06 | Velocity: committed vs completed points for every completed sprint, and the average. | Should | Implemented |
+| FR-SCRUM-08 | AI sprint retrospective (went well / to improve / action items), grounded in the sprint's own numbers; any member may run it. | Should | Implemented |
 | FR-SCRUM-07 | Members read all of the above; every change is PM-only and refused by the server otherwise; offline in a shared project it is read-only. | Must | Implemented |
 
 ### 3.7 Functional — AI workflows (FR-AI)

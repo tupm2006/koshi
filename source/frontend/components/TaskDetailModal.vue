@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useTaskStore } from '../stores/taskStore';
 import type { Task, TaskPriority, TaskStatus, Complexity } from '../types/task';
 import CommentThread from './CommentThread.vue';
+import TaskHistory from './TaskHistory.vue';
 import AssigneeAvatars from './AssigneeAvatars.vue';
 import {
   X,
@@ -513,6 +514,9 @@ function getStatusBadge(s: TaskStatus) {
              task rather than to the board. -->
         <div class="pt-2 border-t border-slate-200 dark:border-slate-800">
           <CommentThread :task-id="task.id" />
+        </div>
+        <div class="pt-2 border-t border-slate-200 dark:border-slate-800">
+          <TaskHistory :task-id="task.id" />
         </div>
       </div>
 

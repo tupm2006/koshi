@@ -20,6 +20,8 @@ fails = 0
 def call(method, path, token=None, body=None):
     req = urllib.request.Request(BASE + path, method=method, data=json.dumps(body).encode() if body is not None else None)
     req.add_header("Content-Type", "application/json")
+    # Cloudflare blocks the default Python-urllib agent with a 403.
+    req.add_header("User-Agent", "koshi-smoke-test/1.0")
     if token:
         req.add_header("Authorization", f"Bearer {token}")
     try:
@@ -109,6 +111,16 @@ s, _ = call("POST", f"/sprints/{planned['id']}/start", binh)
 check("member cannot start sprint -> 403", s == 403, s)
 s, _ = call("POST", "/tasks", an, {"project_id": web["id"], "title": "x", "sprint_id": active["id"]})
 check("task into another project's sprint -> 400", s == 400, s)
+
+print("history & retro")
+tk = [x for x in call("GET", f"/tasks?project_id={mob['id']}", an)[1]][0]
+call("PATCH", f"/tasks/{tk['id']}", binh, {"priority": "LOW" if tk["priority"] != "LOW" else "MEDIUM"})
+s, hist = call("GET", f"/tasks/{tk['id']}/history", an)
+check("history records the edit and its author", s == 200 and hist and hist[0]["field"] == "priority" and hist[0]["actor"]["id"] != me["id"], hist[:1])
+call("PATCH", f"/tasks/{tk['id']}", binh, {"priority": tk["priority"]})
+done_sprint = [x for x in sprints if x["state"] == "COMPLETED"][0]
+s, r = call("POST", f"/ai/sprint-retro?sprint_id={done_sprint['id']}", binh)
+check("AI retrospective", s == 200 and r["went_well"] and r["action_items"], r)
 
 print("stats & notifications")
 s, w = call("GET", f"/stats/workload?project_id={mob['id']}", an)

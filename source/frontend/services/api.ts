@@ -423,6 +423,14 @@ export class ApiClient {
   // A stub used to live at this spot and shadowed the real parser, returning
   // fabricated results that did not even satisfy GitDiffAnalysisResult (F-25).
 
+  async getTaskHistory(taskId: number): Promise<TaskEvent[]> {
+    return this.request<TaskEvent[]>(`/tasks/${taskId}/history`);
+  }
+
+  async sprintRetro(sprintId: number): Promise<SprintRetro> {
+    return this.request<SprintRetro>(`/ai/sprint-retro?sprint_id=${sprintId}`, { method: 'POST' });
+  }
+
   // Scrum (DEC-028)
   async listSprints(projectId: number): Promise<Sprint[]> {
     return this.request<Sprint[]>(`/sprints?project_id=${projectId}`);
@@ -497,4 +505,21 @@ export interface VelocityEntry {
   sprint_name: string;
   committed_points: number;
   completed_points: number;
+}
+
+
+export interface TaskEvent {
+  id: number;
+  field: string;
+  old_value: string | null;
+  new_value: string | null;
+  actor: { id: number; full_name: string } | null;
+  created_at: string;
+}
+
+export interface SprintRetro {
+  sprint_id: number;
+  went_well: string[];
+  to_improve: string[];
+  action_items: string[];
 }

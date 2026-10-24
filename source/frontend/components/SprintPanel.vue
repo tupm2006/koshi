@@ -11,17 +11,17 @@
  * every lifecycle route calls require_project_pm.
  */
 import { ref, computed, onMounted, watch } from 'vue';
-import { api, type Sprint, type Burndown, type VelocityEntry } from '../services/api';
+import { api, type Sprint, type Burndown, type VelocityEntry, type SprintRetro } from '../services/api';
 import { useTaskStore } from '../stores/taskStore';
 import { useI18nStore } from '../stores/i18nStore';
-import { X, Play, CheckCircle2, Trash2, Plus, ArrowRight, ArrowLeft, Timer, AlertCircle } from 'lucide-vue-next';
+import { X, Play, CheckCircle2, Trash2, Plus, ArrowRight, ArrowLeft, Timer, AlertCircle, Sparkles } from 'lucide-vue-next';
 
 const emit = defineEmits<{ (e: 'close'): void }>();
 const taskStore = useTaskStore();
 const i18n = useI18nStore();
 const t = computed(() => i18n.t);
 
-type Tab = 'SPRINTS' | 'PLANNING' | 'BURNDOWN' | 'VELOCITY';
+type Tab = 'SPRINTS' | 'PLANNING' | 'BURNDOWN' | 'VELOCITY' | 'RETRO';
 const tab = ref<Tab>('SPRINTS');
 const sprints = ref<Sprint[]>([]);
 const serverTasks = ref<any[]>([]);
@@ -31,6 +31,18 @@ const velocity = ref<VelocityEntry[]>([]);
 const errorMsg = ref<string | null>(null);
 const busy = ref(false);
 const moveTarget = ref<number | null>(null);
+const retro = ref<SprintRetro | null>(null);
+const retroLoading = ref(false);
+
+// Any member may ask for a retrospective: it reads, it writes nothing.
+async function runRetro() {
+  if (selectedSprintId.value === null) return;
+  retro.value = null;
+  retroLoading.value = true;
+  const r = await run(() => api.sprintRetro(selectedSprintId.value!));
+  retroLoading.value = false;
+  if (r) retro.value = r;
+}
 
 const today = new Date();
 const iso = (d: Date) => d.toISOString().slice(0, 10);
@@ -173,11 +185,11 @@ onMounted(load);
       </div>
 
       <div class="flex gap-1 px-5 pt-3 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
-        <button v-for="k in (['SPRINTS','PLANNING','BURNDOWN','VELOCITY'] as Tab[])" :key="k" type="button"
+        <button v-for="k in (['SPRINTS','PLANNING','BURNDOWN','VELOCITY','RETRO'] as Tab[])" :key="k" type="button"
           class="px-3 py-2 text-xs font-mono border-b-2 -mb-px cursor-pointer whitespace-nowrap"
           :class="tab === k ? 'border-emerald-600 text-emerald-700 dark:text-emerald-300 font-semibold' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'"
           :data-tab="k" @click="tab = k">
-          {{ t(k === 'SPRINTS' ? 'scrum.tabSprints' : k === 'PLANNING' ? 'scrum.tabPlanning' : k === 'BURNDOWN' ? 'scrum.tabBurndown' : 'scrum.tabVelocity') }}
+          {{ t(k === 'SPRINTS' ? 'scrum.tabSprints' : k === 'PLANNING' ? 'scrum.tabPlanning' : k === 'BURNDOWN' ? 'scrum.tabBurndown' : k === 'VELOCITY' ? 'scrum.tabVelocity' : 'scrum.retro') }}
         </button>
       </div>
 
@@ -293,6 +305,24 @@ onMounted(load);
           <div class="flex gap-4 text-[11px] text-slate-500">
             <span class="inline-flex items-center gap-1"><span class="w-4 border-t-2 border-dashed border-slate-400"></span>{{ t('scrum.ideal') }}</span>
             <span class="inline-flex items-center gap-1"><span class="w-4 border-t-2 border-emerald-600"></span>{{ t('scrum.remaining') }}</span>
+          </div>
+        </div>
+
+        <!-- RETRO -->
+        <div v-else-if="tab === 'RETRO'" class="space-y-3">
+          <div class="flex flex-wrap gap-2 items-center">
+            <select v-model="selectedSprintId" class="h-8 px-2 rounded border border-slate-300 dark:border-slate-700 bg-transparent" :aria-label="t('scrum.selectSprint')">
+              <option v-for="s in sprints.filter(x => x.state !== 'PLANNED')" :key="s.id" :value="s.id">{{ s.name }} ({{ t(`scrum.${s.state}` as const) }})</option>
+            </select>
+            <button type="button" :disabled="retroLoading || selectedSprintId === null" class="h-8 px-3 rounded bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-mono inline-flex items-center gap-1 cursor-pointer" data-action="retro" @click="runRetro">
+              <Sparkles class="w-3.5 h-3.5" /> {{ retroLoading ? '…' : t('scrum.retroRun') }}
+            </button>
+          </div>
+          <div v-if="retro" class="grid md:grid-cols-3 gap-3" data-testid="retro">
+            <div v-for="[key, list, cls] in ([['scrum.wentWell', retro.went_well, 'border-emerald-300'], ['scrum.toImprove', retro.to_improve, 'border-amber-300'], ['scrum.actions', retro.action_items, 'border-indigo-300']] as const)" :key="key" class="rounded-lg border-l-4 border p-3 border-slate-200 dark:border-slate-800" :class="cls">
+              <h4 class="font-semibold mb-1.5">{{ t(key) }}</h4>
+              <ul class="space-y-1 list-disc pl-4"><li v-for="(x, i) in list" :key="i">{{ x }}</li></ul>
+            </div>
           </div>
         </div>
 

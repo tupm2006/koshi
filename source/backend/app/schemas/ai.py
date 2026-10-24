@@ -52,3 +52,11 @@ class AIDecomposeResponse(BaseModel):
     goal: str
     rationale: str
     subtasks: List[DecomposedSubtask]
+
+
+class SprintRetroResponse(BaseModel):
+    status: str = "success"
+    sprint_id: int
+    went_well: List[str]
+    to_improve: List[str]
+    action_items: List[str]

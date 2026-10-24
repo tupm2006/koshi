@@ -371,3 +371,17 @@ class Comment(Base):
         cascade="all, delete-orphan",
         order_by="Comment.id",
     )
+
+
+class TaskEvent(Base):
+    """One changed field on a task (migration 0009). Values are display strings."""
+    __tablename__ = "task_events"
+    id = Column(Integer, primary_key=True, index=True)
+    task_id = Column(Integer, ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True)
+    actor_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    field = Column(String(40), nullable=False)
+    old_value = Column(Text, nullable=True)
+    new_value = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utcnow)
+
+    actor = relationship("User")

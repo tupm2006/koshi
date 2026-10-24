@@ -33,6 +33,8 @@ DOMAIN = "koshi.dev"  # .test is rejected by EmailStr
 def call(method, path, token=None, body=None, ok=(200, 201, 204)):
     req = urllib.request.Request(BASE + path, method=method)
     req.add_header("Content-Type", "application/json")
+    # Cloudflare blocks the default Python-urllib agent with a 403.
+    req.add_header("User-Agent", "koshi-smoke-test/1.0")
     if token:
         req.add_header("Authorization", f"Bearer {token}")
     data = json.dumps(body).encode() if body is not None else None
