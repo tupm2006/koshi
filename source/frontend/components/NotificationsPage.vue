@@ -18,6 +18,7 @@ import type { AppNotification, NotificationKind } from '../services/api';
 import {
   ArrowLeft, Bell, AtSign, CornerDownRight, UserPlus, FolderKanban, Clock, CheckCheck,
 } from 'lucide-vue-next';
+import { tr, uiLocale } from '../lib/i18nPlugin';
 
 const taskStore = useTaskStore();
 
@@ -35,13 +36,13 @@ const unread = computed(() => taskStore.notifications.filter((n) => n.read_at ==
 function when(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.round(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return tr('time.now');
+  if (mins < 60) return tr('time.m', { n: mins });
   const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return tr('time.h', { n: hours });
   const days = Math.round(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString();
+  if (days < 7) return tr('time.d', { n: days });
+  return new Date(iso).toLocaleDateString(uiLocale());
 }
 
 /** Mention tokens are stored raw; strip them to a readable name for the feed. */
@@ -68,7 +69,7 @@ async function open(n: AppNotification) {
           @click="taskStore.showBoard()"
         >
           <ArrowLeft class="w-4 h-4" />
-          <span>Back to board</span>
+          <span>{{ $t('common.backToBoard') }}</span>
         </button>
 
         <button
@@ -79,7 +80,7 @@ async function open(n: AppNotification) {
           @click="taskStore.markAllNotificationsRead()"
         >
           <CheckCheck class="w-4 h-4" />
-          <span>Mark all as read</span>
+          <span>{{ $t('nt.markAll') }}</span>
         </button>
       </div>
     </header>
@@ -87,7 +88,7 @@ async function open(n: AppNotification) {
     <main class="flex-1 w-full max-w-3xl mx-auto px-5 py-8 space-y-4 overflow-y-auto">
       <h1 class="flex items-center gap-2 text-lg font-semibold font-sans">
         <Bell class="w-5 h-5" />
-        <span>Notifications</span>
+        <span>{{ $t('nt.title') }}</span>
         <span
           v-if="unread > 0"
           class="px-2 py-0.5 rounded-full bg-rose-600 text-white text-[11px] font-mono font-bold"
@@ -99,8 +100,7 @@ async function open(n: AppNotification) {
         id="notifications-empty"
         class="p-6 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-center text-xs text-slate-500 dark:text-slate-400"
       >
-        Nothing yet. You will hear about mentions and replies here —
-        never about your own comments.
+        {{ $t('nt.empty') }}
       </p>
 
       <ul v-else class="space-y-2">
@@ -121,7 +121,7 @@ async function open(n: AppNotification) {
             <span class="min-w-0 flex-1">
               <span class="block text-xs text-slate-900 dark:text-slate-100">
                 <strong class="font-semibold">{{ n.actor?.full_name || 'Someone' }}</strong>
-                {{ LABELS[n.kind].verb }}
+                {{ $t(`nt.${n.kind}` as const) }}
                 <strong v-if="n.task_title" class="font-semibold">{{ n.task_title }}</strong>
                 <span v-else-if="n.project_name" class="font-semibold">{{ n.project_name }}</span>
               </span>

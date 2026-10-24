@@ -6,6 +6,7 @@ import TaskContextMenu from './TaskContextMenu.vue';
 import { Flame, Plus, Check, Edit3, Trash2 } from 'lucide-vue-next';
 import AssigneeAvatars from './AssigneeAvatars.vue';
 import { urgencyOf, dueLabel } from '../lib/urgency';
+import { dueWords, uiLocale } from '../lib/i18nPlugin';
 
 /**
  * Read once per render rather than per cell. Every row calling Date.now()
@@ -175,20 +176,20 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
   <div class="relative w-full overflow-hidden flex flex-col bg-white dark:bg-slate-900">
     <!-- Desktop Table Header Bar (Fixed h-10) -->
     <div class="hidden md:grid grid-cols-[80px_120px_1fr_90px_110px_100px_70px] items-center gap-3 px-4 h-10 text-xs font-mono font-bold text-slate-700 dark:text-slate-300 border-b border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-950/40 select-none shrink-0">
-      <span>ID</span>
-      <span>Status</span>
-      <span>Title</span>
-      <span>Priority</span>
-      <span>Complexity</span>
-      <span>Due</span>
-      <span class="text-right">Actions</span>
+      <span>{{ $t('table.id') }}</span>
+      <span>{{ $t('table.status') }}</span>
+      <span>{{ $t('table.title') }}</span>
+      <span>{{ $t('table.priority') }}</span>
+      <span>{{ $t('table.complexity') }}</span>
+      <span>{{ $t('table.due') }}</span>
+      <span class="text-right">{{ $t('table.actions') }}</span>
     </div>
 
     <!-- Empty State -->
     <div v-if="taskStore.filteredTasks.length === 0" class="flex flex-col items-center justify-center py-20 px-4 text-center">
-      <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300">No tasks found</h3>
+      <h3 class="text-sm font-semibold text-slate-700 dark:text-slate-300">{{ $t('table.noTasks') }}</h3>
       <p class="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
-        Press <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 font-mono text-xs">n</kbd> or tap Create Task.
+        {{ $t('table.pressBefore') }} <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 font-mono text-xs">n</kbd> {{ $t('table.pressAfter') }}
       </p>
       <button
         type="button"
@@ -196,7 +197,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
         @click="onOpenCreate"
       >
         <Plus class="w-3.5 h-3.5" />
-        <span>Create Task</span>
+        <span>{{ $t('table.createTask') }}</span>
       </button>
     </div>
 
@@ -225,7 +226,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
           <!-- Col 1: ID & Critical Dot -->
           <div class="flex items-center gap-1.5 font-mono text-xs">
             <span class="text-slate-600 dark:text-slate-400 font-semibold">{{ task.id }}</span>
-            <span v-if="taskStore.criticalPathIds.has(task.id) && task.status !== 'DONE'" title="Critical Path" class="text-rose-600 dark:text-rose-400">
+            <span v-if="taskStore.criticalPathIds.has(task.id) && task.status !== 'DONE'" :title="$t('board.criticalPath')" class="text-rose-600 dark:text-rose-400">
               <Flame class="w-3.5 h-3.5" />
             </span>
           </div>
@@ -237,10 +238,10 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
               class="h-6 inline-flex items-center gap-1.5 px-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-800/60 text-[11px] font-mono font-semibold uppercase tracking-wider cursor-pointer"
               :class="getStatusTextColor(task.status)"
               @click.stop="taskStore.cycleStatus(task.id)"
-              title="Click or Space to cycle"
+              :title="$t('table.cycleHint')"
             >
               <span class="w-2 h-2 rounded-full shrink-0" :class="getStatusDot(task.status)"></span>
-              <span class="truncate">{{ task.status }}</span>
+              <span class="truncate">{{ $t(`status.${task.status}` as const) }}</span>
             </button>
           </div>
 
@@ -261,7 +262,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
               type="button"
               class="text-left w-full truncate text-sm font-medium text-slate-950 dark:text-slate-100 hover:text-indigo-600 dark:hover:text-white cursor-pointer bg-transparent border-0 p-0 font-sans block leading-none"
               @dblclick.stop="startInlineEdit(task)"
-              title="Double click or 'i' to edit title"
+              :title="$t('table.renameHint')"
             >
               <span
                 class="truncate block text-sm font-sans"
@@ -288,16 +289,16 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
               class="h-6 px-2 inline-flex items-center justify-center rounded-md border text-[11px] font-mono font-semibold uppercase tracking-wider cursor-pointer shadow-2xs"
               :class="getPriorityBadge(task.priority)"
               @click="(e) => cyclePriority(e, task.id, task.priority)"
-              title="Click or 1-4 to change"
+              :title="$t('table.priorityHint')"
             >
-              {{ task.priority }}
+              {{ $t(`priority.${task.priority}` as const) }}
             </button>
           </div>
 
           <!-- Col 5: Complexity / Dep -->
           <div class="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400 font-mono truncate">
             <span v-if="task.complexity" class="text-slate-800 dark:text-slate-300 font-semibold">[{{ task.complexity }}]</span>
-            <span v-if="task.dependencies && task.dependencies.length > 0" class="text-slate-600 dark:text-slate-400 truncate" :title="`Deps: ${task.dependencies.join(', ')}`">
+            <span v-if="task.dependencies && task.dependencies.length > 0" class="text-slate-600 dark:text-slate-400 truncate" :title="$t('table.deps', { list: task.dependencies.join(', ') })">
               ← {{ task.dependencies.join(', ') }}
             </span>
           </div>
@@ -314,8 +315,8 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
                 'bg-yellow-50 text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-400': urgencyOf(task, now) === 'SOON',
                 'text-slate-600 dark:text-slate-400': ['LATER', 'NONE'].includes(urgencyOf(task, now)),
               }"
-              :title="new Date(task.dueDate).toLocaleString()"
-            >{{ dueLabel(task, now) }}</span>
+              :title="new Date(task.dueDate).toLocaleString(uiLocale())"
+            >{{ dueLabel(task, now, dueWords()) }}</span>
             <span v-else class="text-slate-400 dark:text-slate-600">-</span>
           </div>
 
@@ -332,7 +333,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
                 type="button"
                 class="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer"
                 @click.stop="startInlineEdit(task)"
-                title="Rename (i)"
+                :title="$t('table.rename')"
               >
                 <Edit3 class="w-3.5 h-3.5" />
               </button>
@@ -340,7 +341,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
                 type="button"
                 class="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md text-slate-500 hover:text-rose-600 cursor-pointer"
                 @click.stop="taskStore.deleteTask(task.id)"
-                title="Delete (d)"
+                :title="$t('table.delete')"
               >
                 <Trash2 class="w-3.5 h-3.5" />
               </button>
@@ -358,7 +359,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
             @click.stop="taskStore.cycleStatus(task.id)"
           >
             <span class="w-1.5 h-1.5 rounded-full shrink-0" :class="getStatusDot(task.status)"></span>
-            <span>{{ task.status === 'IN_PROGRESS' ? 'IN PROG' : task.status }}</span>
+            <span>{{ $t(`status.${task.status}` as const) }}</span>
           </button>
 
           <!-- Center: Title -->
@@ -393,7 +394,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
 
           <!-- Right: Priority & Critical Indicator -->
           <div class="flex items-center gap-1.5 shrink-0">
-            <span v-if="taskStore.criticalPathIds.has(task.id) && task.status !== 'DONE'" title="Critical Path" class="text-rose-600 dark:text-rose-400">
+            <span v-if="taskStore.criticalPathIds.has(task.id) && task.status !== 'DONE'" :title="$t('board.criticalPath')" class="text-rose-600 dark:text-rose-400">
               <Flame class="w-3.5 h-3.5" />
             </span>
             <button
@@ -402,7 +403,7 @@ function cyclePriority(e: MouseEvent, taskId: string, current: TaskPriority) {
               :class="getPriorityBadge(task.priority)"
               @click="(e) => cyclePriority(e, task.id, task.priority)"
             >
-              {{ task.priority.slice(0, 4) }}
+              {{ $t(`priorityShort.${task.priority}` as const) }}
             </button>
           </div>
         </div>

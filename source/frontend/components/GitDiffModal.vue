@@ -5,6 +5,7 @@ import { parseGitDiff } from '../lib/gitParser';
 import { api } from '../services/api';
 import type { GitDiffAnalysisResult } from '../types/task';
 import { GitPullRequest, X, Sparkles, RefreshCw, AlertCircle, CheckCircle2 } from 'lucide-vue-next';
+import { tr } from '../lib/i18nPlugin';
 
 const emit = defineEmits<{
   (e: 'close'): void;
@@ -31,7 +32,7 @@ async function handleAnalyze() {
     const res = parseGitDiff(diffText.value, taskStore.tasks);
     result.value = res;
   } catch (e: any) {
-    errorMsg.value = e.message || 'Failed to analyze diff';
+    errorMsg.value = e.message || tr('gd.fail');
   } finally {
     isLoading.value = false;
   }
@@ -45,8 +46,8 @@ function handleApplyStatuses() {
   // "Applied to Tasks!" and closed.
   if (!taskStore.canMutate) {
     errorMsg.value = taskStore.readOnlyReason === 'OFFLINE_SHARED'
-      ? 'This project is read-only while you are offline — it has other members. Reconnect to apply these transitions.'
-      : 'No project selected — open or create one before applying transitions.';
+      ? tr('gd.readOnly')
+      : tr('gd.noProject');
     return;
   }
   if (result.value.resolvedTaskIds) {
@@ -77,8 +78,8 @@ function handleApplyStatuses() {
             <GitPullRequest class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">Git Diff Analysis & Auto-Resolution</h2>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">Map code changes directly to board task states</p>
+            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">{{ $t('gd.title') }}</h2>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">{{ $t('gd.subtitle') }}</p>
           </div>
         </div>
         <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="emit('close')">
@@ -89,12 +90,12 @@ function handleApplyStatuses() {
       <!-- Body -->
       <div class="flex-1 overflow-y-auto py-4 space-y-3 text-xs">
         <div>
-          <label for="vue-git-diff-textarea" class="block font-mono text-slate-700 dark:text-slate-300 mb-1.5 font-semibold">Unified Git Patch / Diff *</label>
+          <label for="vue-git-diff-textarea" class="block font-mono text-slate-700 dark:text-slate-300 mb-1.5 font-semibold">{{ $t('gd.label') }}</label>
           <textarea
             id="vue-git-diff-textarea"
             v-model="diffText"
             rows="5"
-            placeholder="Paste output from `git diff`..."
+            :placeholder="$t('gd.ph')"
             class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-xs font-mono text-slate-900 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-purple-500"
           ></textarea>
         </div>
@@ -107,7 +108,7 @@ function handleApplyStatuses() {
         >
           <RefreshCw v-if="isLoading" class="w-4 h-4 animate-spin" />
           <Sparkles v-else class="w-4 h-4" />
-          <span>{{ isLoading ? 'Analyzing Code Semantics...' : 'Analyze Git Diff' }}</span>
+          <span>{{ isLoading ? $t('gd.analyzing') : $t('gd.analyze') }}</span>
         </button>
 
         <div v-if="errorMsg" class="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 flex items-center gap-2 font-mono">
@@ -122,7 +123,7 @@ function handleApplyStatuses() {
           </div>
 
           <div v-if="result.resolvedTaskIds && result.resolvedTaskIds.length > 0" class="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800/40">
-            <span class="font-mono text-emerald-700 dark:text-emerald-400 font-bold text-[11px]">Tasks to Mark DONE:</span>
+            <span class="font-mono text-emerald-700 dark:text-emerald-400 font-bold text-[11px]">{{ $t('gd.toDone') }}</span>
             <div class="flex flex-wrap gap-1.5 mt-1.5">
               <span v-for="id in result.resolvedTaskIds" :key="id" class="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800 font-mono text-[11px] font-medium">
                 {{ id }}
@@ -139,7 +140,7 @@ function handleApplyStatuses() {
           class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-mono text-xs cursor-pointer"
           @click="emit('close')"
         >
-          Dismiss
+          {{ $t('common.dismiss') }}
         </button>
         <button
           type="button"
@@ -148,7 +149,7 @@ function handleApplyStatuses() {
           @click="handleApplyStatuses"
         >
           <CheckCircle2 class="w-4 h-4" />
-          <span>{{ isApplied ? 'Applied to Tasks!' : 'Apply Status Transitions' }}</span>
+          <span>{{ isApplied ? $t('gd.applied') : $t('gd.apply') }}</span>
         </button>
       </div>
     </div>

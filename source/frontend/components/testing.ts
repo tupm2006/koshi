@@ -6,6 +6,7 @@
 import { mount } from '@vue/test-utils';
 import { setActivePinia, createPinia } from 'pinia';
 import type { Component } from 'vue';
+import { i18nPlugin } from '../lib/i18nPlugin';
 
 /**
  * Stub every lucide icon with an inert <svg>.
@@ -51,6 +52,7 @@ export function mountWithPinia(
     ...mountOptions,
     global: {
       ...(mountOptions.global ?? {}),
+      plugins: [i18nPlugin, ...(mountOptions.global?.plugins ?? [])],
       stubs: { ...stubIcons(ICON_NAMES), ...(mountOptions.global?.stubs ?? {}) },
     },
   });

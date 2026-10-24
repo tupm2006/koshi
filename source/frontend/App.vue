@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useTaskStore } from './stores/taskStore';
 import { useThemeStore } from './stores/themeStore';
 import { useI18nStore } from './stores/i18nStore';
+import { tr } from './lib/i18nPlugin';
 import { createKeyboardHandler } from './lib/keyboard';
 import TaskTable from './components/TaskTable.vue';
 import KanbanBoard from './components/KanbanBoard.vue';
@@ -166,13 +167,13 @@ function handleImportJSON() {
   if (!importJsonBuffer.value.trim()) return;
   const res = taskStore.importJSON(importJsonBuffer.value);
   if (res.success) {
-    importStatusMsg.value = `Successfully imported ${res.count} tasks.`;
+    importStatusMsg.value = tr('app.importOk', { n: res.count ?? 0 });
     setTimeout(() => {
       isExportImportOpen.value = false;
       importStatusMsg.value = null;
     }, 1200);
   } else {
-    importStatusMsg.value = `Import failed: ${res.error}`;
+    importStatusMsg.value = tr('app.importFail', { err: String(res.error) });
   }
 }
 
@@ -211,11 +212,11 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             type="button"
             class="h-8 flex items-center gap-1.5 px-3 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-xs font-mono text-slate-800 dark:text-slate-200 cursor-pointer shadow-2xs"
             @click="taskStore.toggleViewMode()"
-            title="Toggle Table / Kanban View"
+            :title="$t('app.toggleView')"
           >
             <LayoutGrid v-if="taskStore.viewMode === 'TABLE'" class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
             <List v-else class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-            <span>{{ taskStore.viewMode === 'TABLE' ? 'Kanban' : 'Table' }}</span>
+            <span>{{ taskStore.viewMode === 'TABLE' ? $t('app.viewKanban') : $t('app.viewTable') }}</span>
           </button>
 
           <!-- Project switcher / dashboard -->
@@ -223,7 +224,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             v-if="taskStore.currentUser"
             type="button"
             class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md border text-xs font-mono cursor-pointer shadow-2xs bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 max-w-[220px]"
-            title="My dashboard: projects and per-project roles"
+            :title="$t('app.dashboardHint')"
             @click="taskStore.isDashboardOpen = true"
           >
             <FolderKanban class="w-3.5 h-3.5 shrink-0" />
@@ -237,7 +238,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             type="button"
             id="notifications-bell"
             class="relative h-8 w-8 inline-flex items-center justify-center rounded-md border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 cursor-pointer shadow-2xs"
-            :title="taskStore.unreadCount > 0 ? `${taskStore.unreadCount} unread` : 'Notifications'"
+            :title="taskStore.unreadCount > 0 ? $t('app.unread', { n: taskStore.unreadCount }) : $t('app.notifications')"
             @click="taskStore.showNotifications()"
           >
             <Bell class="w-4 h-4" />
@@ -253,11 +254,11 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             type="button"
             class="h-8 hidden sm:inline-flex items-center gap-1.5 px-3 rounded-md border text-xs font-mono cursor-pointer shadow-2xs"
             :class="taskStore.currentUser ? 'bg-indigo-50 dark:bg-indigo-950/40 border-indigo-300 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-semibold' : 'bg-slate-100 dark:bg-slate-800 border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'"
-            :title="taskStore.currentUser ? 'Your profile' : 'Sign in'"
+            :title="taskStore.currentUser ? $t('app.yourProfile') : $t('app.signIn')"
             @click="taskStore.currentUser ? taskStore.showProfile() : taskStore.logout()"
           >
             <Shield class="w-3.5 h-3.5" />
-            <span>{{ taskStore.currentUser ? `${taskStore.myRole ?? '—'}: ${taskStore.currentUser.full_name}` : 'Guest — sign in' }}</span>
+            <span>{{ taskStore.currentUser ? `${taskStore.myRole ?? '—'}: ${taskStore.currentUser.full_name}` : $t('app.guest') }}</span>
           </button>
         </div>
 
@@ -269,10 +270,10 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
               type="button"
               class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-mono cursor-pointer shadow-2xs font-semibold"
               @click.stop="isAIMenuOpen = !isAIMenuOpen"
-              title="AI Workflows & Tools"
+              :title="$t('app.aiToolsHint')"
             >
               <Sparkles class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span>AI Tools</span>
+              <span>{{ $t('app.aiTools') }}</span>
               <ChevronDown class="w-3 h-3-transform" :class="isAIMenuOpen ? 'rotate-180' : ''" />
             </button>
 
@@ -288,8 +289,8 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
               >
                 <Sparkles class="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
                 <div class="flex flex-col">
-                  <span class="font-semibold">Weekly Summary</span>
-                  <span class="text-[11px] text-slate-500 dark:text-slate-400">Progress, blockers & priorities</span>
+                  <span class="font-semibold">{{ $t('app.weekly') }}</span>
+                  <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ $t('app.weeklyHint') }}</span>
                 </div>
               </button>
 
@@ -300,8 +301,8 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
               >
                 <FileText class="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
                 <div class="flex flex-col">
-                  <span class="font-semibold">Meeting Minutes</span>
-                  <span class="text-[11px] text-slate-500 dark:text-slate-400">Action items & decisions</span>
+                  <span class="font-semibold">{{ $t('app.minutes') }}</span>
+                  <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ $t('app.minutesHint') }}</span>
                 </div>
               </button>
 
@@ -312,8 +313,8 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
               >
                 <Users class="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                 <div class="flex flex-col">
-                  <span class="font-semibold">Smart Assignment</span>
-                  <span class="text-[11px] text-slate-500 dark:text-slate-400">Capacity & skill matching</span>
+                  <span class="font-semibold">{{ $t('app.assign') }}</span>
+                  <span class="text-[11px] text-slate-500 dark:text-slate-400">{{ $t('app.assignHint') }}</span>
                 </div>
               </button>
 
@@ -326,7 +327,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
               >
                 <div class="flex items-center gap-2">
                   <Sparkles class="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-                  <span>Goal Decomposer</span>
+                  <span>{{ $t('app.decomposer') }}</span>
                 </div>
                 <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[11px] text-slate-500">a</kbd>
               </button>
@@ -351,7 +352,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             type="button"
             class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer shadow-2xs"
             @click="isDAGOpen = true"
-            title="DAG Critical Path (v)"
+            :title="$t('app.dagHint')"
           >
             <GitFork class="w-3.5 h-3.5" />
             <span class="hidden sm:inline">DAG</span>
@@ -362,7 +363,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             type="button"
             class="h-8 inline-flex items-center justify-center px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer shadow-2xs"
             @click="isExportImportOpen = true"
-            title="JSON Backup & Restore"
+            :title="$t('app.backup')"
           >
             <Download class="w-3.5 h-3.5" />
           </button>
@@ -372,7 +373,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             type="button"
             class="h-8 inline-flex items-center justify-center px-2.5 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-300 text-xs font-mono cursor-pointer shadow-2xs"
             @click="themeStore.toggleTheme()"
-            :title="`Toggle Theme (t) - Current: ${themeStore.resolvedTheme}`"
+            :title="$t('app.theme', { mode: $t(themeStore.resolvedTheme === 'dark' ? 'theme.dark' : 'theme.light') })"
           >
             <Sun v-if="themeStore.isDark" class="w-4 h-4 text-amber-400" />
             <Moon v-else class="w-4 h-4 text-slate-800" />
@@ -383,10 +384,10 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             type="button"
             class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-slate-900 hover:bg-slate-800 text-slate-50 dark:bg-slate-100 dark:hover:bg-white dark:text-slate-950 text-xs font-mono font-medium cursor-pointer shadow-xs"
             @click="isCreateModalOpen = true"
-            title="Create Task (n)"
+            :title="$t('app.createTask')"
           >
             <Plus class="w-3.5 h-3.5" />
-            <span>New <kbd class="hidden sm:inline opacity-70 text-[11px]">n</kbd></span>
+            <span>{{ $t('app.new') }} <kbd class="hidden sm:inline opacity-70 text-[11px]">n</kbd></span>
           </button>
         </div>
       </div>
@@ -402,7 +403,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             ref="searchInputEl"
             v-model="taskStore.filter.searchQuery"
             type="text"
-            placeholder="Filter tasks... (Press /)"
+            :placeholder="$t('app.filter')"
             class="h-7 w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-md pl-9 pr-7 text-xs md:text-sm text-slate-900 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 dark:focus:border-slate-600 font-sans shadow-2xs"
           />
           <button
@@ -435,7 +436,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
               : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'"
             @click="taskStore.setScope(s)"
           >
-            {{ s === 'ALL' ? 'All tasks' : 'My tasks' }}
+            {{ s === 'ALL' ? $t('app.allTasks') : $t('app.myTasks') }}
           </button>
 
           <!-- Anyone else. Not a PM-only control: knowing what a teammate is
@@ -453,7 +454,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
               taskStore.setScope(v === '' ? 'ALL' : Number(v));
             }"
           >
-            <option value="">Someone else…</option>
+            <option value="">{{ $t('app.someoneElse') }}</option>
             <option
               v-for="m in taskStore.members.filter((m) => m.user_id !== taskStore.currentUser?.id)"
               :key="m.user_id"
@@ -475,7 +476,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
               taskStore.setFilterStatus(st);
             }"
           >
-            {{ st }}
+            {{ st === 'ALL' ? $t('app.statusAll') : $t(`status.${st}` as const) }}
           </button>
 
           <button
@@ -483,10 +484,10 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             class="h-6 ml-1 inline-flex items-center gap-1 px-2.5 rounded-md cursor-pointer shrink-0 text-[11px]"
             :class="taskStore.filter.onlyCriticalPath ? 'bg-rose-100 text-rose-800 border border-rose-300 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/50 font-semibold shadow-2xs' : 'text-slate-700 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'"
             @click="taskStore.toggleCriticalPathOnly()"
-            title="Toggle Critical Path Only"
+            :title="$t('app.critHint')"
           >
             <Flame class="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-            <span>Crit ({{ taskStore.criticalPathIds.size }})</span>
+            <span>{{ $t('app.crit', { n: taskStore.criticalPathIds.size }) }}</span>
           </button>
         </div>
       </div>
@@ -500,10 +501,9 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
           <div class="mx-auto w-11 h-11 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
             <FolderKanban class="w-5 h-5" />
           </div>
-          <h2 class="mt-3 text-sm font-semibold font-sans">No projects yet</h2>
+          <h2 class="mt-3 text-sm font-semibold font-sans">{{ $t('app.noProjects') }}</h2>
           <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-            Create your first project and you will be its Project Manager — or ask a
-            PM to add you to theirs. Roles are set per project.
+            {{ $t('app.noProjectsBody') }}
           </p>
           <button
             type="button"
@@ -511,7 +511,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
             @click="taskStore.isDashboardOpen = true"
           >
             <FolderKanban class="w-3.5 h-3.5" />
-            <span>Open dashboard</span>
+            <span>{{ $t('app.openDashboard') }}</span>
           </button>
         </div>
       </div>
@@ -539,16 +539,16 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
     <footer class="h-9 border-t border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs shrink-0 px-4 md:px-6 flex items-center justify-between select-none z-20">
       <div class="w-full max-w-[1720px] mx-auto flex items-center justify-between gap-3">
         <div class="hidden md:flex items-center gap-2.5 font-mono text-[11px] text-slate-600 dark:text-slate-400">
-          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">b</kbd> View</span>
-          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">h/j/k/l</kbd> Nav</span>
-          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">H/L</kbd> Shift</span>
-          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">Space</kbd> Status</span>
-          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">n</kbd> New</span>
-          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">i</kbd> Edit</span>
-          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">Enter</kbd> Detail</span>
-          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">d</kbd> Del</span>
-          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">1-4</kbd> Priority</span>
-          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">t</kbd> Theme</span>
+          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">b</kbd> {{ $t('footer.view') }}</span>
+          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">h/j/k/l</kbd> {{ $t('footer.nav') }}</span>
+          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">H/L</kbd> {{ $t('footer.shift') }}</span>
+          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">Space</kbd> {{ $t('footer.status') }}</span>
+          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">n</kbd> {{ $t('footer.new') }}</span>
+          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">i</kbd> {{ $t('footer.edit') }}</span>
+          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">Enter</kbd> {{ $t('footer.detail') }}</span>
+          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">d</kbd> {{ $t('footer.del') }}</span>
+          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">1-4</kbd> {{ $t('footer.priority') }}</span>
+          <span><kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200">t</kbd> {{ $t('footer.theme') }}</span>
         </div>
 
         <div class="flex items-center gap-2.5 font-mono text-xs ml-auto">
@@ -612,27 +612,27 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
     >
       <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-lg p-4 shadow-2xl border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-slate-100 flex flex-col">
         <div class="flex items-center justify-between pb-2 border-b border-slate-300 dark:border-slate-800">
-          <h2 class="text-xs font-mono font-semibold">JSON Backup & Restore</h2>
+          <h2 class="text-xs font-mono font-semibold">{{ $t('app.backup') }}</h2>
           <button type="button" class="p-1 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer" @click="isExportImportOpen = false">
             <X class="w-3.5 h-3.5" />
           </button>
         </div>
         <div class="py-3 space-y-3 text-xs">
           <div class="flex items-center justify-between p-2 rounded-md bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800">
-            <span class="font-mono text-slate-600 dark:text-slate-400">Export state file</span>
+            <span class="font-mono text-slate-600 dark:text-slate-400">{{ $t('app.exportState') }}</span>
             <button
               type="button"
               class="h-8 px-3 rounded-md bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-mono text-xs cursor-pointer"
               @click="handleDownloadExport"
             >
-              Download
+              {{ $t('app.download') }}
             </button>
           </div>
           <div>
             <textarea
               v-model="importJsonBuffer"
               rows="4"
-              placeholder="Paste JSON..."
+              :placeholder="$t('app.pasteJson')"
               class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-md p-2 text-xs font-mono text-slate-900 dark:text-slate-200 focus:outline-none focus:border-indigo-500 dark:focus:border-slate-600"
             ></textarea>
             <div v-if="importStatusMsg" class="text-[11px] font-mono text-slate-600 dark:text-slate-400 mt-1">{{ importStatusMsg }}</div>
@@ -641,7 +641,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
               class="w-full mt-2 h-8 rounded-md bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-mono text-xs cursor-pointer flex items-center justify-center"
               @click="handleImportJSON"
             >
-              Import JSON
+              {{ $t('app.importJson') }}
             </button>
           </div>
         </div>

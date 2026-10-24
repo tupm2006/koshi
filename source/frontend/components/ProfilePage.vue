@@ -10,6 +10,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useTaskStore } from '../stores/taskStore';
 import AuthedAvatar from './AuthedAvatar.vue';
+import { tr, uiLocale } from '../lib/i18nPlugin';
 import {
   ArrowLeft, Mail, Wrench, Shield, User as UserIcon, LogOut, Save,
   AlertCircle, Check, CalendarDays, FolderKanban, Loader2, Camera,
@@ -66,7 +67,7 @@ async function uploadAvatarFile(file: File) {
   avatarError.value = null;
 
   if (file.size > AVATAR_MAX_BYTES) {
-    avatarError.value = 'That image is over 2 MB. Please pick a smaller one.';
+    avatarError.value = tr('pf.tooBig');
     return;
   }
 
@@ -74,7 +75,7 @@ async function uploadAvatarFile(file: File) {
   try {
     await taskStore.uploadAvatar(file);
   } catch (err: any) {
-    avatarError.value = err?.message || 'Could not upload that picture.';
+    avatarError.value = err?.message || tr('pf.uploadFail');
   } finally {
     isUploadingAvatar.value = false;
   }
@@ -86,7 +87,7 @@ async function removeAvatar() {
   try {
     await taskStore.removeAvatar();
   } catch (err: any) {
-    avatarError.value = err?.message || 'Could not remove the picture.';
+    avatarError.value = err?.message || tr('pf.removeFail');
   } finally {
     isUploadingAvatar.value = false;
   }
@@ -105,7 +106,7 @@ const memberSince = computed(() => {
   const d = new Date(raw);
   return Number.isNaN(d.getTime())
     ? null
-    : d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    : d.toLocaleDateString(uiLocale(), { year: 'numeric', month: 'long', day: 'numeric' });
 });
 
 const pmCount = computed(() => taskStore.projects.filter((p) => p.my_role === 'PM').length);
@@ -129,10 +130,10 @@ async function handleSave() {
       full_name: fullName.value.trim(),
       skills: skills.value.trim(),
     });
-    noticeMsg.value = 'Profile saved.';
+    noticeMsg.value = tr('pf.saved');
     setTimeout(() => { noticeMsg.value = null; }, 2500);
   } catch (e: any) {
-    errorMsg.value = e.message || 'Could not save your profile';
+    errorMsg.value = e.message || tr('pf.saveFail');
   } finally {
     isSaving.value = false;
   }
@@ -166,7 +167,7 @@ onMounted(() => {
         @click="taskStore.showBoard()"
       >
         <ArrowLeft class="w-3.5 h-3.5" />
-        <span>Back to board</span>
+        <span>{{ $t('common.backToBoard') }}</span>
       </button>
       <h1 class="text-sm font-bold tracking-wider font-mono">KOSHI</h1>
     </header>
@@ -193,11 +194,11 @@ onMounted(() => {
               id="avatar-upload"
               class="absolute inset-0 rounded-full flex items-center justify-center bg-slate-900/60 text-white opacity-0 group-hover:opacity-100 focus-within:opacity-100 cursor-pointer transition-opacity"
               :class="isUploadingAvatar && 'opacity-100'"
-              title="Change your picture — or paste an image anywhere on this page"
+              :title="$t('pf.changePicHint')"
             >
               <Loader2 v-if="isUploadingAvatar" class="w-5 h-5 animate-spin" />
               <Camera v-else class="w-5 h-5" />
-              <span class="sr-only">Change profile picture</span>
+              <span class="sr-only">{{ $t('pf.changePic') }}</span>
               <input
                 type="file"
                 accept="image/png,image/jpeg,image/gif,image/webp"
@@ -219,29 +220,29 @@ onMounted(() => {
               type="button"
               class="text-[11px] font-mono text-slate-500 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 underline cursor-pointer"
               @click="removeAvatar"
-            >Remove picture</button>
+            >{{ $t('pf.removePic') }}</button>
             <p class="flex items-center gap-1.5 text-xs font-mono text-slate-500 dark:text-slate-400 truncate">
               <Mail class="w-3.5 h-3.5 shrink-0" />
               {{ user?.email }}
             </p>
             <p v-if="memberSince" class="mt-0.5 flex items-center gap-1.5 text-[11px] font-mono text-slate-400 dark:text-slate-500">
               <CalendarDays class="w-3 h-3 shrink-0" />
-              Member since {{ memberSince }}
+              {{ $t('pf.memberSince', { date: memberSince }) }}
             </p>
           </div>
         </div>
 
         <dl class="mt-5 grid grid-cols-3 gap-3 text-center">
           <div class="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-3">
-            <dt class="text-[10px] font-mono uppercase tracking-wide text-slate-500 dark:text-slate-400">Projects</dt>
+            <dt class="text-[10px] font-mono uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('pf.projects') }}</dt>
             <dd class="text-lg font-semibold font-sans">{{ taskStore.projects.length }}</dd>
           </div>
           <div class="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-3">
-            <dt class="text-[10px] font-mono uppercase tracking-wide text-slate-500 dark:text-slate-400">Managing</dt>
+            <dt class="text-[10px] font-mono uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('pf.managing') }}</dt>
             <dd class="text-lg font-semibold font-sans">{{ pmCount }}</dd>
           </div>
           <div class="rounded-lg bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 py-3">
-            <dt class="text-[10px] font-mono uppercase tracking-wide text-slate-500 dark:text-slate-400">Open tasks</dt>
+            <dt class="text-[10px] font-mono uppercase tracking-wide text-slate-500 dark:text-slate-400">{{ $t('pf.openTasks') }}</dt>
             <dd class="text-lg font-semibold font-sans">{{ taskStore.metrics.total - taskStore.metrics.done }}</dd>
           </div>
         </dl>
@@ -250,12 +251,12 @@ onMounted(() => {
       <!-- Editable details -->
       <section class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl p-6">
         <h3 class="text-[11px] font-mono font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Account details
+          {{ $t('pf.account') }}
         </h3>
 
         <form class="mt-4 space-y-4 text-xs" @submit.prevent="handleSave">
           <div>
-            <label for="profile-name" class="block font-mono text-slate-700 dark:text-slate-300 mb-1 font-medium">Full name</label>
+            <label for="profile-name" class="block font-mono text-slate-700 dark:text-slate-300 mb-1 font-medium">{{ $t('pf.fullName') }}</label>
             <input
               id="profile-name"
               v-model="fullName"
@@ -267,22 +268,22 @@ onMounted(() => {
 
           <div>
             <label for="profile-skills" class="block font-mono text-slate-700 dark:text-slate-300 mb-1 font-medium">
-              <span class="inline-flex items-center gap-1.5"><Wrench class="w-3.5 h-3.5" /> Skills</span>
+              <span class="inline-flex items-center gap-1.5"><Wrench class="w-3.5 h-3.5" /> {{ $t('pf.skills') }}</span>
             </label>
             <input
               id="profile-skills"
               v-model="skills"
               type="text"
-              placeholder="e.g. python,vue,postgres"
+              :placeholder="$t('pf.skillsPh')"
               class="w-full max-w-sm bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 font-sans"
             />
             <p class="mt-1.5 text-[10px] font-mono text-slate-500 dark:text-slate-400">
-              Comma-separated. Used by the assignment recommender to match you to work.
+              {{ $t('pf.skillsHint') }}
             </p>
           </div>
 
           <div>
-            <label class="block font-mono text-slate-700 dark:text-slate-300 mb-1 font-medium">Email address</label>
+            <label class="block font-mono text-slate-700 dark:text-slate-300 mb-1 font-medium">{{ $t('pf.email') }}</label>
             <input
               :value="user?.email"
               type="email"
@@ -290,7 +291,7 @@ onMounted(() => {
               class="w-full max-w-sm bg-slate-100 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-500 dark:text-slate-500 font-mono cursor-not-allowed"
             />
             <p class="mt-1.5 text-[10px] font-mono text-slate-500 dark:text-slate-400">
-              Your email identifies the account and cannot be changed here.
+              {{ $t('pf.emailHint') }}
             </p>
           </div>
 
@@ -311,14 +312,14 @@ onMounted(() => {
             >
               <Loader2 v-if="isSaving" class="w-3.5 h-3.5 animate-spin" />
               <Save v-else class="w-3.5 h-3.5" />
-              <span>Save changes</span>
+              <span>{{ $t('pf.save') }}</span>
             </button>
             <button
               v-if="isDirty"
               type="button"
               class="px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-mono text-xs cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
               @click="resetForm"
-            >Discard</button>
+            >{{ $t('pf.discard') }}</button>
           </div>
         </form>
       </section>
@@ -326,14 +327,14 @@ onMounted(() => {
       <!-- Memberships -->
       <section class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl p-6">
         <h3 class="text-[11px] font-mono font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Project memberships
+          {{ $t('pf.memberships') }}
         </h3>
         <p class="mt-1 text-[11px] font-mono text-slate-500 dark:text-slate-400">
-          Your role is set per project, so it can differ in each.
+          {{ $t('pf.roleHint') }}
         </p>
 
         <p v-if="taskStore.projects.length === 0" class="mt-4 text-xs text-slate-500 dark:text-slate-400">
-          You are not a member of any project yet.
+          {{ $t('pf.noProjects') }}
         </p>
 
         <ul v-else class="mt-4 space-y-1.5">
@@ -346,7 +347,7 @@ onMounted(() => {
               <span class="min-w-0">
                 <span class="block text-xs font-medium font-sans truncate">{{ p.name }}</span>
                 <span class="block text-[10px] font-mono text-slate-500 dark:text-slate-400">
-                  {{ p.member_count }} member{{ p.member_count === 1 ? '' : 's' }}
+                  {{ p.member_count === 1 ? $t('pf.members1') : $t('pf.membersN', { n: p.member_count }) }}
                 </span>
               </span>
               <span
@@ -357,7 +358,7 @@ onMounted(() => {
               >
                 <Shield v-if="p.my_role === 'PM'" class="w-3 h-3" />
                 <UserIcon v-else class="w-3 h-3" />
-                {{ p.my_role }}
+                {{ p.my_role ? $t(`role.${p.my_role}` as const) : "—" }}
               </span>
             </button>
           </li>
@@ -369,18 +370,17 @@ onMounted(() => {
           @click="taskStore.isDashboardOpen = true"
         >
           <FolderKanban class="w-3.5 h-3.5" />
-          <span>Manage projects &amp; teams</span>
+          <span>{{ $t('pf.manage') }}</span>
         </button>
       </section>
 
       <!-- Session -->
       <section class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl p-6">
         <h3 class="text-[11px] font-mono font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-          Session
+          {{ $t('pf.session') }}
         </h3>
         <p class="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
-          Signing out clears your session on this device and returns you to the
-          welcome page.
+          {{ $t('pf.signOutHint') }}
         </p>
         <button
           type="button"
@@ -388,7 +388,7 @@ onMounted(() => {
           @click="handleSignOut"
         >
           <LogOut class="w-3.5 h-3.5" />
-          <span>Sign out</span>
+          <span>{{ $t('pf.signOut') }}</span>
         </button>
       </section>
     </main>

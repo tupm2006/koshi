@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useTaskStore } from '../stores/taskStore';
 import { api } from '../services/api';
 import type { DecomposedTaskResult, TaskPriority } from '../types/task';
 import { Sparkles, X, Plus, Check, RefreshCw, AlertCircle, ArrowRight } from 'lucide-vue-next';
+import { tr } from '../lib/i18nPlugin';
 
 const emit = defineEmits<{
   (e: 'close'): void;
@@ -17,12 +18,7 @@ const result = ref<DecomposedTaskResult | null>(null);
 const errorMsg = ref<string | null>(null);
 const isInserted = ref(false);
 
-const SUGGESTIONS = [
-  'Build OAuth2 Google & GitHub authentication flow',
-  'Implement real-time WebSocket presence and collaboration',
-  'Deploy production Kubernetes cluster with Helm charts',
-  'Port legacy state to Vue 3 Composition API and Pinia store',
-];
+const SUGGESTIONS = computed(() => [tr('dc.s1'), tr('dc.s2'), tr('dc.s3'), tr('dc.s4')]);
 
 async function handleDecompose(customGoal?: string) {
   const targetGoal = customGoal || goalInput.value;
@@ -38,7 +34,7 @@ async function handleDecompose(customGoal?: string) {
     const res = await api.decomposeGoal(targetGoal);
     result.value = res;
   } catch (err: any) {
-    errorMsg.value = err.message || 'Decomposition engine failure.';
+    errorMsg.value = err.message || tr('dc.fail');
   } finally {
     isLoading.value = false;
   }
@@ -53,8 +49,8 @@ function handleAcceptAll() {
   // none were (F-33). Check before writing, and report instead of pretending.
   if (!taskStore.canMutate) {
     errorMsg.value = taskStore.readOnlyReason === 'OFFLINE_SHARED'
-      ? 'This project is read-only while you are offline — it has other members. Reconnect to insert these subtasks.'
-      : 'No project selected — open or create one before inserting subtasks.';
+      ? tr('dc.readOnly')
+      : tr('dc.noProject');
     return;
   }
 
@@ -105,8 +101,8 @@ function handleAcceptAll() {
             <Sparkles class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">Task Decomposer</h2>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">Break down goals into subtasks and dependencies</p>
+            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">{{ $t('dc.title') }}</h2>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">{{ $t('dc.subtitle') }}</p>
           </div>
         </div>
         <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="emit('close')">
@@ -120,7 +116,7 @@ function handleAcceptAll() {
           <input
             v-model="goalInput"
             type="text"
-            placeholder="Describe your engineering goal or feature..."
+            :placeholder="$t('dc.ph')"
             class="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-md px-3.5 py-2 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-sans h-8"
             @keydown.enter="handleDecompose()"
           />
@@ -132,13 +128,13 @@ function handleAcceptAll() {
           >
             <RefreshCw v-if="isLoading" class="w-3.5 h-3.5 animate-spin" />
             <Sparkles v-else class="w-3.5 h-3.5" />
-            <span>{{ isLoading ? 'Decomposing...' : 'Decompose Task' }}</span>
+            <span>{{ isLoading ? $t('dc.decomposing') : $t('dc.decompose') }}</span>
           </button>
         </div>
 
         <!-- Quick Prompts -->
         <div class="flex flex-wrap gap-1.5 items-center pt-1">
-          <span class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">Presets:</span>
+          <span class="text-[11px] text-slate-500 dark:text-slate-400 font-mono">{{ $t('dc.presets') }}</span>
           <button
             v-for="s in SUGGESTIONS"
             :key="s"
@@ -184,7 +180,7 @@ function handleAcceptAll() {
               <p class="text-[11px] text-slate-600 dark:text-slate-400 leading-normal">{{ subtask.description }}</p>
               <div v-if="subtask.dependsOnTitles && subtask.dependsOnTitles.length > 0" class="text-[11px] text-indigo-600 dark:text-indigo-400 font-mono flex items-center gap-1">
                 <ArrowRight class="w-3 h-3" />
-                <span>Depends on: {{ subtask.dependsOnTitles.join(', ') }}</span>
+                <span>{{ $t('table.deps', { list: subtask.dependsOnTitles.join(', ') }) }}</span>
               </div>
             </div>
           </div>
@@ -198,7 +194,7 @@ function handleAcceptAll() {
           class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-mono text-xs cursor-pointer min-h-[40px]"
           @click="emit('close')"
         >
-          Dismiss
+          {{ $t('common.dismiss') }}
         </button>
         <button
           type="button"
@@ -208,7 +204,7 @@ function handleAcceptAll() {
         >
           <Check v-if="isInserted" class="w-4 h-4 text-emerald-300" />
           <Plus v-else class="w-4 h-4 stroke-[2.5]" />
-          <span>{{ isInserted ? 'Inserted into Board!' : `Add ${result.subtasks.length} Subtasks to Board` }}</span>
+          <span>{{ isInserted ? $t('dc.inserted') : $t('dc.add', { n: result.subtasks.length }) }}</span>
         </button>
       </div>
     </div>

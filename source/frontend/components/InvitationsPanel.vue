@@ -12,6 +12,7 @@
 import { ref } from 'vue';
 import { useTaskStore } from '../stores/taskStore';
 import { Mail, Check, X, Loader2 } from 'lucide-vue-next';
+import { tr } from '../lib/i18nPlugin';
 
 const taskStore = useTaskStore();
 
@@ -32,8 +33,8 @@ async function respond(projectId: number, accept: boolean) {
     // 409 means somebody already answered it — most likely this user in another
     // tab. Say so rather than leaving a dead button.
     errorMsg.value = /409/.test(e?.message ?? '')
-      ? 'That invitation has already been answered.'
-      : e?.message || 'Could not respond to the invitation.';
+      ? tr('inv.answered')
+      : e?.message || tr('inv.fail');
   } finally {
     busy.value = null;
   }
@@ -49,8 +50,7 @@ async function respond(projectId: number, accept: boolean) {
     <div class="flex items-center gap-2">
       <Mail class="w-4 h-4 text-amber-700 dark:text-amber-400" />
       <h3 class="text-xs font-semibold font-mono text-amber-800 dark:text-amber-300">
-        {{ taskStore.invitations.length }}
-        project invitation{{ taskStore.invitations.length === 1 ? '' : 's' }}
+        {{ taskStore.invitations.length === 1 ? $t('inv.count1') : $t('inv.countN', { n: taskStore.invitations.length }) }}
       </h3>
     </div>
 
@@ -70,9 +70,9 @@ async function respond(projectId: number, accept: boolean) {
             {{ invite.project_name }}
           </p>
           <p class="text-[11px] text-slate-600 dark:text-slate-400">
-            <span v-if="invite.invited_by_name">{{ invite.invited_by_name }} invited you</span>
-            <span v-else>You were invited</span>
-            as <span class="font-mono font-medium">{{ invite.role }}</span>
+            <span v-if="invite.invited_by_name">{{ $t('inv.invitedBy', { name: invite.invited_by_name }) }}</span>
+            <span v-else>{{ $t('inv.invited') }}</span>
+            {{ $t('inv.as') }} <span class="font-mono font-medium">{{ $t(`role.${invite.role}` as const) }}</span>
           </p>
           <p
             v-if="invite.project_description"
@@ -90,7 +90,7 @@ async function respond(projectId: number, accept: boolean) {
             @click="respond(invite.project_id, false)"
           >
             <X class="w-3.5 h-3.5" />
-            <span>Decline</span>
+            <span>{{ $t('inv.decline') }}</span>
           </button>
           <button
             type="button"
@@ -100,7 +100,7 @@ async function respond(projectId: number, accept: boolean) {
           >
             <Loader2 v-if="busy === invite.project_id" class="w-3.5 h-3.5 animate-spin" />
             <Check v-else class="w-3.5 h-3.5" />
-            <span>Accept</span>
+            <span>{{ $t('inv.accept') }}</span>
           </button>
         </div>
       </li>

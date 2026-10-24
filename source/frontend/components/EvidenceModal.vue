@@ -48,7 +48,7 @@ async function submit() {
             <CheckCircle2 class="w-5 h-5" />
           </div>
           <div class="min-w-0">
-            <h2 class="text-sm md:text-base font-semibold font-sans">Marked done — add evidence?</h2>
+            <h2 class="text-sm md:text-base font-semibold font-sans">{{ $t('ev.title') }}</h2>
             <p class="text-[11px] text-slate-500 dark:text-slate-400 truncate">
               {{ task.id }} · {{ task.title }}
             </p>
@@ -56,7 +56,7 @@ async function submit() {
         </div>
         <button
           type="button"
-          aria-label="Close"
+          :aria-label="$t('common.close')"
           class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer shrink-0"
           @click="taskStore.dismissEvidencePrompt()"
         >
@@ -66,8 +66,7 @@ async function submit() {
 
       <div class="p-5 overflow-y-auto flex-1">
         <p class="text-[11px] text-slate-600 dark:text-slate-400 mb-3">
-          A note, a screenshot or a short clip — whatever shows the work is
-          actually finished. Optional: the task is already done.
+          {{ $t('ev.body') }}
         </p>
         <CommentThread ref="thread" :task-id="task.id" />
       </div>
@@ -79,7 +78,7 @@ async function submit() {
           class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono text-xs cursor-pointer min-h-[40px]"
           @click="taskStore.dismissEvidencePrompt()"
         >
-          Skip
+          {{ $t('ev.skip') }}
         </button>
         <button
           type="button"
@@ -89,7 +88,7 @@ async function submit() {
           @click="submit"
         >
           <CheckCircle2 class="w-4 h-4" />
-          <span>Save evidence</span>
+          <span>{{ $t('ev.save') }}</span>
         </button>
       </div>
     </div>

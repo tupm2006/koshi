@@ -4,6 +4,7 @@ import type { Task, TaskPriority, TaskStatus } from '../types/task';
 import { Flame, Clock, Plus, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-vue-next';
 import AssigneeAvatars from './AssigneeAvatars.vue';
 import { urgencyOf, dueLabel } from '../lib/urgency';
+import { dueWords } from '../lib/i18nPlugin';
 
 /** Read once per render — see TaskTable for why. */
 const now = Date.now();
@@ -113,14 +114,14 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
       @dragover="handleDragOver"
       @drop="(e) => handleDrop(e, col.status, colIndex)"
       role="region"
-      :aria-label="`${col.label} column`"
+      :aria-label="$t('board.columnAria', { name: $t(`status.${col.status}` as const) })"
       :data-column="col.status"
     >
       <!-- Column Header -->
       <div class="shrink-0 pb-2.5 border-b border-slate-300 dark:border-slate-800 flex items-center justify-between select-none">
         <div class="flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full" :class="col.dotClass"></span>
-          <h3 class="text-xs md:text-sm font-mono font-bold text-slate-800 dark:text-slate-200">{{ col.label }}</h3>
+          <h3 class="text-xs md:text-sm font-mono font-bold text-slate-800 dark:text-slate-200">{{ $t(`status.${col.status}` as const) }}</h3>
         </div>
         <span class="h-6 px-2 inline-flex items-center justify-center rounded-md text-[11px] font-mono border font-semibold" :class="col.badgeClass">
           {{ taskStore.filteredTasks.filter((t) => t.status === col.status).length }}
@@ -133,7 +134,7 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
           v-if="taskStore.filteredTasks.filter((t) => t.status === col.status).length === 0"
           class="text-center py-6 text-xs text-slate-400 dark:text-slate-600 font-mono"
         >
-          Empty column
+          {{ $t('board.emptyColumn') }}
         </div>
 
         <div
@@ -156,11 +157,11 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
             <span class="text-slate-500 dark:text-slate-400 font-semibold">{{ task.id }}</span>
             <div class="flex items-center gap-1.5">
               <AssigneeAvatars :assignees="task.assignees" :max="3" size="xs" />
-              <span v-if="taskStore.criticalPathIds.has(task.id) && task.status !== 'DONE'" title="Critical Path" class="text-rose-600 dark:text-rose-400">
+              <span v-if="taskStore.criticalPathIds.has(task.id) && task.status !== 'DONE'" :title="$t('board.criticalPath')" class="text-rose-600 dark:text-rose-400">
                 <Flame class="w-3.5 h-3.5" />
               </span>
               <span class="h-5 px-1.5 inline-flex items-center justify-center rounded-md border text-[11px] uppercase font-bold" :class="getPriorityBadge(task.priority)">
-                {{ task.priority.slice(0, 4) }}
+                {{ $t(`priorityShort.${task.priority}` as const) }}
               </span>
             </div>
           </div>
@@ -189,7 +190,7 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
                   'text-amber-700 dark:text-amber-400': urgencyOf(task, now) === 'TODAY',
                   'text-yellow-700 dark:text-yellow-500': urgencyOf(task, now) === 'SOON',
                 }"
-              >{{ dueLabel(task, now) }}</span>
+              >{{ dueLabel(task, now, dueWords()) }}</span>
               <span v-else>-</span>
             </div>
 
@@ -199,7 +200,7 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
                 type="button"
                 class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
                 @click.stop="moveStatus(task, 'left')"
-                title="Move left (H)"
+                :title="$t('board.moveLeft')"
               >
                 <ChevronLeft class="w-3.5 h-3.5" />
               </button>
@@ -207,7 +208,7 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
                 type="button"
                 class="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
                 @click.stop="moveStatus(task, 'right')"
-                title="Move right (L)"
+                :title="$t('board.moveRight')"
               >
                 <ChevronRight class="w-3.5 h-3.5" />
               </button>
@@ -223,7 +224,7 @@ function selectCard(task: Task, colIndex: number, rowIndex: number) {
         @click="onOpenCreate"
       >
         <Plus class="w-3.5 h-3.5" />
-        <span>New Task</span>
+        <span>{{ $t('board.newTask') }}</span>
       </button>
     </div>
   </div>

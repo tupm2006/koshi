@@ -19,7 +19,7 @@ Guidance for AI agents working in this repository. **Read `documentation/` befor
 
 ```bash
 # Backend — must stay green
-cd source/backend && pytest -q          # expect: 176 passed  (SQLite)
+cd source/backend && pytest -q          # expect: 177 passed  (SQLite)
 
 # The same suite against the engine that ships. Run this before anything that
 # touches the schema, a constraint, or a dialect-specific migration — F-47
@@ -27,7 +27,7 @@ cd source/backend && pytest -q          # expect: 176 passed  (SQLite)
 TEST_DATABASE_URL='mysql+pymysql://koshi:PW@127.0.0.1:3306/koshi_test?charset=utf8mb4' pytest -q
 
 # Frontend
-pnpm test                               # expect: 414 passed (vitest)
+pnpm test                               # expect: 442 passed (vitest)
 pnpm run build                          # vue-tsc -b && vite build
 ```
 
@@ -108,7 +108,10 @@ Dependencies are `List[int]` and must resolve within the same project.
 a personal one stays editable. `taskStore.canMutate` is the single gate — never bypass it.
 
 **Localisation.** Any user-facing string goes in `lib/translations.ts` for **both** locales; the
-English object is the source of truth and a missing key is a compile error.
+English object is the source of truth and a missing key is a compile error. Templates use the global
+`$t(key, vars)`; script code uses `tr()` from `lib/i18nPlugin.ts`; dates use `uiLocale()`.
+`lib/i18nCoverage.test.ts` fails on any literal left in a template — do not widen its allow-list to
+make it pass. AI answers follow the UI language via `Accept-Language` (DEC-032).
 
 **Three screens, no router.** `taskStore.appView` is `LANDING | BOARD | PROFILE`. A signed-out
 visitor must never reach the board except via explicit guest mode.

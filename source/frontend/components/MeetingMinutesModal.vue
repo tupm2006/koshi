@@ -2,14 +2,13 @@
 import { ref } from 'vue';
 import { api } from '../services/api';
 import { FileText, X, Sparkles, RefreshCw, AlertCircle, User } from 'lucide-vue-next';
+import { tr } from '../lib/i18nPlugin';
 
 defineProps<{
   onClose: () => void;
 }>();
 
-const rawNotes = ref<string>(
-  'Họp ngày 22/08/2026:\n- Phạm Minh Tú phụ trách hoàn thiện backend FastAPI và SQLite trước 18h.\n- Dev Member kiểm tra Vue 3 Composition API và giao diện Kanban Board.\n- Đã chốt: Chạy toàn bộ test suite pytest trước khi merge code vào production.'
-);
+const rawNotes = ref<string>(tr('mm.sample'));
 const isLoading = ref<boolean>(false);
 const result = ref<{ main_topics: string[]; action_items: any[]; key_decisions: string[] } | null>(null);
 const errorMsg = ref<string | null>(null);
@@ -22,7 +21,7 @@ async function handleExtract() {
     const res = await api.extractMeetingMinutes(rawNotes.value);
     result.value = res;
   } catch (e: any) {
-    errorMsg.value = e.message || 'Failed to extract meeting minutes';
+    errorMsg.value = e.message || tr('mm.fail');
   } finally {
     isLoading.value = false;
   }
@@ -42,8 +41,8 @@ async function handleExtract() {
             <FileText class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">Meeting Minutes Generator</h2>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">Extract action items and key decisions from notes</p>
+            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">{{ $t('mm.title') }}</h2>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">{{ $t('mm.subtitle') }}</p>
           </div>
         </div>
         <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="onClose">
@@ -54,12 +53,12 @@ async function handleExtract() {
       <!-- Body -->
       <div class="flex-1 overflow-y-auto py-4 space-y-4 text-xs">
         <div>
-          <label for="vue-meeting-notes-input" class="block font-mono text-slate-700 dark:text-slate-300 mb-1.5 font-semibold">Raw Meeting Notes / Transcript *</label>
+          <label for="vue-meeting-notes-input" class="block font-mono text-slate-700 dark:text-slate-300 mb-1.5 font-semibold">{{ $t('mm.label') }}</label>
           <textarea
             id="vue-meeting-notes-input"
             v-model="rawNotes"
             rows="4"
-            placeholder="Paste raw unstructured meeting notes here..."
+            :placeholder="$t('mm.ph')"
             class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg p-3 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-sky-500 font-mono"
           ></textarea>
         </div>
@@ -72,7 +71,7 @@ async function handleExtract() {
         >
           <RefreshCw v-if="isLoading" class="w-4 h-4 animate-spin" />
           <Sparkles v-else class="w-4 h-4" />
-          <span>{{ isLoading ? 'Processing with AI Engine...' : 'Extract Structured Minutes' }}</span>
+          <span>{{ isLoading ? $t('mm.processing') : $t('mm.extract') }}</span>
         </button>
 
         <div v-if="errorMsg" class="p-3 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 flex items-center gap-2 font-mono">
@@ -83,7 +82,7 @@ async function handleExtract() {
         <div v-if="result" class="space-y-3 pt-2 border-t border-slate-200 dark:border-slate-800">
           <!-- Main Topics -->
           <div v-if="result.main_topics && result.main_topics.length > 0" class="p-3 rounded-lg bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800">
-            <h4 class="font-mono text-slate-500 dark:text-slate-400 font-semibold mb-1.5 uppercase text-[11px] tracking-wider">Main Topics Discussed:</h4>
+            <h4 class="font-mono text-slate-500 dark:text-slate-400 font-semibold mb-1.5 uppercase text-[11px] tracking-wider">{{ $t('mm.topics') }}</h4>
             <ul class="list-disc list-inside space-y-1 text-slate-800 dark:text-slate-200">
               <li v-for="topic in result.main_topics" :key="topic">{{ topic }}</li>
             </ul>
@@ -91,7 +90,7 @@ async function handleExtract() {
 
           <!-- Action Items -->
           <div v-if="result.action_items && result.action_items.length > 0" class="space-y-2">
-            <h4 class="font-mono text-slate-500 dark:text-slate-400 font-semibold uppercase text-[11px] tracking-wider">Extracted Action Items:</h4>
+            <h4 class="font-mono text-slate-500 dark:text-slate-400 font-semibold uppercase text-[11px] tracking-wider">{{ $t('mm.actions') }}</h4>
             <div class="grid grid-cols-1 gap-2">
               <div
                 v-for="(item, idx) in result.action_items"
@@ -105,10 +104,10 @@ async function handleExtract() {
                 <div class="flex items-center gap-2 shrink-0 font-mono text-[11px]">
                   <span class="text-slate-600 dark:text-slate-400 flex items-center gap-1">
                     <User class="w-3 h-3 text-slate-400 dark:text-slate-500" />
-                    {{ item.assignee_name || 'Unassigned' }}
+                    {{ item.assignee_name || $t('detail.unassigned') }}
                   </span>
                   <span class="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">
-                    {{ item.priority || 'MEDIUM' }}
+                    {{ $t(`priority.${(['LOW','MEDIUM','HIGH','CRITICAL'].includes(item.priority) ? item.priority : 'MEDIUM') as 'LOW'}` as const) }}
                   </span>
                 </div>
               </div>
@@ -117,7 +116,7 @@ async function handleExtract() {
 
           <!-- Key Decisions -->
           <div v-if="result.key_decisions && result.key_decisions.length > 0" class="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40 text-emerald-800 dark:text-emerald-200">
-            <h4 class="font-mono text-emerald-700 dark:text-emerald-400 font-semibold mb-1.5 uppercase text-[11px] tracking-wider">Key Decisions:</h4>
+            <h4 class="font-mono text-emerald-700 dark:text-emerald-400 font-semibold mb-1.5 uppercase text-[11px] tracking-wider">{{ $t('mm.decisions') }}</h4>
             <ul class="list-disc list-inside space-y-1 text-xs">
               <li v-for="dec in result.key_decisions" :key="dec">{{ dec }}</li>
             </ul>

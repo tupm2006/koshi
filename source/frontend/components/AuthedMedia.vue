@@ -79,7 +79,7 @@ onBeforeUnmount(release);
     data-media-failed
     class="text-[11px] font-mono text-slate-500 dark:text-slate-400 p-2 rounded border border-dashed border-slate-300 dark:border-slate-700"
   >
-    Could not load this file.
+    {{ $t('media.fail') }}
   </p>
 
   <video

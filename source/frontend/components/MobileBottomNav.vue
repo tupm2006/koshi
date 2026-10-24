@@ -18,17 +18,17 @@ defineProps<{
         type="button"
         class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 active:bg-slate-200 dark:active:bg-slate-800 min-h-[44px] cursor-pointer"
         @click="onFocusSearch"
-        title="Search (/)"
+        :title="$t('nav.search')"
       >
         <Search class="w-4 h-4" />
-        <span class="text-[9px] mt-0.5 font-mono">Search</span>
+        <span class="text-[9px] mt-0.5 font-mono">{{ $t('nav.searchShort') }}</span>
       </button>
 
       <button
         type="button"
         class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 active:bg-slate-200 dark:active:bg-slate-800 min-h-[44px] cursor-pointer"
         @click="onOpenAIDecomposer"
-        title="AI Decomposer (a)"
+        :title="$t('nav.aiDecomposer')"
       >
         <Sparkles class="w-4 h-4" />
         <span class="text-[9px] mt-0.5 font-mono">AI</span>
@@ -40,7 +40,7 @@ defineProps<{
           type="button"
           class="w-10 h-10 rounded-lg bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-white text-white dark:text-slate-950 flex items-center justify-center font-bold cursor-pointer shadow-sm"
           @click="onOpenCreate"
-          title="Create Task (n)"
+          :title="$t('nav.createTask')"
         >
           <Plus class="w-5 h-5 stroke-[2.5]" />
         </button>
@@ -50,7 +50,7 @@ defineProps<{
         type="button"
         class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 active:bg-slate-200 dark:active:bg-slate-800 min-h-[44px] cursor-pointer"
         @click="onOpenDAG"
-        title="DAG Critical Path (v)"
+        :title="$t('nav.dag')"
       >
         <GitFork class="w-4 h-4" />
         <span class="text-[9px] mt-0.5 font-mono">DAG</span>
@@ -60,7 +60,7 @@ defineProps<{
         type="button"
         class="flex flex-col items-center justify-center p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 active:bg-slate-200 dark:active:bg-slate-800 min-h-[44px] cursor-pointer"
         @click="onOpenGitDiff"
-        title="Git Diff (g)"
+        :title="$t('nav.gitDiff')"
       >
         <GitPullRequest class="w-4 h-4" />
         <span class="text-[9px] mt-0.5 font-mono">Diff</span>

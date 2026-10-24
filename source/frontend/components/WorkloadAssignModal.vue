@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue';
 import { api } from '../services/api';
 import { useTaskStore } from '../stores/taskStore';
 import { Users, X, Sparkles, UserCheck, AlertTriangle, ShieldCheck, RefreshCw } from 'lucide-vue-next';
+import { tr } from '../lib/i18nPlugin';
 
 defineProps<{
   onClose: () => void;
@@ -10,8 +11,8 @@ defineProps<{
 
 const taskStore = useTaskStore();
 
-const taskTitle = ref<string>('Implement Redis Distributed Caching Layer');
-const taskDesc = ref<string>('Configure Redis cluster with cache invalidation rules and hit-rate telemetry.');
+const taskTitle = ref<string>(tr('wa.sampleTitle'));
+const taskDesc = ref<string>(tr('wa.sampleDesc'));
 const workloads = ref<any[]>([]);
 const recommendation = ref<any | null>(null);
 const isLoadingRec = ref<boolean>(false);
@@ -66,8 +67,8 @@ onMounted(() => {
             <Users class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">Workload & Smart Assignment</h2>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">Team capacity analysis and assignment recommendations</p>
+            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">{{ $t('wa.title') }}</h2>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">{{ $t('wa.subtitle') }}</p>
           </div>
         </div>
         <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="onClose">
@@ -79,8 +80,8 @@ onMounted(() => {
       <div class="flex-1 overflow-y-auto py-4 space-y-4 text-xs">
         <!-- Team Capacity / Workload Grid -->
         <div>
-          <h3 class="font-mono text-slate-500 dark:text-slate-400 font-semibold mb-2 uppercase text-[11px] tracking-wider">Current Team Workload & Skills:</h3>
-          <div v-if="isLoadingWorkload" class="py-4 text-center text-slate-500 dark:text-slate-500 font-mono">Loading team profiles...</div>
+          <h3 class="font-mono text-slate-500 dark:text-slate-400 font-semibold mb-2 uppercase text-[11px] tracking-wider">{{ $t('wa.current') }}</h3>
+          <div v-if="isLoadingWorkload" class="py-4 text-center text-slate-500 dark:text-slate-500 font-mono">{{ $t('wa.loading') }}</div>
           <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div
               v-for="w in workloads"
@@ -91,15 +92,15 @@ onMounted(() => {
               <div class="flex items-center justify-between">
                 <span class="font-bold text-slate-800 dark:text-slate-200 font-mono text-xs">{{ w.full_name }}</span>
                 <span v-if="w.is_overloaded" class="flex items-center gap-1 text-[11px] font-mono text-rose-600 dark:text-rose-400 font-semibold">
-                  <AlertTriangle class="w-3 h-3" /> Overloaded
+                  <AlertTriangle class="w-3 h-3" /> {{ $t('wa.overloaded') }}
                 </span>
                 <span v-else class="flex items-center gap-1 text-[11px] font-mono text-emerald-600 dark:text-emerald-400 font-medium">
-                  <ShieldCheck class="w-3 h-3" /> Optimal
+                  <ShieldCheck class="w-3 h-3" /> {{ $t('wa.optimal') }}
                 </span>
               </div>
               <div class="flex items-center gap-3 text-slate-600 dark:text-slate-400 font-mono text-[11px]">
-                <span>Tasks: <strong class="text-slate-900 dark:text-slate-200">{{ w.active_tasks_count }}</strong></span>
-                <span>Complexity: <strong class="text-slate-900 dark:text-slate-200">{{ w.total_complexity_points }} pts</strong></span>
+                <span>{{ $t('wa.tasks') }} <strong class="text-slate-900 dark:text-slate-200">{{ w.active_tasks_count }}</strong></span>
+                <span>{{ $t('wa.complexity') }} <strong class="text-slate-900 dark:text-slate-200">{{ $t('wa.pts', { n: w.total_complexity_points }) }}</strong></span>
               </div>
               <div class="flex flex-wrap gap-1 mt-1">
                 <span v-for="skill in w.skills" :key="skill" class="px-1.5 py-0.2 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-400 text-[11px] font-mono">
@@ -112,9 +113,9 @@ onMounted(() => {
 
         <!-- Recommendation Inputs -->
         <div class="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2.5">
-          <h3 class="font-mono text-slate-500 dark:text-slate-400 font-semibold uppercase text-[11px] tracking-wider">Test Task Assignment Recommendation:</h3>
+          <h3 class="font-mono text-slate-500 dark:text-slate-400 font-semibold uppercase text-[11px] tracking-wider">{{ $t('wa.test') }}</h3>
           <div>
-            <label for="vue-task-assign-title" class="block text-slate-700 dark:text-slate-300 font-mono text-[11px] mb-1 font-medium">Task Title</label>
+            <label for="vue-task-assign-title" class="block text-slate-700 dark:text-slate-300 font-mono text-[11px] mb-1 font-medium">{{ $t('wa.taskTitle') }}</label>
             <input
               id="vue-task-assign-title"
               v-model="taskTitle"
@@ -123,7 +124,7 @@ onMounted(() => {
             />
           </div>
           <div>
-            <label for="vue-task-assign-desc" class="block text-slate-700 dark:text-slate-300 font-mono text-[11px] mb-1 font-medium">Task Description & Requirements</label>
+            <label for="vue-task-assign-desc" class="block text-slate-700 dark:text-slate-300 font-mono text-[11px] mb-1 font-medium">{{ $t('wa.taskDesc') }}</label>
             <input
               id="vue-task-assign-desc"
               v-model="taskDesc"
@@ -139,7 +140,7 @@ onMounted(() => {
           >
             <RefreshCw v-if="isLoadingRec" class="w-3.5 h-3.5 animate-spin" />
             <Sparkles v-else class="w-3.5 h-3.5" />
-            <span>{{ isLoadingRec ? 'Analyzing Skills & Capacity...' : 'Recommend Assignee' }}</span>
+            <span>{{ isLoadingRec ? $t('wa.analyzing') : $t('wa.recommend') }}</span>
           </button>
         </div>
 
@@ -148,13 +149,13 @@ onMounted(() => {
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <UserCheck class="w-4 h-4 text-amber-600 dark:text-amber-400" />
-              <span class="font-mono text-slate-600 dark:text-slate-400 text-[11px]">Recommended Assignee:</span>
+              <span class="font-mono text-slate-600 dark:text-slate-400 text-[11px]">{{ $t('wa.recommended') }}</span>
               <strong class="text-amber-700 dark:text-amber-300 text-xs font-mono">{{ recommendation.recommended_name }}</strong>
             </div>
           </div>
           <p class="text-slate-700 dark:text-slate-300 text-xs leading-relaxed">{{ recommendation.rationale }}</p>
           <div v-if="recommendation.risk_assessment" class="text-[11px] text-slate-500 dark:text-slate-400 font-mono pt-1 border-t border-amber-200 dark:border-amber-900/30">
-            <span class="text-amber-700 dark:text-amber-400/80 font-medium">Risk Assessment:</span> {{ recommendation.risk_assessment }}
+            <span class="text-amber-700 dark:text-amber-400/80 font-medium">{{ $t('wa.risk') }}</span> {{ recommendation.risk_assessment }}
           </div>
         </div>
       </div>

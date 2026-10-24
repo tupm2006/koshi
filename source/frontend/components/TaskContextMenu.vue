@@ -75,7 +75,7 @@ onUnmounted(() => {
       @click="handleStatus('DONE')"
     >
       <Check class="w-3.5 h-3.5 text-emerald-500" />
-      <span>Mark DONE</span>
+      <span>{{ $t('ctx.markDone') }}</span>
     </button>
     <button
       type="button"
@@ -83,7 +83,7 @@ onUnmounted(() => {
       @click="handleStatus('IN_PROGRESS')"
     >
       <span class="w-2 h-2 rounded-full bg-sky-500"></span>
-      <span>Set In Progress</span>
+      <span>{{ $t('ctx.inProgress') }}</span>
     </button>
     <button
       type="button"
@@ -91,7 +91,7 @@ onUnmounted(() => {
       @click="handleStatus('BLOCKED')"
     >
       <span class="w-2 h-2 rounded-full bg-rose-500"></span>
-      <span>Set Blocked</span>
+      <span>{{ $t('ctx.blocked') }}</span>
     </button>
 
     <div class="my-1 border-t border-slate-100 dark:border-slate-900"></div>
@@ -103,12 +103,12 @@ onUnmounted(() => {
       @click="handleEdit"
     >
       <Edit3 class="w-3.5 h-3.5 text-slate-400 dark:text-slate-400" />
-      <span>Rename Title</span>
+      <span>{{ $t('ctx.rename') }}</span>
     </button>
 
     <!-- Priority Submenu -->
     <div class="px-2 py-1 text-[11px] text-slate-400 dark:text-slate-500 font-bold border-t border-slate-100 dark:border-slate-900 mt-1">
-      Priority:
+      {{ $t('ctx.priority') }}
     </div>
     <div class="grid grid-cols-4 gap-1 px-1 py-0.5">
       <button
@@ -118,7 +118,7 @@ onUnmounted(() => {
         class="text-[9px] py-0.5 rounded border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-900 text-center text-slate-700 dark:text-slate-300 cursor-pointer"
         @click="handlePriority(p)"
       >
-        {{ p.slice(0, 3) }}
+        {{ $t(`priorityShort.${p}` as const) }}
       </button>
     </div>
 
@@ -131,7 +131,7 @@ onUnmounted(() => {
       @click="handleDelete"
     >
       <Trash2 class="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-      <span>Delete Task</span>
+      <span>{{ $t('ctx.delete') }}</span>
     </button>
   </div>
 </template>

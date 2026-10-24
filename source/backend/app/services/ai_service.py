@@ -3,10 +3,20 @@ import json
 import logging
 import re
 import httpx
+from contextvars import ContextVar
 from typing import List, Dict, Any, Optional, Tuple
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+#: UI language of the current request ("en" / "vi"), set by the AI router from
+#: Accept-Language. A contextvar so concurrent requests cannot see each other's.
+answer_language: ContextVar[Optional[str]] = ContextVar("answer_language", default=None)
+
+_LANG_RULE = {
+    "en": "IMPORTANT: write every human-readable value in English, even if the input data is in Vietnamese. Keep JSON keys and enum values (LOW, MEDIUM, HIGH, CRITICAL) unchanged.",
+    "vi": "QUAN TRỌNG: viết mọi nội dung bằng tiếng Việt, kể cả khi dữ liệu đầu vào bằng tiếng Anh. Giữ nguyên khoá JSON và giá trị enum (LOW, MEDIUM, HIGH, CRITICAL).",
+}
 
 
 class AIFeature(str, enum.Enum):
@@ -59,6 +69,9 @@ class AIService:
         returning it is that falling through to tier 3 is a degradation, not a
         success, even though it never raises.
         """
+        rule = _LANG_RULE.get(answer_language.get() or "")
+        if rule:
+            system_prompt = f"{system_prompt}\n{rule}"
         # 1. Cloud API, whenever a key is configured. This used to also require
         #    "openai" in the URL, which silently disabled tier 1 for every other
         #    OpenAI-compatible vendor even with a valid key (F-11).
@@ -249,7 +262,10 @@ class AIService:
             # The modal parses '###' headings and '- ' bullets (WeeklySummaryModal
             # parsedSections). Tables and other Markdown render as raw pipes.
             "ĐỊNH DẠNG BẮT BUỘC: đúng 3 mục, mỗi mục bắt đầu bằng một dòng tiêu đề '### ', "
-            "theo thứ tự: '### 1. Tổng quan tiến độ', '### 2. Rủi ro & Điểm nghẽn', '### 3. Việc cần ưu tiên'. "
+            + ("theo thứ tự: '### 1. Progress overview', '### 2. Risks & blockers', '### 3. Priorities'. "
+               if answer_language.get() == "en" else
+               "theo thứ tự: '### 1. Tổng quan tiến độ', '### 2. Rủi ro & Điểm nghẽn', '### 3. Việc cần ưu tiên'. ")
+            + 
             "Dưới mỗi tiêu đề chỉ dùng các dòng gạch đầu dòng '- '. Không dùng bảng, không dùng emoji, "
             "không thêm lời mở đầu hay kết luận. "
             "Trả lời bằng cùng ngôn ngữ với dữ liệu đầu vào (mặc định tiếng Việt). "

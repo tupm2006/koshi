@@ -13,10 +13,10 @@ from app.database import SessionLocal
 from app.models.entities import Project, Sprint, Task, TaskStatusEnum
 
 db = SessionLocal()
-p = db.query(Project).filter(Project.name == "Koshi Mobile App").first()
-if p is None:
-    raise SystemExit("seed project not found — run scripts/seed-demo.py first")
-for s in db.query(Sprint).filter(Sprint.project_id == p.id).all():
+projects = db.query(Project).filter(Project.name.in_(["Koshi Mobile App", "Website Bán Hàng Q4"])).all()
+if not projects:
+    raise SystemExit("seed projects not found — run scripts/seed-demo.py first")
+for s in db.query(Sprint).filter(Sprint.project_id.in_([p.id for p in projects])).all():
     done = db.query(Task).filter(Task.sprint_id == s.id, Task.status == TaskStatusEnum.DONE).order_by(Task.id).all()
     span = max((s.end_date - s.start_date).days, 1)
     for i, t in enumerate(done):
@@ -28,4 +28,4 @@ for s in db.query(Sprint).filter(Sprint.project_id == p.id).all():
     if s.completed_at is not None:
         s.completed_at = s.end_date
 db.commit()
-print("backdated", p.name)
+print("backdated", ", ".join(p.name for p in projects))

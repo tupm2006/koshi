@@ -98,16 +98,27 @@ export function sortByUrgency(tasks: Task[], now: number): Task[] {
   });
 }
 
+/** Phrases for `dueLabel`; English by default so the pure function needs no store. */
+export interface DueWords {
+  done: string; today: string; tomorrow: string;
+  overdue: (n: number) => string; inDays: (n: number) => string;
+}
+
+const EN_WORDS: DueWords = {
+  done: 'Done', today: 'Today', tomorrow: 'Tomorrow',
+  overdue: (n) => `${n}d overdue`, inDays: (n) => `in ${n}d`,
+};
+
 /** Short human label, e.g. "3d overdue", "Today", "in 2d". */
-export function dueLabel(task: Task, now: number): string | null {
+export function dueLabel(task: Task, now: number, words: DueWords = EN_WORDS): string | null {
   if (!task.dueDate) return null;
   const days = daysUntil(task.dueDate, now);
   if (days === null) return null;
   // Finished work is not late. The colour already said so (urgencyOf), but the
   // label still read "10d overdue" on a DONE card.
-  if (task.status === 'DONE') return 'Done';
-  if (days < 0) return `${Math.abs(days)}d overdue`;
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Tomorrow';
-  return `in ${days}d`;
+  if (task.status === 'DONE') return words.done;
+  if (days < 0) return words.overdue(Math.abs(days));
+  if (days === 0) return words.today;
+  if (days === 1) return words.tomorrow;
+  return words.inDays(days);
 }

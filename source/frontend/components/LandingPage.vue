@@ -162,7 +162,7 @@ onUnmounted(() => {
           <button
             type="button"
             class="h-8 w-8 inline-flex items-center justify-center rounded-md text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-            aria-label="Toggle theme"
+            :aria-label="t('landing.toggleTheme')"
             @click="themeStore.toggleTheme()"
           >
             <Sun v-if="themeStore.isDark" class="w-4 h-4" />
@@ -189,7 +189,7 @@ onUnmounted(() => {
           <button
             type="button"
             class="md:hidden h-8 w-8 inline-flex items-center justify-center rounded-md text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-            aria-label="Menu"
+            :aria-label="t('landing.menu')"
             @click="isNavOpen = !isNavOpen"
           >
             <X v-if="isNavOpen" class="w-4 h-4" />

@@ -20,6 +20,7 @@ never against one real people use.
 """
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -30,7 +31,85 @@ PASSWORD = os.environ.get("SEED_PASSWORD", "Koshi@2026")
 DOMAIN = "koshi.dev"  # .test is rejected by EmailStr
 
 
+# SEED_LANG=en writes the same data set in English (used for the report's
+# screenshots, taken with the UI in English). Translation happens on the way
+# out, so the seeding logic below stays written once.
+LANG = os.environ.get("SEED_LANG", "vi")
+EN = {'API phân trang task': 'Paginated task API',
+    'Biểu tượng trạng thái mạng': 'Network status indicator',
+    'Chuẩn bị slide thuyết trình đồ án': 'Prepare the project presentation slides',
+    'Chưa ước lượng chi tiết — chờ refinement.': 'Not estimated in detail yet — waiting for refinement.',
+    'Chế độ tối cho ứng dụng di động': 'Dark mode for the mobile app',
+    'Chịu tải 1.000 người dùng': 'Handle 1,000 concurrent users',
+    'Chờ VNPay cấp tài khoản sandbox': 'Waiting for VNPay to issue a sandbox account',
+    'Danh sách task dạng thẻ': 'Card-style task list',
+    'Dự án một người — vẫn sửa được khi mất mạng.': 'A one-person project — still editable offline.',
+    'Gia hạn domain cá nhân': 'Renew personal domain',
+    'Giải quyết xung đột khi hai người cùng sửa': 'Resolve conflicts when two people edit at once',
+    'Giỏ hàng lưu theo phiên': 'Session-persistent shopping cart',
+    'Hàng đợi thay đổi khi mất mạng': 'Offline change queue',
+    'Học Vue 3 Composition API': 'Learn the Vue 3 Composition API',
+    'Kiểm thử E2E luồng đăng nhập': 'E2E tests for the login flow',
+    'Kiểm thử tải 1.000 người dùng đồng thời': 'Load test with 1,000 concurrent users',
+    'Làm lại website thương mại điện tử trước mùa sale cuối năm.': 'Rebuild the e-commerce site before the year-end sales season.',
+    'Lưu task vào SQLite trên máy': 'Store tasks in on-device SQLite',
+    'Màn hình đăng nhập email/mật khẩu': 'Email/password sign-in screen',
+    'Mình đề xuất dùng bảng outbox. {TAG} xem giúp phần UI hiển thị trạng thái chờ đồng bộ nhé?': 'I suggest an outbox table. {TAG} could you look at how the UI shows pending sync?',
+    'Nhắc việc trước hạn 24 giờ': 'Reminder 24 hours before the deadline', "Ok, mình sẽ thêm badge 'đang chờ' trên thẻ.": "OK, I'll add a 'pending' badge on the card.", 'Push notification và nhắc hạn': 'Push notifications and due-date reminders',
+    'Sai mật khẩu hiện lỗi rõ ràng': 'A wrong password shows a clear error',
+    'Sprint 1 — Giao diện mới': 'Sprint 1 — New storefront',
+    'Sprint 1 — Nền tảng': 'Sprint 1 — Foundations',
+    'Sprint 2 — Bảng công việc': 'Sprint 2 — Task board',
+    'Sprint 2 — Thanh toán': 'Sprint 2 — Payments',
+    'Sprint 3 — Hiệu năng': 'Sprint 3 — Performance',
+    'Sprint 3 — Đồng bộ ngoại tuyến': 'Sprint 3 — Offline sync',
+    'Sprint 4 — Thông báo đẩy': 'Sprint 4 — Push notifications',
+    'Sửa lỗi hiển thị giá trên Safari': 'Fix price rendering on Safari',
+    'Sửa offline, đồng bộ khi có mạng': 'Edit offline, sync when back online',
+    'Test đồng bộ trên mạng chập chờn': 'Test sync on a flaky network',
+    'Thiết kế lại trang chủ': 'Redesign the home page',
+    'Thiết lập dự án React Native + TypeScript': 'Set up the React Native + TypeScript project',
+    'Token lưu an toàn trong Keychain': 'Token stored securely in the Keychain',
+    'Trang chính sách đổi trả': 'Returns policy page',
+    'Trang chủ và giỏ hàng mới': 'New home page and cart',
+    'Tìm kiếm task toàn văn': 'Full-text task search',
+    'Tích hợp cổng thanh toán VNPay': 'Integrate the VNPay payment gateway',
+    'Tối ưu ảnh sản phẩm (WebP)': 'Optimise product images (WebP)',
+    'VNPay chạy được, giá hiển thị đúng': 'VNPay working, prices shown correctly',
+    'Việc cá nhân của Tú': "Tú's personal tasks", 'Website Bán Hàng Q4': 'Online Store Q4',
+    'Widget màn hình chính': 'Home-screen widget',
+    'Xem và sửa task trên điện thoại': 'View and edit tasks on the phone',
+    'Đa ngôn ngữ Anh/Việt': 'English/Vietnamese localisation',
+    'Đã chuẩn bị kịch bản test với Network Link Conditioner, chỉ chờ build có hàng đợi.': 'Test scenarios with Network Link Conditioner are ready — just waiting for a build with the queue.',
+    'Đính kèm ảnh chụp màn hình': 'Screenshot attachments',
+    'Đăng ký Firebase Cloud Messaging': 'Register with Firebase Cloud Messaging',
+    'Đăng nhập bằng Google': 'Sign in with Google',
+    'Đăng nhập, điều hướng và CI chạy được': 'Sign-in, navigation and CI working',
+    'Đọc sách Clean Architecture': 'Read Clean Architecture',
+    'Ứng dụng di động cho Koshi — quản lý theo Scrum, sprint 2 tuần.': 'The Koshi mobile app — run with Scrum, two-week sprints.'}
+_TAG = re.compile(r"@\[[^\]]+\]\(\d+\)")
+
+
+def _en(value):
+    if isinstance(value, dict):
+        return {k: _en(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_en(v) for v in value]
+    if isinstance(value, str):
+        tags = _TAG.findall(value)
+        key = _TAG.sub("{TAG}", value)
+        if key.startswith("Chờ hàng đợi thay đổi"):
+            return value.replace("Chờ hàng đợi thay đổi", "Waiting for the change queue").replace(") xong", ") to land")
+        out = EN.get(key, value)
+        for t in tags:
+            out = out.replace("{TAG}", t, 1)
+        return out
+    return value
+
+
 def call(method, path, token=None, body=None, ok=(200, 201, 204)):
+    if LANG == "en" and body is not None:
+        body = _en(body)
     req = urllib.request.Request(BASE + path, method=method)
     req.add_header("Content-Type", "application/json")
     # Cloudflare blocks the default Python-urllib agent with a 403.
@@ -84,7 +163,10 @@ def main():
 
     def project(name, desc, members, owner="huynh"):
         tok = users[owner]["token"]
-        if name in existing:
+        # Check the OWNER's projects: a project owned by someone else is not
+        # in the PM's list, and checking only that list duplicated it.
+        shown = _en(name) if LANG == "en" else name
+        if shown in existing or shown in {x["name"] for x in call("GET", "/projects", tok)}:
             print(f"  project  {name} (exists, skipped)")
             return None
         p = call("POST", "/projects", tok, {"name": name, "description": desc})
@@ -196,6 +278,34 @@ def main():
             extra = {"blocking_reason": "Chờ VNPay cấp tài khoản sandbox"} if st == "BLOCKED" else {}
             made.append(task(qid, pm, title, status=st, priority=prio, complexity_points=pts, due_date=iso(due), assignee_ids=who, **extra))
         call("PATCH", f"/tasks/{made[4]['id']}", pm, {"dependencies": [made[1]["id"], made[2]["id"]]})
+
+    # ------------------------------------------------------------ Kanban → Scrum
+    # The app opens a user's newest project first, which is this one, so it gets
+    # sprints too — otherwise the Scrum panel greets the tester with nothing.
+    # Runs on re-seeds as well, but only while the project has no sprints.
+    web_name = _en("Website Bán Hàng Q4") if LANG == "en" else "Website Bán Hàng Q4"
+    web = next((x for x in call("GET", "/projects", pm) if x["name"] == web_name), None)
+    if web and not call("GET", f"/sprints?project_id={web['id']}", pm):
+        wid = web["id"]
+        wt = call("GET", f"/tasks?project_id={wid}", pm)
+        w1 = call("POST", "/sprints", pm, {"project_id": wid, "name": "Sprint 1 — Giao diện mới",
+                  "goal": "Trang chủ và giỏ hàng mới", "start_date": iso(-18), "end_date": iso(-5), "is_active": False})
+        w2 = call("POST", "/sprints", pm, {"project_id": wid, "name": "Sprint 2 — Thanh toán",
+                  "goal": "VNPay chạy được, giá hiển thị đúng", "start_date": iso(-4), "end_date": iso(9), "is_active": False})
+        call("POST", "/sprints", pm, {"project_id": wid, "name": "Sprint 3 — Hiệu năng",
+             "goal": "Chịu tải 1.000 người dùng", "start_date": iso(10), "end_date": iso(23), "is_active": False})
+        by = {t["title"]: t for t in wt}
+        def plan(title, sid):
+            title = _en(title) if LANG == "en" else title
+            if title in by:
+                call("PATCH", f"/tasks/{by[title]['id']}", pm, {"sprint_id": sid})
+        plan("Thiết kế lại trang chủ", w1["id"])
+        call("POST", f"/sprints/{w1['id']}/start", pm)
+        call("POST", f"/sprints/{w1['id']}/complete", pm, {})
+        for title in ("Giỏ hàng lưu theo phiên", "Tích hợp cổng thanh toán VNPay", "Sửa lỗi hiển thị giá trên Safari"):
+            plan(title, w2["id"])
+        call("POST", f"/sprints/{w2['id']}/start", pm)
+        print("  scrum    Website Bán Hàng Q4 (3 sprints)")
 
     # ------------------------------------------------------------ personal
     r = project("Việc cá nhân của Tú", "Dự án một người — vẫn sửa được khi mất mạng.", [], owner="tu")

@@ -22,8 +22,8 @@ const taskStore = useTaskStore();
             <GitFork class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">DAG Execution Order & Critical Path</h2>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">Topological Sort graph & unblock sequencing</p>
+            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">{{ $t('dag.title') }}</h2>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">{{ $t('dag.subtitle') }}</p>
           </div>
         </div>
         <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="emit('close')">
@@ -34,15 +34,15 @@ const taskStore = useTaskStore();
       <!-- Content -->
       <div class="flex-1 overflow-y-auto py-4 space-y-4 text-xs">
         <div class="p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between">
-          <span class="font-mono text-slate-600 dark:text-slate-400">Critical Path Tasks:</span>
+          <span class="font-mono text-slate-600 dark:text-slate-400">{{ $t('dag.criticalTasks') }}</span>
           <span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800 font-mono font-bold text-xs flex items-center gap-1">
             <Flame class="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-            <span>{{ taskStore.criticalPathIds.size }} Bottlenecks</span>
+            <span>{{ $t('dag.bottlenecks', { n: taskStore.criticalPathIds.size }) }}</span>
           </span>
         </div>
 
         <div class="space-y-2">
-          <h4 class="font-mono text-slate-500 dark:text-slate-400 uppercase text-[11px] tracking-wider font-semibold">Topological Execution Pipeline:</h4>
+          <h4 class="font-mono text-slate-500 dark:text-slate-400 uppercase text-[11px] tracking-wider font-semibold">{{ $t('dag.pipeline') }}</h4>
           <div class="space-y-2">
             <div
               v-for="(task, idx) in taskStore.dagOrder"
@@ -57,10 +57,10 @@ const taskStore = useTaskStore();
               </div>
               <div class="flex items-center gap-2 shrink-0 font-mono text-[11px]">
                 <span v-if="taskStore.criticalPathIds.has(task.id)" class="text-rose-600 dark:text-rose-400 flex items-center gap-1 font-semibold">
-                  <Flame class="w-3 h-3" /> Critical
+                  <Flame class="w-3 h-3" /> {{ $t('dag.critical') }}
                 </span>
                 <span class="px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 bg-white dark:bg-transparent text-slate-700 dark:text-slate-300">
-                  {{ task.status }}
+                  {{ $t(`status.${task.status}` as const) }}
                 </span>
               </div>
             </div>

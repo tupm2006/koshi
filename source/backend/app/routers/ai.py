@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.entities import Task, TaskAssignee, User, Project, ProjectMember, TaskStatusEnum, Sprint
@@ -8,11 +8,18 @@ from app.schemas.ai import (
     AssignmentRecommendRequest, AssignmentRecommendResponse, AssignmentRecommendation,
     WeeklySummaryResponse, AIDecomposeRequest, AIDecomposeResponse, DecomposedSubtask
 )
-from app.services.ai_service import AIService
+from app.services.ai_service import AIService, answer_language
 from app.utils.time import utcnow
 from app.security import get_current_user, require_member
 
-router = APIRouter(prefix="/ai", tags=["AI Services"])
+async def _answer_in_ui_language(request: Request) -> None:
+    """Async on purpose: a sync dependency runs in a worker thread, where the
+    contextvar would be set in a copy of the context the endpoint never sees."""
+    lang = (request.headers.get("accept-language") or "").split(",")[0].strip().lower()[:2]
+    answer_language.set(lang if lang in ("en", "vi") else None)
+
+
+router = APIRouter(prefix="/ai", tags=["AI Services"], dependencies=[Depends(_answer_in_ui_language)])
 
 @router.post("/weekly-summary", response_model=WeeklySummaryResponse)
 async def generate_weekly_summary(

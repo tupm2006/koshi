@@ -202,10 +202,10 @@ onMounted(load);
       <div class="p-5 overflow-y-auto flex-1 text-xs">
         <!-- SPRINTS -->
         <div v-if="tab === 'SPRINTS'" class="space-y-4">
-          <form v-if="canEdit" class="grid grid-cols-1 md:grid-cols-5 gap-2 p-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-700" data-testid="sprint-form" @submit.prevent="createSprint">
+          <form v-if="canEdit" class="grid grid-cols-1 md:grid-cols-6 gap-2 p-3 rounded-lg border border-dashed border-slate-300 dark:border-slate-700" data-testid="sprint-form" @submit.prevent="createSprint">
             <input v-model="form.name" :placeholder="t('scrum.name')" class="md:col-span-1 h-8 px-2 rounded border border-slate-300 dark:border-slate-700 bg-transparent" />
             <input v-model="form.goal" :placeholder="t('scrum.goal')" class="md:col-span-2 h-8 px-2 rounded border border-slate-300 dark:border-slate-700 bg-transparent" />
-            <div class="flex gap-1 md:col-span-1">
+            <div class="flex gap-1 md:col-span-2">
               <input v-model="form.start" type="date" :aria-label="t('scrum.start')" class="w-full h-8 px-1 rounded border border-slate-300 dark:border-slate-700 bg-transparent" />
               <input v-model="form.end" type="date" :aria-label="t('scrum.end')" class="w-full h-8 px-1 rounded border border-slate-300 dark:border-slate-700 bg-transparent" />
             </div>

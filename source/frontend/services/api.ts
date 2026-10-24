@@ -169,6 +169,10 @@ export class ApiClient {
     if (this.token) {
       headers.set('Authorization', `Bearer ${this.token}`);
     }
+    // The UI language, so AI answers match it rather than the language the
+    // task data happens to be written in. i18nStore keeps <html lang> current.
+    const lang = typeof document !== 'undefined' ? document.documentElement.lang : '';
+    if (lang) headers.set('Accept-Language', lang);
 
     const res = await fetch(`${API_BASE}${endpoint}`, {
       ...options,

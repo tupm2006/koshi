@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { uiLocale } from '../lib/i18nPlugin';
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import { useTaskStore } from '../stores/taskStore';
 import type { Task, TaskPriority, TaskStatus, Complexity } from '../types/task';
@@ -33,7 +34,7 @@ const task = computed<Task | null>(() => {
 
 const formattedDate = computed(() => {
   if (!task.value) return '';
-  return new Date(task.value.createdAt).toLocaleDateString(undefined, {
+  return new Date(task.value.createdAt).toLocaleDateString(uiLocale(), {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
@@ -212,10 +213,10 @@ function getStatusBadge(s: TaskStatus) {
               :class="getStatusBadge(editStatus)"
               @change="onFieldChange"
             >
-              <option value="TODO">TODO</option>
-              <option value="IN_PROGRESS">IN_PROGRESS</option>
-              <option value="BLOCKED">BLOCKED</option>
-              <option value="DONE">DONE</option>
+              <option value="TODO">{{ $t('status.TODO') }}</option>
+              <option value="IN_PROGRESS">{{ $t('status.IN_PROGRESS') }}</option>
+              <option value="BLOCKED">{{ $t('status.BLOCKED') }}</option>
+              <option value="DONE">{{ $t('status.DONE') }}</option>
             </select>
             <ChevronDown class="w-3 h-3 absolute right-1.5 top-1.5 pointer-events-none opacity-60" />
           </div>
@@ -224,16 +225,16 @@ function getStatusBadge(s: TaskStatus) {
             class="h-6 px-2.5 inline-flex items-center justify-center rounded-md font-mono text-[11px] font-bold uppercase tracking-wider whitespace-nowrap shrink-0 border"
             :class="getStatusBadge(task.status)"
           >
-            {{ task.status }}
+            {{ $t(`status.${task.status}` as const) }}
           </span>
 
           <span
             v-if="taskStore.criticalPathIds.has(task.id) && task.status !== 'DONE'"
-            title="Critical Path"
+            :title="$t('board.criticalPath')"
             class="h-6 px-2.5 inline-flex items-center gap-1.5 rounded-md font-mono text-[11px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 whitespace-nowrap shrink-0"
           >
             <Flame class="w-3.5 h-3.5 shrink-0" />
-            <span>CRITICAL PATH</span>
+            <span>{{ $t('detail.criticalPathBadge') }}</span>
           </span>
         </div>
 
@@ -249,30 +250,30 @@ function getStatusBadge(s: TaskStatus) {
             :disabled="taskStore.isReadOnly"
             class="h-7 px-2.5 inline-flex items-center gap-1.5 rounded-md border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 font-mono text-[11px] font-medium cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             :title="taskStore.isReadOnly
-              ? 'Read-only: this project has other members and you are offline'
-              : 'Edit this task (i)'"
+              ? $t('detail.readOnlyOffline')
+              : $t('detail.editHint')"
             @click="enterEditMode"
           >
             <Edit3 class="w-3.5 h-3.5" />
-            <span>Edit</span>
+            <span>{{ $t('detail.edit') }}</span>
           </button>
           <button
             v-else
             id="task-done-editing"
             type="button"
             class="h-7 px-2.5 inline-flex items-center gap-1.5 rounded-md bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-mono text-[11px] font-medium cursor-pointer"
-            title="Finish editing (Esc)"
+            :title="$t('detail.finish')"
             @click="saveAndExit"
           >
             <Check class="w-3.5 h-3.5" />
-            <span>Done</span>
+            <span>{{ $t('detail.done') }}</span>
           </button>
 
           <button
             type="button"
             class="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer shrink-0"
             @click="emit('close')"
-            title="Close (Esc)"
+            :title="$t('detail.close')"
           >
             <X class="w-5 h-5 shrink-0" />
           </button>
@@ -284,13 +285,13 @@ function getStatusBadge(s: TaskStatus) {
         <!-- Title Field (Interactive / Editable) -->
         <div>
           <label class="block font-mono text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-            Title
+            {{ $t('detail.title') }}
           </label>
           <div v-if="!isEditing">
             <h3
               class="text-base md:text-lg font-semibold text-slate-950 dark:text-slate-50 leading-snug hover:bg-slate-100 dark:hover:bg-slate-800/60 p-1 -m-1 rounded cursor-text"
               @click="enterEditMode"
-              :title="taskStore.isReadOnly ? 'Read-only' : 'Click, or use the Edit button'"
+              :title="taskStore.isReadOnly ? $t('detail.readOnly') : $t('detail.clickOrEdit')"
             >
               {{ task.title }}
             </h3>
@@ -301,7 +302,7 @@ function getStatusBadge(s: TaskStatus) {
               v-model="editTitle"
               type="text"
               class="w-full bg-slate-50 dark:bg-slate-950 border border-indigo-500 rounded-md px-3 py-1.5 text-base font-semibold font-sans text-slate-950 dark:text-slate-50 focus:outline-none shadow-xs"
-              placeholder="Task Title..."
+              :placeholder="$t('detail.titlePh')"
               @input="onFieldChange"
             />
           </div>
@@ -311,10 +312,10 @@ function getStatusBadge(s: TaskStatus) {
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 p-3 bg-slate-50 dark:bg-slate-950/60 rounded-lg border border-slate-200 dark:border-slate-800/80">
           <!-- Priority Selector -->
           <div>
-            <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">Priority</span>
+            <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">{{ $t('detail.priority') }}</span>
             <div v-if="!isEditing">
               <span class="h-6 px-2 inline-flex items-center justify-center rounded-md border text-[11px] font-mono font-semibold uppercase" :class="getPriorityBadge(task.priority)">
-                {{ task.priority }}
+                {{ $t(`priority.${task.priority}` as const) }}
               </span>
             </div>
             <div v-else class="relative">
@@ -324,10 +325,10 @@ function getStatusBadge(s: TaskStatus) {
                 :class="getPriorityBadge(editPriority)"
                 @change="onFieldChange"
               >
-                <option value="LOW">LOW</option>
-                <option value="MEDIUM">MEDIUM</option>
-                <option value="HIGH">HIGH</option>
-                <option value="CRITICAL">CRITICAL</option>
+                <option value="LOW">{{ $t('priority.LOW') }}</option>
+                <option value="MEDIUM">{{ $t('priority.MEDIUM') }}</option>
+                <option value="HIGH">{{ $t('priority.HIGH') }}</option>
+                <option value="CRITICAL">{{ $t('priority.CRITICAL') }}</option>
               </select>
               <ChevronDown class="w-3 h-3 absolute right-1.5 top-2 pointer-events-none opacity-60" />
             </div>
@@ -335,10 +336,10 @@ function getStatusBadge(s: TaskStatus) {
 
           <!-- Complexity Selector -->
           <div>
-            <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">Complexity</span>
+            <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">{{ $t('detail.complexity') }}</span>
             <div v-if="!isEditing">
               <span class="font-mono text-xs font-bold text-slate-800 dark:text-slate-200">
-                {{ task.complexity || 'M' }} ({{ task.complexity === 'S' ? '1pt' : task.complexity === 'M' ? '2pts' : task.complexity === 'L' ? '3pts' : '5pts' }})
+                {{ $t(`cx.${task.complexity || 'M'}` as const) }}
               </span>
             </div>
             <div v-else class="relative">
@@ -347,10 +348,10 @@ function getStatusBadge(s: TaskStatus) {
                 class="w-full h-7 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md pl-2 pr-6 text-xs font-mono text-slate-900 dark:text-slate-100 focus:outline-none appearance-none cursor-pointer"
                 @change="onFieldChange"
               >
-                <option value="S">S (1pt)</option>
-                <option value="M">M (2pts)</option>
-                <option value="L">L (3pts)</option>
-                <option value="XL">XL (5pts)</option>
+                <option value="S">{{ $t('cx.S') }}</option>
+                <option value="M">{{ $t('cx.M') }}</option>
+                <option value="L">{{ $t('cx.L') }}</option>
+                <option value="XL">{{ $t('cx.XL') }}</option>
               </select>
               <ChevronDown class="w-3 h-3 absolute right-1.5 top-2 pointer-events-none opacity-60" />
             </div>
@@ -358,16 +359,16 @@ function getStatusBadge(s: TaskStatus) {
 
           <!-- Assignee Selector -->
           <div>
-            <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">Assignee</span>
+            <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">{{ $t('detail.assignee') }}</span>
             <div v-if="!isEditing" class="flex items-center gap-1.5 text-xs font-mono text-slate-700 dark:text-slate-300 truncate">
               <AssigneeAvatars v-if="task.assignees?.length" :assignees="task.assignees" :max="4" size="xs" />
-              <span>{{ task.assignees?.length ? task.assignees.map((a) => a.full_name).join(', ') : 'Unassigned' }}</span>
+              <span>{{ task.assignees?.length ? task.assignees.map((a) => a.full_name).join(', ') : $t('detail.unassigned') }}</span>
             </div>
             <!-- Was a hardcoded list of four team members storing strings that
                  matched no user id, so the field never actually assigned
                  anything (F-41). Now the project's real roster. -->
             <div v-else-if="taskStore.members.length === 0" class="text-[11px] font-mono text-slate-500">
-              No roster loaded for this project.
+              {{ $t('detail.noRoster') }}
             </div>
             <div v-else class="max-h-28 overflow-y-auto rounded-md border border-slate-300 dark:border-slate-700 divide-y divide-slate-200 dark:divide-slate-800">
               <label
@@ -393,9 +394,9 @@ function getStatusBadge(s: TaskStatus) {
 
           <!-- Due Date Picker -->
           <div>
-            <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">Due Date</span>
+            <span class="block font-mono text-[11px] uppercase text-slate-500 dark:text-slate-400 mb-1">{{ $t('detail.dueDate') }}</span>
             <div v-if="!isEditing" class="flex items-center gap-1.5 text-xs font-mono text-slate-700 dark:text-slate-300">
-              <span>{{ task.dueDate ? new Date(task.dueDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'None' }}</span>
+              <span>{{ task.dueDate ? new Date(task.dueDate).toLocaleDateString(uiLocale(), { month: 'short', day: 'numeric', year: 'numeric' }) : $t('detail.none') }}</span>
             </div>
             <div v-else>
               <input
@@ -412,17 +413,17 @@ function getStatusBadge(s: TaskStatus) {
         <div v-if="editStatus === 'BLOCKED' || task.status === 'BLOCKED' || editBlockingReason" class="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 rounded-lg">
           <div class="flex items-center gap-1.5 text-rose-800 dark:text-rose-300 text-xs font-mono font-semibold mb-1">
             <AlertCircle class="w-4 h-4 shrink-0" />
-            <span>BLOCKING REASON</span>
+            <span>{{ $t('detail.blockingReason') }}</span>
           </div>
           <p v-if="!isEditing" class="text-xs font-sans text-rose-900 dark:text-rose-200">
-            {{ task.blockingReason || 'No blocking reason specified.' }}
+            {{ task.blockingReason || $t('detail.noBlockReason') }}
           </p>
           <input
             v-else
             v-model="editBlockingReason"
             type="text"
             class="w-full h-8 bg-white dark:bg-slate-900 border border-rose-300 dark:border-rose-800 rounded-md px-2.5 text-xs text-slate-900 dark:text-slate-100 focus:outline-none"
-            placeholder="Describe what is blocking this task..."
+            :placeholder="$t('detail.blockingPh')"
             @input="onFieldChange"
           />
         </div>
@@ -430,7 +431,7 @@ function getStatusBadge(s: TaskStatus) {
         <!-- Description Field -->
         <div>
           <label class="block font-mono text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-            Description
+            {{ $t('detail.description') }}
           </label>
 
           <!-- View Mode -->
@@ -438,13 +439,13 @@ function getStatusBadge(s: TaskStatus) {
             v-if="!isEditing"
             class="p-3.5 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800/80 rounded-lg min-h-[90px] cursor-text hover:border-slate-300 dark:hover:border-slate-700"
             @click="enterEditMode"
-            title="Click to edit"
+            :title="$t('detail.clickToEdit')"
           >
             <p v-if="task.description" class="text-xs md:text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap leading-relaxed">
               {{ task.description }}
             </p>
             <span v-else class="text-xs text-slate-400 dark:text-slate-600 italic">
-              No description provided. Click to add details.
+              {{ $t('detail.noDescription') }}
             </span>
           </div>
 
@@ -454,7 +455,7 @@ function getStatusBadge(s: TaskStatus) {
               v-model="editDescription"
               rows="5"
               class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 focus:border-indigo-500 rounded-md p-3 text-xs md:text-sm text-slate-900 dark:text-slate-100 focus:outline-none font-sans shadow-xs leading-relaxed"
-              placeholder="Add a more detailed description..."
+              :placeholder="$t('detail.descPh')"
               @input="onFieldChange"
             ></textarea>
           </div>
@@ -463,7 +464,7 @@ function getStatusBadge(s: TaskStatus) {
         <!-- Dependencies -->
         <div v-if="task.dependencies && task.dependencies.length > 0">
           <label class="block font-mono text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-            Prerequisites & Dependencies
+            {{ $t('detail.deps') }}
           </label>
           <div class="flex flex-wrap gap-2">
             <span
@@ -480,7 +481,7 @@ function getStatusBadge(s: TaskStatus) {
         <!-- Acceptance Criteria -->
         <div v-if="task.acceptanceCriteria && task.acceptanceCriteria.length > 0">
           <label class="block font-mono text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-            Acceptance Criteria
+            {{ $t('detail.acceptance') }}
           </label>
           <div class="space-y-1.5">
             <div
@@ -499,7 +500,7 @@ function getStatusBadge(s: TaskStatus) {
         <!-- Assignees -->
         <div v-if="task.assignees && task.assignees.length > 0">
           <label class="block font-mono text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5">
-            Assigned to
+            {{ $t('detail.assignedTo') }}
           </label>
           <div class="flex items-center gap-2 flex-wrap">
             <AssigneeAvatars :assignees="task.assignees" :max="8" />
@@ -524,7 +525,7 @@ function getStatusBadge(s: TaskStatus) {
       <div class="px-5 py-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/40 flex items-center justify-between text-xs select-none shrink-0">
         <!-- Left: Metadata -->
         <span class="font-mono text-[11px] text-slate-500 dark:text-slate-400">
-          {{ isEditing ? 'Auto-saves on exit' : `Created: ${formattedDate}` }}
+          {{ isEditing ? $t('detail.autosave') : $t('detail.created', { date: formattedDate }) }}
         </span>
 
         <!-- Right: Actions & Keycaps -->
@@ -532,24 +533,24 @@ function getStatusBadge(s: TaskStatus) {
           <!-- View Mode Keycaps -->
           <template v-if="!isEditing">
             <span class="text-slate-600 dark:text-slate-400">
-              <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px]">i</kbd> Edit
+              <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px]">i</kbd> {{ $t('detail.edit') }}
             </span>
             <span class="text-slate-600 dark:text-slate-400">
-              <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px]">Esc</kbd> Close
+              <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px]">Esc</kbd> {{ $t('detail.closeShort') }}
             </span>
           </template>
 
           <!-- Edit Mode Actions & Keycaps -->
           <template v-else>
             <span class="text-slate-600 dark:text-slate-400 mr-1">
-              <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px]">Esc</kbd> Done
+              <kbd class="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-[10px]">Esc</kbd> {{ $t('detail.done') }}
             </span>
             <button
               type="button"
               class="h-7 px-3 rounded-md bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-white dark:text-slate-900 font-sans font-medium text-xs cursor-pointer shadow-xs"
               @click="saveAndExit"
             >
-              Done
+              {{ $t('detail.done') }}
             </button>
           </template>
         </div>

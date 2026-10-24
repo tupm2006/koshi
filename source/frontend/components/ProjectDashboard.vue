@@ -16,6 +16,7 @@ import {
   X, FolderPlus, Users, Shield, User as UserIcon, Trash2,
   AlertCircle, Check, LayoutGrid, Loader2,
 } from 'lucide-vue-next';
+import { tr } from '../lib/i18nPlugin';
 
 const emit = defineEmits<{ (e: 'close'): void }>();
 const taskStore = useTaskStore();
@@ -49,7 +50,7 @@ async function refreshMembers() {
   try {
     members.value = await api.listMembers(selectedId.value);
   } catch (e: any) {
-    errorMsg.value = e.message || 'Could not load members';
+    errorMsg.value = e.message || tr('pd.loadFail');
   } finally {
     isLoadingMembers.value = false;
   }
@@ -65,9 +66,9 @@ async function handleCreateProject() {
     newProjectName.value = '';
     newProjectDesc.value = '';
     await refreshMembers();
-    flashNotice(`Project "${name}" created — you are its PM.`);
+    flashNotice(tr('pd.created', { name }));
   } catch (e: any) {
-    errorMsg.value = e.message || 'Could not create project';
+    errorMsg.value = e.message || tr('pd.createFail');
   } finally {
     isCreating.value = false;
   }
@@ -91,9 +92,9 @@ async function handleInvite() {
     await taskStore.loadProjects();
     // Not "added": they are not in the project until they accept. Saying
     // "added" would be a lie the roster immediately contradicts.
-    flashNotice(`Invitation sent to ${email}. They join once they accept.`);
+    flashNotice(tr('pd.invited', { email }));
   } catch (e: any) {
-    errorMsg.value = e.message || 'Could not add member';
+    errorMsg.value = e.message || tr('pd.addFail');
   } finally {
     isInviting.value = false;
   }
@@ -107,9 +108,9 @@ async function handleRoleChange(member: ProjectMember, role: ProjectRole) {
     await refreshMembers();
     // The caller may have just changed their own role in this project.
     await taskStore.loadProjects();
-    flashNotice(`${member.full_name} is now ${role}.`);
+    flashNotice(tr('pd.roleChanged', { name: member.full_name, role: tr(`role.${role}` as const) }));
   } catch (e: any) {
-    errorMsg.value = e.message || 'Could not change role';
+    errorMsg.value = e.message || tr('pd.roleFail');
   }
 }
 
@@ -120,9 +121,9 @@ async function handleRemove(member: ProjectMember) {
     await api.removeMember(selectedId.value, member.user_id);
     await refreshMembers();
     await taskStore.loadProjects();
-    flashNotice(`${member.full_name} removed.`);
+    flashNotice(tr('pd.removed', { name: member.full_name }));
   } catch (e: any) {
-    errorMsg.value = e.message || 'Could not remove member';
+    errorMsg.value = e.message || tr('pd.removeFail');
   }
 }
 
@@ -146,9 +147,9 @@ onMounted(async () => {
             <LayoutGrid class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-semibold font-sans">My Dashboard</h2>
+            <h2 class="text-sm md:text-base font-semibold font-sans">{{ $t('pd.title') }}</h2>
             <p class="text-[11px] text-slate-500 dark:text-slate-400">
-              {{ taskStore.currentUser?.full_name || 'Not signed in' }} · roles are set per project
+              {{ taskStore.currentUser?.full_name || $t('pd.notSignedIn') }} · {{ $t('pd.rolesPerProject') }}
             </p>
           </div>
         </div>
@@ -176,12 +177,12 @@ onMounted(async () => {
         <!-- Projects -->
         <section class="space-y-3">
           <h3 class="text-[11px] font-mono font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Projects ({{ taskStore.projects.length }})
+            {{ $t('pd.projects', { n: taskStore.projects.length }) }}
           </h3>
 
           <div v-if="taskStore.projects.length === 0" class="p-4 rounded-lg border border-dashed border-slate-300 dark:border-slate-700 text-center">
             <p class="text-xs text-slate-500 dark:text-slate-400">
-              You have no projects yet. Create one below — you will be its Project Manager.
+              {{ $t('pd.noProjects') }}
             </p>
           </div>
 
@@ -198,7 +199,7 @@ onMounted(async () => {
                 <span class="min-w-0">
                   <span class="block text-xs font-medium font-sans truncate">{{ p.name }}</span>
                   <span class="block text-[10px] font-mono text-slate-500 dark:text-slate-400">
-                    {{ p.member_count }} member{{ p.member_count === 1 ? '' : 's' }}
+                    {{ p.member_count === 1 ? $t('pd.member1') : $t('pd.members', { n: p.member_count }) }}
                   </span>
                 </span>
                 <span
@@ -209,26 +210,26 @@ onMounted(async () => {
                 >
                   <Shield v-if="p.my_role === 'PM'" class="w-3 h-3" />
                   <UserIcon v-else class="w-3 h-3" />
-                  {{ p.my_role }}
+                  {{ p.my_role ? $t(`role.${p.my_role}` as const) : "—" }}
                 </span>
               </button>
             </li>
           </ul>
 
           <form class="pt-2 space-y-2 border-t border-slate-200 dark:border-slate-800" @submit.prevent="handleCreateProject">
-            <label for="new-project-name" class="block text-[11px] font-mono font-medium text-slate-700 dark:text-slate-300 pt-2">New project</label>
+            <label for="new-project-name" class="block text-[11px] font-mono font-medium text-slate-700 dark:text-slate-300 pt-2">{{ $t('pd.newProject') }}</label>
             <input
               id="new-project-name"
               v-model="newProjectName"
               type="text"
               required
-              placeholder="Project name"
+              :placeholder="$t('pd.namePh')"
               class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-500 font-sans"
             />
             <input
               v-model="newProjectDesc"
               type="text"
-              placeholder="Description (optional)"
+              :placeholder="$t('pd.descPh')"
               class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-indigo-500 font-sans"
             />
             <button
@@ -238,7 +239,7 @@ onMounted(async () => {
             >
               <Loader2 v-if="isCreating" class="w-3.5 h-3.5 animate-spin" />
               <FolderPlus v-else class="w-3.5 h-3.5" />
-              <span>Create project</span>
+              <span>{{ $t('pd.create') }}</span>
             </button>
           </form>
         </section>
@@ -247,19 +248,19 @@ onMounted(async () => {
         <section class="space-y-3 mt-6 md:mt-0 pt-6 md:pt-0 border-t md:border-t-0 md:border-l border-slate-200 dark:border-slate-800 md:pl-5">
           <h3 class="text-[11px] font-mono font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
             <Users class="w-3.5 h-3.5" />
-            Team &amp; roles
+            {{ $t('pd.team') }}
           </h3>
 
           <p v-if="selectedId === null" class="text-xs text-slate-500 dark:text-slate-400">
-            Select or create a project to manage its team.
+            {{ $t('pd.selectHint') }}
           </p>
 
           <template v-else>
             <p v-if="!isPM" class="text-[11px] font-mono text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg px-2.5 py-1.5">
-              You are a MEMBER of this project. Only a PM can change roles.
+              {{ $t('pd.memberNotice') }}
             </p>
 
-            <p v-if="isLoadingMembers" class="text-xs text-slate-500 dark:text-slate-400">Loading…</p>
+            <p v-if="isLoadingMembers" class="text-xs text-slate-500 dark:text-slate-400">{{ $t('common.loading') }}</p>
 
             <ul v-else class="space-y-1.5">
               <li
@@ -278,21 +279,21 @@ onMounted(async () => {
                     <span
                       v-if="m.status === 'PENDING'"
                       class="px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold bg-amber-100 dark:bg-amber-500/15 text-amber-700 dark:text-amber-300 shrink-0"
-                    >INVITED</span>
+                    >{{ $t('pd.invitedBadge') }}</span>
                     <span
                       v-else-if="m.status === 'DECLINED'"
                       class="px-1.5 py-0.5 rounded text-[9px] font-mono font-semibold bg-rose-100 dark:bg-rose-500/15 text-rose-700 dark:text-rose-300 shrink-0"
-                    >DECLINED</span>
+                    >{{ $t('pd.declinedBadge') }}</span>
                   </span>
                   <span class="block text-[10px] font-mono text-slate-500 dark:text-slate-400 truncate">
                     <template v-if="m.status === 'ACCEPTED'">
-                      {{ m.email }} · {{ m.active_tasks_count }} active · {{ m.wip_points }} pts
+                      {{ $t('pd.workload', { email: m.email, n: m.active_tasks_count, pts: m.wip_points }) }}
                     </template>
                     <template v-else-if="m.status === 'PENDING'">
-                      {{ m.email }} · awaiting their answer
+                      {{ $t('pd.awaiting', { email: m.email }) }}
                     </template>
                     <template v-else>
-                      {{ m.email }} · declined the invitation
+                      {{ $t('pd.declined', { email: m.email }) }}
                     </template>
                   </span>
                 </span>
@@ -304,8 +305,8 @@ onMounted(async () => {
                     class="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded px-1.5 py-1 text-[10px] font-mono focus:outline-none focus:border-indigo-500 cursor-pointer"
                     @change="handleRoleChange(m, ($event.target as HTMLSelectElement).value as ProjectRole)"
                   >
-                    <option value="PM">PM</option>
-                    <option value="MEMBER">MEMBER</option>
+                    <option value="PM">{{ $t('role.PM') }}</option>
+                    <option value="MEMBER">{{ $t('role.MEMBER') }}</option>
                   </select>
                   <span
                     v-else
@@ -313,12 +314,12 @@ onMounted(async () => {
                     :class="m.role === 'PM'
                       ? 'bg-indigo-100 dark:bg-indigo-500/15 text-indigo-700 dark:text-indigo-300'
                       : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'"
-                  >{{ m.role }}</span>
+                  >{{ $t(`role.${m.role}` as const) }}</span>
 
                   <button
                     v-if="isPM"
                     type="button"
-                    title="Remove from project"
+                    :title="$t('pd.removeHint')"
                     class="p-1 rounded text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer"
                     @click="handleRemove(m)"
                   >
@@ -330,7 +331,7 @@ onMounted(async () => {
 
             <form v-if="isPM" class="pt-2 space-y-2 border-t border-slate-200 dark:border-slate-800" @submit.prevent="handleInvite">
               <label for="invite-email" class="block text-[11px] font-mono font-medium text-slate-700 dark:text-slate-300 pt-2">
-                Add a member by email
+                {{ $t('pd.addByEmail') }}
               </label>
               <div class="flex gap-1.5">
                 <input
@@ -345,8 +346,8 @@ onMounted(async () => {
                   v-model="inviteRole"
                   class="bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-2 py-1.5 text-[11px] font-mono focus:outline-none focus:border-indigo-500 cursor-pointer"
                 >
-                  <option value="MEMBER">MEMBER</option>
-                  <option value="PM">PM</option>
+                  <option value="MEMBER">{{ $t('role.MEMBER') }}</option>
+                  <option value="PM">{{ $t('role.PM') }}</option>
                 </select>
               </div>
               <button
@@ -356,10 +357,10 @@ onMounted(async () => {
               >
                 <Loader2 v-if="isInviting" class="w-3.5 h-3.5 animate-spin" />
                 <Users v-else class="w-3.5 h-3.5" />
-                <span>Add member</span>
+                <span>{{ $t('pd.add') }}</span>
               </button>
               <p class="text-[10px] font-mono text-slate-500 dark:text-slate-400">
-                The person must already have a Koshi account.
+                {{ $t('pd.mustHaveAccount') }}
               </p>
             </form>
           </template>

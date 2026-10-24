@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue';
 import { api } from '../services/api';
 import { useTaskStore } from '../stores/taskStore';
 import { Sparkles, X, Copy, Check, RefreshCw, AlertCircle, CheckCircle2, AlertTriangle, ArrowRight } from 'lucide-vue-next';
+import { tr } from '../lib/i18nPlugin';
 
 defineProps<{
   onClose: () => void;
@@ -52,7 +53,7 @@ const parsedSections = computed<ParsedSection[]>(() => {
 
     if (title || items.length > 0) {
       sections.push({
-        title: title || 'Chi tiết báo cáo',
+        title: title || tr('ws.details'),
         type,
         items: items.length > 0 ? items : [trimmed.replace(/^[#*\d.\s]+/, '').replace(/\*\*/g, '')],
       });
@@ -63,7 +64,7 @@ const parsedSections = computed<ParsedSection[]>(() => {
     ? sections
     : [
         {
-          title: 'Chi tiết báo cáo',
+          title: tr('ws.details'),
           type: 'general',
           items: text.split('\n').map((l) => l.replace(/^[-*•\d.]+\s*/, '').replace(/\*\*/g, '').trim()).filter(Boolean),
         },
@@ -75,7 +76,7 @@ const taskStore = useTaskStore();
 async function loadSummary() {
   const projectId = taskStore.currentProjectId;
   if (projectId === null) {
-    errorMsg.value = 'Select a project first.';
+    errorMsg.value = tr('ai.noProject');
     // isLoading starts true, so returning without clearing it left the modal
     // showing "Aggregating live task data..." forever and the error invisible
     // behind the spinner (F-34).
@@ -88,7 +89,7 @@ async function loadSummary() {
     const res = await api.getWeeklySummary(projectId);
     summaryText.value = res.summary;
   } catch (e: any) {
-    errorMsg.value = e.message || 'Failed to generate weekly summary';
+    errorMsg.value = e.message || tr('ws.fail');
   } finally {
     isLoading.value = false;
   }
@@ -135,8 +136,8 @@ onMounted(() => {
             <Sparkles class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">Weekly Progress Summary</h2>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">Status, blockers, and sprint priority overview</p>
+            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">{{ $t('ws.title') }}</h2>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">{{ $t('ws.subtitle') }}</p>
           </div>
         </div>
         <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="onClose">
@@ -148,7 +149,7 @@ onMounted(() => {
       <div class="flex-1 overflow-y-auto py-4 space-y-3.5 text-xs">
         <div v-if="isLoading" class="flex flex-col items-center justify-center py-16 text-center">
           <RefreshCw class="w-6 h-6 text-indigo-600 dark:text-indigo-400 animate-spin mb-3" />
-          <p class="text-xs text-slate-500 dark:text-slate-400 font-mono">Aggregating live task data & generating report...</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400 font-mono">{{ $t('ws.loading') }}</p>
         </div>
 
         <div v-else-if="errorMsg" class="p-4 rounded-lg bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 flex items-center gap-2 font-mono">
@@ -197,7 +198,7 @@ onMounted(() => {
           :disabled="isLoading"
         >
           <RefreshCw class="w-3.5 h-3.5" :class="isLoading ? 'animate-spin' : ''" />
-          <span>Regenerate</span>
+          <span>{{ $t('ws.regenerate') }}</span>
         </button>
 
         <button
@@ -208,7 +209,7 @@ onMounted(() => {
         >
           <Check v-if="isCopied" class="w-3.5 h-3.5 text-emerald-400" />
           <Copy v-else class="w-3.5 h-3.5" />
-          <span>{{ isCopied ? 'Copied!' : 'Copy Report' }}</span>
+          <span>{{ isCopied ? $t('ws.copied') : $t('ws.copy') }}</span>
         </button>
       </div>
     </div>

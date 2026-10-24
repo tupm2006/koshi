@@ -42,6 +42,13 @@ watch(() => props.taskId, () => { if (open.value) load(); });
 
 const KNOWN = ['created', 'title', 'status', 'priority', 'complexity_points', 'due_date', 'blocking_reason', 'sprint_id', 'description', 'assignees'];
 const fieldLabel = (f: string) => (KNOWN.includes(f) ? t.value(`history.${f === 'title' ? 'title_' : f}` as TranslationKey) : f);
+// Status and priority are stored as codes; show them in the UI language.
+const show = (field: string, v: string | null) => {
+  if (v === null) return '—';
+  if (field === 'status') return t.value(`status.${v}` as TranslationKey);
+  if (field === 'priority') return t.value(`priority.${v}` as TranslationKey);
+  return v;
+};
 const when = (iso: string) => new Date(iso.endsWith('Z') ? iso : iso + 'Z').toLocaleString(i18n.locale === 'vi' ? 'vi-VN' : 'en-GB', { dateStyle: 'short', timeStyle: 'short' });
 </script>
 
@@ -62,8 +69,8 @@ const when = (iso: string) => new Date(iso.endsWith('Z') ? iso : iso + 'Z').toLo
           <template v-if="e.field === 'created'"> {{ t('history.createdVerb') }}</template>
           <template v-else>
             · {{ fieldLabel(e.field) }}:
-            <span class="line-through text-slate-400">{{ e.old_value ?? '—' }}</span>
-            → <span class="text-slate-700 dark:text-slate-200">{{ e.new_value ?? '—' }}</span>
+            <span class="line-through text-slate-400">{{ show(e.field, e.old_value) }}</span>
+            → <span class="text-slate-700 dark:text-slate-200">{{ show(e.field, e.new_value) }}</span>
           </template>
         </span>
       </div>

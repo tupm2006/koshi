@@ -1,7 +1,7 @@
 # D5 — Tests & Acceptance Criteria
 
 **Purpose:** define what "correct" means, and record honestly what is currently verified.
-**Last verified by execution:** 2026-10-24 — backend `176 passed`, frontend `414 passed`.
+**Last verified by execution:** 2026-10-24 — backend `177 passed`, frontend `442 passed`.
 
 ---
 
@@ -15,7 +15,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pytest -q
 ```
-Expected: **176 passed**. (`app/database.py` creates the sqlite directory itself, so no `mkdir` is needed.) Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
+Expected: **177 passed**. (`app/database.py` creates the sqlite directory itself, so no `mkdir` is needed.) Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
 
 ### End-to-end against a running instance (DEC-028)
 
@@ -48,7 +48,7 @@ creates nothing and **refuses to start** unless the database is at head (D3 §5c
 
 ```bash
 pnpm install
-pnpm test                     # vitest run — 414 tests
+pnpm test                     # vitest run — 442 tests
 pnpm run test:watch           # vitest, watch mode
 pnpm run build                # vue-tsc -b && vite build
 pnpm run dev                  # manual verification at :5173

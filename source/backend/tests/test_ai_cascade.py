@@ -419,3 +419,14 @@ def test_assignment_never_recommends_a_pending_invitee(route, client, pm_auth_he
     client.post(f"/api/ai/recommend-assignment?project_id={pid}", json={"title": "t"}, headers=pm_auth_headers)
     sent = router.calls[0]["json"]["messages"][1]["content"]
     assert f'"user_id": {invitee}' not in sent
+
+
+def test_ui_language_reaches_the_model(route, client, pm_auth_headers):
+    """Seed data is Vietnamese; an English UI must still get English answers."""
+    router = route(cloud=FakeResponse(200, openai_reply(_DECOMPOSED)))
+    client.post("/api/ai/decompose", json={"goal": "x"}, headers={**pm_auth_headers, "Accept-Language": "en-GB,en;q=0.9"})
+    assert "in English" in router.calls[-1]["json"]["messages"][0]["content"]
+    client.post("/api/ai/decompose", json={"goal": "x"}, headers={**pm_auth_headers, "Accept-Language": "vi"})
+    assert "tiếng Việt" in router.calls[-1]["json"]["messages"][0]["content"]
+    client.post("/api/ai/decompose", json={"goal": "x"}, headers=pm_auth_headers)
+    assert "IMPORTANT" not in router.calls[-1]["json"]["messages"][0]["content"]

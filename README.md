@@ -34,7 +34,7 @@ submission/     frozen coursework snapshot — do not edit
 ```bash
 pnpm install
 pnpm run dev            # http://localhost:5173, proxies /api → :8000
-pnpm test               # vitest run — 414 tests
+pnpm test               # vitest run — 442 tests
 pnpm run build          # vue-tsc -b && vite build → dist/
 ```
 
@@ -46,7 +46,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 alembic upgrade head               # build/update the schema
-pytest -q                          # 176 tests (SQLite; see CLAUDE.md for MySQL)
+pytest -q                          # 177 tests (SQLite; see CLAUDE.md for MySQL)
 ```
 
 On first run with an empty database the app seeds two accounts (`pm@tupm.qzz.io` and
@@ -167,7 +167,7 @@ Tier 3 output is currently indistinguishable from real model output to the calle
 
 ## Project status
 
-The backend is covered end to end (176/176), with authorisation and the AI cascade the best-tested
+The backend is covered end to end (177/177), with authorisation and the AI cascade the best-tested
 areas. The frontend
 has 260 tests over both pure libraries, both stores, the keyboard dispatcher and thirteen
 components — every suite mutation-verified. Overall: 83% of requirements automated, 7% unverified.

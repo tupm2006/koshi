@@ -1543,6 +1543,7 @@ out of band. There is still no login rate limiting (RISK to record in D6).
 | **2026-08-29** | MySQL 8.4 adopted for production; live data migrated and verified; suite run on both engines (DEC-027). |
 | **2026-08-29** | Notification feed (DEC-026, migration 0007). Authed media fixed (F-45), nginx body limit (F-46), and SQLite foreign keys found to have never been enforced (F-47). Backend → 155, frontend → 399. |
 | **2026-10-24** | `origin/main` reviewed, partly taken (DEC-030). Groq adopted; decomposer made model-backed; F-50–F-52 (DEC-029). Scrum lifecycle, burndown, velocity (DEC-028, migration 0008). Seed + end-to-end smoke scripts; real screen-recorded landing video. Backend → 170, frontend → 410. |
+| **2026-10-24** | Full UI localisation with a coverage test; AI follows UI language (DEC-032). |
 | **2026-10-24** | Task history (migration 0009) and AI sprint retrospective; Cloudflare Tunnel publishing (DEC-031). |
 
 ## Part IV — Open questions

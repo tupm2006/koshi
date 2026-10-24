@@ -75,8 +75,8 @@ onMounted(() => {
             <Plus class="w-5 h-5" />
           </div>
           <div>
-            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">Create New Task</h2>
-            <p class="text-[11px] text-slate-500 dark:text-slate-400">High-velocity task authoring</p>
+            <h2 class="text-sm md:text-base font-semibold text-slate-900 dark:text-slate-100 font-sans">{{ $t('create.title') }}</h2>
+            <p class="text-[11px] text-slate-500 dark:text-slate-400">{{ $t('create.subtitle') }}</p>
           </div>
         </div>
         <button type="button" class="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer" @click="emit('close')">
@@ -87,13 +87,13 @@ onMounted(() => {
       <!-- Form Body -->
       <form class="py-4 space-y-4 text-xs" @submit.prevent="handleCreate">
         <div>
-          <label for="vue-create-task-title" class="block font-mono text-slate-700 dark:text-slate-300 mb-1.5 font-medium">Task Title *</label>
+          <label for="vue-create-task-title" class="block font-mono text-slate-700 dark:text-slate-300 mb-1.5 font-medium">{{ $t('create.taskTitle') }}</label>
           <input
             id="vue-create-task-title"
             ref="inputRef"
             v-model="title"
             type="text"
-            placeholder="e.g. Implement Vue 3 Composition API & Pinia Store..."
+            :placeholder="$t('create.placeholder')"
             required
             class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 min-h-[44px]"
             @keydown.enter.prevent="handleCreate"
@@ -102,30 +102,30 @@ onMounted(() => {
 
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label for="vue-create-task-priority" class="block font-mono text-slate-600 dark:text-slate-400 mb-1.5 font-medium">Priority</label>
+            <label for="vue-create-task-priority" class="block font-mono text-slate-600 dark:text-slate-400 mb-1.5 font-medium">{{ $t('create.priority') }}</label>
             <select
               id="vue-create-task-priority"
               v-model="priority"
               class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-indigo-500"
             >
-              <option value="LOW">LOW</option>
-              <option value="MEDIUM">MEDIUM</option>
-              <option value="HIGH">HIGH</option>
-              <option value="CRITICAL">CRITICAL</option>
+              <option value="LOW">{{ $t('priority.LOW') }}</option>
+              <option value="MEDIUM">{{ $t('priority.MEDIUM') }}</option>
+              <option value="HIGH">{{ $t('priority.HIGH') }}</option>
+              <option value="CRITICAL">{{ $t('priority.CRITICAL') }}</option>
             </select>
           </div>
 
           <div>
-            <label for="vue-create-task-status" class="block font-mono text-slate-600 dark:text-slate-400 mb-1.5 font-medium">Initial Status</label>
+            <label for="vue-create-task-status" class="block font-mono text-slate-600 dark:text-slate-400 mb-1.5 font-medium">{{ $t('create.initialStatus') }}</label>
             <select
               id="vue-create-task-status"
               v-model="status"
               class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-indigo-500"
             >
-              <option value="TODO">TODO</option>
-              <option value="IN_PROGRESS">IN_PROGRESS</option>
-              <option value="BLOCKED">BLOCKED</option>
-              <option value="DONE">DONE</option>
+              <option value="TODO">{{ $t('status.TODO') }}</option>
+              <option value="IN_PROGRESS">{{ $t('status.IN_PROGRESS') }}</option>
+              <option value="BLOCKED">{{ $t('status.BLOCKED') }}</option>
+              <option value="DONE">{{ $t('status.DONE') }}</option>
             </select>
           </div>
         </div>
@@ -133,7 +133,7 @@ onMounted(() => {
         <div>
           <label for="vue-create-task-due" class="flex items-center gap-1.5 font-mono text-slate-600 dark:text-slate-400 mb-1.5 font-medium">
             <CalendarDays class="w-3.5 h-3.5" />
-            <span>Due date</span>
+            <span>{{ $t('create.due') }}</span>
           </label>
           <input
             id="vue-create-task-due"
@@ -143,14 +143,14 @@ onMounted(() => {
             class="w-full bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-900 dark:text-slate-100 font-mono focus:outline-none focus:border-indigo-500 min-h-[40px]"
           />
           <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            Optional. Dated tasks sort to the top of the board as the deadline nears.
+            {{ $t('create.dueHint') }}
           </p>
         </div>
 
         <div v-if="canAssign">
           <label for="vue-create-task-assignee" class="flex items-center gap-1.5 font-mono text-slate-600 dark:text-slate-400 mb-1.5 font-medium">
             <UserPlus class="w-3.5 h-3.5" />
-            <span>Assign to</span>
+            <span>{{ $t('create.assign') }}</span>
           </label>
           <!-- Checkboxes, not a multi-select: a <select multiple> requires
                ctrl-click to pick a second person, which nobody discovers. -->
@@ -173,14 +173,13 @@ onMounted(() => {
               <span class="min-w-0 flex-1">
                 <span class="block text-xs font-medium truncate">{{ m.full_name }}</span>
                 <span class="block text-[10px] font-mono text-slate-500 dark:text-slate-400">
-                  {{ m.active_tasks_count }} active · {{ m.wip_points }} pts
+                  {{ $t('pd.workload', { email: '', n: m.active_tasks_count, pts: m.wip_points }).replace(/^ · /, '') }}
                 </span>
               </span>
             </label>
           </div>
           <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            Pick more than one when a task genuinely needs two people. Current
-            load is shown so you can spread work rather than stack it.
+            {{ $t('create.assignHint') }}
           </p>
         </div>
 
@@ -190,14 +189,14 @@ onMounted(() => {
             class="px-4 py-2 rounded-lg bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-mono text-xs cursor-pointer min-h-[40px]"
             @click="emit('close')"
           >
-            Cancel
+            {{ $t('common.cancel') }}
           </button>
           <button
             type="submit"
             class="px-5 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 text-white dark:bg-slate-100 dark:hover:bg-white dark:text-slate-950 font-mono font-medium text-xs flex items-center gap-1.5 cursor-pointer shadow min-h-[40px]"
           >
             <Plus class="w-4 h-4 stroke-[2.5]" />
-            <span>Create Task</span>
+            <span>{{ $t('table.createTask') }}</span>
           </button>
         </div>
       </form>
