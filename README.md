@@ -218,3 +218,9 @@ AI tier 1 is Groq by default — put `AI_API_KEY=gsk_...` in the gitignored root
 The landing page video (`source/frontend/public/demo.mp4`) is recorded from the running app by
 `scripts/demo-video/record.py` and encoded by `scripts/demo-video/encode.sh` — re-run both after a
 UI change so the video never shows a product that no longer exists.
+
+## Public test instance
+
+`https://koshi.huynhca.com` — the local production stack published through a Cloudflare Tunnel
+(`./scripts/publish.sh koshi.huynhca.com`, DEC-031). There the seeded accounts use the password in
+`SEED_PASSWORD` (gitignored `.env`), not the default above. The machine must stay on for it to work.
