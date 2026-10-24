@@ -1,0 +1,172 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+
+\textit{Chương này trình bày hệ thống đã cài đặt qua ảnh chụp từ ứng dụng đang chạy, sau đó là chiến
+lược kiểm thử, kết quả và việc triển khai.}
+
+\section{Môi trường phát triển}
+\begin{table}[H]
+\centering
+\caption{Môi trường phát triển và quy mô dự án}\label{tab:env}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{5cm}|p{8.7cm}|}
+\hline
+Hệ điều hành & Ubuntu Linux, Docker Engine với Compose v2 \\ \hline
+Frontend & Node.js 22, pnpm 10, Vite, Vue 3, TypeScript \\ \hline
+Backend & Python 3.12, FastAPI, SQLAlchemy 2, Alembic \\ \hline
+Cơ sở dữ liệu & MySQL 8.4 (production), SQLite (phát triển, kiểm thử) \\ \hline
+Mã nguồn & khoảng 13.300 dòng frontend, 3.400 dòng backend (không tính dòng trống) \\ \hline
+Mã kiểm thử & khoảng 5.200 dòng frontend, 2.800 dòng backend \\ \hline
+Kho mã & 65 commit; 26 component Vue; 51 endpoint API; 10 bảng; 9 migration \\ \hline
+\end{tabular}
+\end{table}
+
+\section{Các chức năng đã cài đặt}
+\subsection{Trang giới thiệu và xác thực}
+Khách truy cập trước hết thấy trang giới thiệu với các tính năng, video demo và bảng giá; nút đăng
+nhập nằm ở góc trên bên phải và có thể chuyển ngôn ngữ Anh/Việt (Hình~\ref{fig:landing.png}). Video
+demo là bản quay màn hình thật: một script điều khiển ứng dụng thật trên trình duyệt và ghi lại, nên
+nó chỉ có thể cho thấy những chức năng thực sự chạy. Khi đăng ký chỉ cần tên, email và mật khẩu---không
+bao giờ hỏi vai trò (Hình~\ref{fig:login.png}).
+
+\shot{landing.png}{0.95}{Trang giới thiệu}
+\shot{login.png}{0.95}{Hộp thoại đăng nhập}
+
+\subsection{Dự án, thành viên và vai trò}
+Bảng điều khiển liệt kê các dự án của người dùng kèm vai trò trong từng dự án, cho phép tạo dự án và
+quản lý nhóm (Hình~\ref{fig:dashboard.png}). Thêm thành viên qua email sẽ gửi lời mời; người đó chỉ
+tham gia sau khi chấp nhận.
+
+\shot{dashboard.png}{0.95}{Bảng điều khiển dự án với vai trò theo từng dự án}
+
+\subsection{Bảng Kanban và dạng bảng}
+Bảng có bốn cột. Mỗi thẻ hiển thị mã, tiêu đề, độ ưu tiên, ảnh đại diện người thực hiện, hạn chót
+(``còn 9 ngày'', ``trễ 3 ngày''), lý do bị chặn và biểu tượng ngọn lửa cho task trên đường găng. Thứ
+tự sắp xếp ưu tiên hạn chót: một task ưu tiên thấp hết hạn hôm qua đứng trên một task khẩn cấp hạn
+tháng sau. Cùng dữ liệu đó có thể xem dạng bảng (Hình~\ref{fig:board-kanban.png} và
+\ref{fig:board-table.png}); phím \code{b} để chuyển đổi.
+
+\shot{board-kanban.png}{0.95}{Bảng Kanban}
+\shot{board-table.png}{0.95}{Dạng bảng}
+
+Mọi thao tác đều có phím tắt (Hình~\ref{fig:shortcuts.png}): $h/j/k/l$ di chuyển, Space đổi trạng
+thái, $H/L$ chuyển task giữa các cột, 1--4 đặt độ ưu tiên, $n$ tạo task và $/$ tìm kiếm.
+
+\shot{shortcuts.png}{0.8}{Phím tắt}
+
+\subsection{Chi tiết task: thảo luận, minh chứng và lịch sử}
+Mở một task sẽ thấy các trường, phụ thuộc và tiêu chí chấp nhận, luồng thảo luận có @mention và trả
+lời một cấp, file đính kèm, và lịch sử thay đổi do server ghi lại (Hình~\ref{fig:task-detail.png}).
+Khi chuyển task sang DONE, hệ thống mời người dùng đính kèm minh chứng rằng việc đã xong.
+
+\shot{task-detail.png}{0.95}{Chi tiết task với thảo luận và lịch sử}
+
+\subsection{Scrum}
+Bảng Scrum có năm tab. \emph{Sprint} (Hình~\ref{fig:scrum-sprints.png}) liệt kê các sprint đã lên
+kế hoạch, đang chạy và đã xong cùng số điểm và mức cam kết; PM tạo, bắt đầu và kết thúc sprint, chọn
+nơi chuyển việc chưa xong. \emph{Lập kế hoạch} (Hình~\ref{fig:scrum-planning.png}) chuyển việc giữa
+product backlog và sprint. \emph{Burndown} (Hình~\ref{fig:scrum-burndown.png}) vẽ điểm còn lại so với
+đường lý tưởng; \emph{Velocity} (Hình~\ref{fig:scrum-velocity.png}) so sánh điểm cam kết và điểm hoàn
+thành của từng sprint cùng giá trị trung bình; \emph{Retrospective}
+(Hình~\ref{fig:scrum-retro.png}) nhờ AI nêu điều làm tốt, điều cần cải thiện và hành động cụ thể, dựa
+trên số liệu của sprint.
+
+\shot{scrum-sprints.png}{0.95}{Bảng Scrum: vòng đời sprint}
+\shot{scrum-planning.png}{0.95}{Bảng Scrum: lập kế hoạch backlog}
+\shot{scrum-burndown.png}{0.95}{Bảng Scrum: biểu đồ burndown}
+\shot{scrum-velocity.png}{0.95}{Bảng Scrum: velocity}
+\shot{scrum-retro.png}{0.95}{Bảng Scrum: retrospective do AI viết}
+
+\subsection{Các công cụ AI}
+Bốn công cụ AI khác nằm trong menu \emph{Công cụ AI}. Tóm tắt tuần báo cáo tiến độ, rủi ro và ưu
+tiên (Hình~\ref{fig:ai-weekly.png}); trình tạo biên bản họp biến ghi chép thô thành chủ đề, việc cần
+làm có người phụ trách và độ ưu tiên, cùng các quyết định (Hình~\ref{fig:ai-minutes.png}); giao việc
+thông minh hiển thị khối lượng và kỹ năng từng thành viên rồi gợi ý người thực hiện kèm lý do và đánh
+giá rủi ro (Hình~\ref{fig:ai-assign.png}); công cụ chia nhỏ mục tiêu tách một mục tiêu thành các task
+con có phụ thuộc, có thể chèn vào bảng bằng một thao tác (Hình~\ref{fig:ai-decomposer.png}).
+
+\shot{ai-weekly.png}{0.95}{AI tóm tắt tiến độ tuần}
+\shot{ai-minutes.png}{0.95}{AI tạo biên bản họp}
+\shot{ai-assign.png}{0.95}{AI phân tích khối lượng và gợi ý giao việc}
+\shot{ai-decomposer.png}{0.95}{AI chia nhỏ mục tiêu}
+
+\subsection{Đồ thị phụ thuộc, thông báo và hồ sơ}
+Màn hình DAG liệt kê task theo thứ tự topo và đánh dấu đường găng (Hình~\ref{fig:dag.png}). Luồng
+thông báo báo các lần được nhắc tên, được trả lời, được giao việc và được mời---không bao giờ báo về
+hành động của chính người dùng (Hình~\ref{fig:notifications.png}). Trang hồ sơ cho sửa tên, kỹ năng
+(được dùng để gợi ý giao việc) và ảnh đại diện (Hình~\ref{fig:profile.png}).
+
+\shot{dag.png}{0.95}{Thứ tự thực hiện DAG và đường găng}
+\shot{notifications.png}{0.95}{Luồng thông báo}
+\shot{profile.png}{0.95}{Trang hồ sơ}
+
+\section{Kiểm thử}
+\subsection{Chiến lược}
+Kiểm thử gồm bốn lớp:
+\begin{enumerate}
+  \item \textbf{Test backend} (pytest, 13 file) gọi API qua test client: mọi quy tắc vai trò và quyền
+        (kể cả trường hợp phủ định---thành viên nhận 403, người ngoài nhận 404), vòng trạng thái, quy
+        tắc Scrum, lịch sử, migration, kiểm tra an toàn khi khởi động, và chuỗi AI với từng tầng được
+        giả lập ở tầng HTTP.
+  \item \textbf{Test frontend} (Vitest, 19 file) bao phủ các thuật toán thuần, cả hai store, bộ xử
+        lý phím tắt và các component trong DOM giả lập. Một test đọc template của mọi component và
+        báo lỗi nếu còn chữ chưa được dịch.
+  \item \textbf{Smoke test đầu-cuối}: một script nạp dữ liệu vào instance đang chạy qua API công khai
+        và thực hiện 32 bước kiểm tra trên mọi chức năng, kể cả bốn endpoint AI với mô hình thật.
+  \item \textbf{Tự động hoá trình duyệt}: Playwright điều khiển ứng dụng thật để quay video demo và
+        chụp ảnh trong chương này, đồng thời quét từng màn hình để tìm chữ sai ngôn ngữ.
+\end{enumerate}
+Bản thân các test cũng được kiểm tra bằng kiểm thử đột biến: cố ý xoá một điều kiện kiểm tra hoặc
+đổi một giá trị, và chỉ chấp nhận khi có test báo lỗi. Ví dụ, xoá điều kiện ``sprint phải thuộc cùng
+dự án với task'' làm hai test Scrum báo lỗi; xoá bộ lọc chỉ lấy thành viên đã chấp nhận làm test gợi ý
+giao việc báo lỗi.
+
+\subsection{Kết quả}
+\begin{table}[H]
+\centering
+\caption{Kết quả kiểm thử}\label{tab:tests}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{6.5cm}|c|c|}
+\hline
+\textbf{Bộ kiểm thử} & \textbf{Số test} & \textbf{Kết quả} \\ \hline
+Backend (pytest, SQLite) & 177 & đạt toàn bộ \\ \hline
+Frontend (Vitest) & 442 & đạt toàn bộ \\ \hline
+Kiểm tra kiểu TypeScript và build production & -- & đạt \\ \hline
+Smoke test đầu-cuối trên bản công khai & 32 bước & 0 lỗi \\ \hline
+Quét lẫn ngôn ngữ trên 20 màn hình (mỗi ngôn ngữ) & 20 & không phát hiện \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Các lỗi đã phát hiện}
+Kiểm thử đã phát hiện nhiều lỗi thật, mỗi lỗi được ghi trong sổ tay phát triển kèm nguyên nhân. Một
+số lỗi tiêu biểu:
+\begin{longtable}{|p{1.2cm}|p{9cm}|p{3.3cm}|}
+\caption{Một số lỗi đã phát hiện và sửa}\label{tab:defects}\\
+\hline
+\textbf{Mã} & \textbf{Lỗi} & \textbf{Cách phát hiện} \\ \hline
+\endfirsthead
+\hline
+\textbf{Mã} & \textbf{Lỗi} & \textbf{Cách phát hiện} \\ \hline
+\endhead
+F-32 & Image backend phát hành chứa file \code{.env} của lập trình viên cùng khoá ký phiên và một CSDL. & Kiểm tra image đã build \\ \hline
+F-37 & Lệnh triển khai trong tài liệu chép cấu hình và CSDL phát triển đè lên production. & Đọc kỹ lệnh trước khi chạy \\ \hline
+F-45 & Mọi file đính kèm và ảnh đại diện hiển thị lỗi: thẻ \code{<img>} không gửi được header xác thực. & Kiểm thử thủ công \\ \hline
+F-47 & Khoá ngoại SQLite chưa bao giờ được bật, xoá task để lại dữ liệu mồ côi. & Khi chuyển sang MySQL \\ \hline
+F-48 & Có thể xếp task vào sprint của dự án khác. & Khi viết test Scrum \\ \hline
+F-49 & Task đã xong vẫn bị ghi ``trễ 10 ngày''. & Xem lại ảnh chụp \\ \hline
+F-50 & Công cụ ``AI'' chia nhỏ mục tiêu chưa từng gọi mô hình, chỉ trả về mẫu cố định. & Thử với mô hình thật \\ \hline
+F-51 & Gợi ý giao việc có thể chọn người chưa chấp nhận lời mời. & Rà soát mã khi kiểm thử AI \\ \hline
+F-53 & Một thay đổi được đề xuất giả lập vai trò PM ngay trên trình duyệt sau khi server từ chối. & Rà soát thay đổi được gửi tới \\ \hline
+-- & 21/26 component có chữ chưa dịch, khiến giao diện lẫn hai ngôn ngữ. & Thành viên phản hồi; đã sửa và có test chặn \\ \hline
+\end{longtable}
+
+\section{Triển khai}
+Cấu hình production chạy bốn container: MySQL, backend FastAPI, nginx cùng frontend đã build, và
+\code{cloudflared}. Script triển khai build image, xác minh trong image không có khoá bí mật hay CSDL,
+sao lưu CSDL, chạy migration ở một bước riêng, khởi động dịch vụ và kiểm tra instance hoạt động tốt,
+ở phiên bản lược đồ mới nhất và đúng tư thế production (không có tài khoản demo, không có CORS
+wildcard, khoá bí mật không phải mặc định). Tunnel công khai instance tại
+\url{https://koshi.huynhca.com}, nơi nhóm đã kiểm thử với ba tài khoản được tạo sẵn. Tích hợp liên tục
+trên GitHub Actions chạy cả hai bộ test mỗi lần push lên nhánh chính và nhánh phát triển.
+
+\end{document}

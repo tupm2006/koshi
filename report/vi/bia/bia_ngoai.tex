@@ -1,0 +1,55 @@
+\documentclass[../main.tex]{subfiles}
+
+\begin{document}
+
+\begin{titlepage}
+
+\begin{tikzpicture}[remember picture,overlay]
+    \draw [line width=1pt]
+    ($ (current page.north west) + (3cm,-2.5cm) $)
+    rectangle
+    ($ (current page.south east) + (-1.5cm,2.5cm) $);
+\draw [line width=3pt]
+    ($ (current page.north west) + (3.15cm,-2.65cm) $)
+    rectangle
+    ($ (current page.south east) + (-1.65cm,2.65cm) $);
+\end{tikzpicture}
+
+\begin{center}
+
+\begin{spacing}{1}
+\parbox{14.5cm}{\centering\fontsize{12}{14}\selectfont\textbf{TRƯỜNG ĐẠI HỌC CÔNG NGHỆ THÔNG TIN VÀ TRUYỀN THÔNG}} \\
+\textbf{KHOA CÔNG NGHỆ THÔNG TIN\\[1cm]}
+\end{spacing}
+
+\includegraphics[scale=0.04]{tai_nguyen/logo_ictu.jpg}\\[0.5cm]
+
+\begin{large}
+\begin{spacing}{1}
+\textbf{BÁO CÁO BÀI TẬP LỚN} \\[2.2cm]
+\end{spacing}
+\end{large}
+
+\textbf{ĐỀ TÀI:} \\[0.3cm]
+\begin{spacing}{1.2}
+\parbox{13cm}{\centering\textbf{\Large KOSHI: HỆ THỐNG QUẢN LÝ DỰ ÁN ƯU TIÊN BÀN PHÍM, HOẠT ĐỘNG CỤC BỘ, TÍCH HỢP AI HỖ TRỢ SCRUM}}
+\end{spacing}
+\vspace{2cm}
+
+% Supervisor's name to be filled in by the team.
+\begin{tabular}{ r l }
+\textbf{Giảng viên hướng dẫn:} & \textbf{\ldots\ldots\ldots\ldots\ldots\ldots\ldots} \\[2pt]
+\textbf{Sinh viên thực hiện:} & \textbf{Phạm Văn Huynh (nhóm trưởng)} \\
+ & \textbf{Đàm Đức Đôn} \\
+ & \textbf{Phạm Minh Tú} \\[2pt]
+\textbf{Lớp:} & \textbf{Kỹ thuật máy tính K23A} \\
+\end{tabular}
+
+\vspace{2.6cm}
+\textbf{Thái Nguyên, năm 2026}
+
+\end{center}
+
+\end{titlepage}
+
+\end{document}

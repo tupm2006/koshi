@@ -24,7 +24,7 @@ python3 scripts/seed-demo.py http://localhost:8090
 docker exec -i koshi-backend-prod-local python - < scripts/seed-backdate.py
 python3 scripts/smoke-test.py http://localhost:8090      # exit code = failed checks
 ```
-39 checks (incl. history and retro): auth, per-project roles and 404-for-outsiders, the status cycle, dependency/assignee
+32 checks (counted from the script's output, incl. history and retro): auth, per-project roles and 404-for-outsiders, the status cycle, dependency/assignee
 validation, comments and replies, the Scrum lifecycle and its guards, stats, notifications, and all
 four AI endpoints against the real model. Last run 2026-10-24: **0 failed**, AI answered by Groq
 (no `AI DEGRADED` in the log).

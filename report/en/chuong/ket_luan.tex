@@ -1,0 +1,51 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+
+\section*{Results}
+The project delivered a working project management system that meets its objectives:
+\begin{itemize}
+  \item Accounts without global roles; projects with per-project PM and Member roles, invitations
+        that must be accepted, and authorisation enforced by the server on every route.
+  \item A keyboard-first Kanban board and table view with deadline-first ordering, several
+        assignees per task, dependencies, a critical path and a DAG view.
+  \item The Scrum process: sprint lifecycle, backlog planning, burndown, velocity and an AI
+        retrospective; plus a change history on every task.
+  \item Five AI features backed by Groq with a three-tier fallback, structured and validated output,
+        and answers in the interface language.
+  \item Local-first behaviour with a safe offline policy; a complete English/Vietnamese interface.
+  \item A production deployment on \url{https://koshi.huynhca.com}, 177 backend and 442 frontend
+        tests, continuous integration, and eight living documents that trace every requirement to
+        code and tests.
+\end{itemize}
+
+Beyond the features, the most valuable lesson concerned verification. Several of the most serious
+defects---a secret shipped inside the container image, a deploy command that would have overwritten
+production with development settings, an ``AI'' feature that never called a model, a language
+switch that left half the interface untranslated---were invisible to a test suite that was green.
+They were found by checking the real artefact: inspecting the built image, reading the command
+before running it, calling the real model, and scanning every screen. The practice of
+mutation-testing the tests, and of recording every decision with its reason, came from these
+experiences.
+
+\section*{Limitations}
+\begin{itemize}
+  \item Shared projects are read-only offline; there is no algorithm for merging concurrent offline
+        edits.
+  \item The burndown is computed from a sprint's current membership, so work moved out of a sprint
+        disappears from its history.
+  \item The deterministic AI fallback answers only in Vietnamese.
+  \item The public instance has no login rate limiting, and the performance targets in the
+        requirements (rendering within one frame, memory use) have not been measured.
+  \item The public instance runs on a single machine and is unavailable when that machine is off.
+\end{itemize}
+
+\section*{Future work}
+\begin{itemize}
+  \item Conflict-free replicated data types (CRDTs) so shared projects can also be edited offline.
+  \item An event log per sprint for exact burndown history, and a daily-scrum view.
+  \item Rate limiting and account lockout; managed hosting with automatic backups.
+  \item Native mobile clients and integration with Git hosting (linking commits and pull requests
+        to tasks automatically).
+\end{itemize}
+
+\end{document}

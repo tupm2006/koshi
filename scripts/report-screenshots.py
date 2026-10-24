@@ -6,7 +6,7 @@ other language, which is how mixed-language UI was found (DEC-032).
     SEED_LANG=en python3 scripts/seed-demo.py http://localhost:8091
     .pwenv/bin/python scripts/report-screenshots.py http://localhost:8091 report/figures en
 """
-import asyncio, re, sys
+import asyncio, os, re, sys
 from playwright.async_api import async_playwright
 
 BASE, OUT, LOCALE = sys.argv[1], sys.argv[2], (sys.argv[3] if len(sys.argv) > 3 else "en")
@@ -50,12 +50,12 @@ async def main():
         await pg.evaluate("window.scrollTo(0, 0)")
         await pg.get_by_role("button", name=re.compile("Sign in|Đăng nhập")).first.click()
         await pg.fill('input[type="email"]', "huynh@koshi.dev")
-        await pg.fill('input[type="password"]', "Koshi@2026")
+        await pg.fill('input[type="password"]', os.environ.get("SEED_PASSWORD", "Koshi@2026"))
         await shot(pg, "login")
         await pg.click('button[type="submit"]')
         await pg.wait_for_timeout(2500)
         # Open the Scrum project from the dashboard.
-        await pg.locator("header button").filter(has_text=re.compile("Online Store|Koshi Mobile")).first.click()
+        await pg.locator("header button").filter(has_text=re.compile("Online Store|Website|Koshi Mobile")).first.click()
         await pg.wait_for_timeout(800)
         await shot(pg, "dashboard")
         await pg.get_by_role("button", name="Koshi Mobile App").first.click()
@@ -67,7 +67,7 @@ async def main():
         await pg.keyboard.press("b")
         await pg.wait_for_timeout(400)
         # A task with discussion: "Offline change queue".
-        await pg.get_by_text("Offline change queue").first.click()
+        await pg.get_by_text(re.compile("Offline change queue|Hàng đợi thay đổi khi mất mạng")).first.click()
         await pg.keyboard.press("Enter")
         await pg.wait_for_timeout(1200)
         hist = pg.locator('[data-testid="task-history"] button')
@@ -102,7 +102,7 @@ async def main():
         await pg.get_by_role("button", name=re.compile("AI Tools|Công cụ AI")).click()
         await pg.locator("button", has_text=re.compile("Goal Decomposer|Chia nhỏ")).first.click()
         await pg.wait_for_timeout(500)
-        await pg.get_by_placeholder(re.compile("Describe your|Mô tả mục tiêu")).fill("Add MoMo e-wallet payments to the online store")
+        await pg.get_by_placeholder(re.compile("Describe your|Mô tả mục tiêu")).fill("Add MoMo e-wallet payments to the online store" if LOCALE == "en" else "Thêm thanh toán ví MoMo cho cửa hàng online")
         await pg.locator("button", has_text=re.compile("^\\s*Decompose|Chia nhỏ$")).first.click()
         await pg.wait_for_timeout(9000)
         await shot(pg, "ai-decomposer", 300)

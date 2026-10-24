@@ -1,0 +1,177 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+
+\textit{This chapter presents the implemented system through screenshots taken from the running
+application with the interface in English, then the testing strategy and its results, and finally
+the deployment.}
+
+\section{Development environment}
+\begin{table}[H]
+\centering
+\caption{Development environment and project size}\label{tab:env}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{5cm}|p{8.7cm}|}
+\hline
+Operating system & Ubuntu Linux, Docker Engine with Compose v2 \\ \hline
+Frontend & Node.js 22, pnpm 10, Vite, Vue 3, TypeScript \\ \hline
+Backend & Python 3.12, FastAPI, SQLAlchemy 2, Alembic \\ \hline
+Database & MySQL 8.4 (production), SQLite (development, tests) \\ \hline
+Source code & about 13,300 lines frontend, 3,400 lines backend (non-blank) \\ \hline
+Test code & about 5,200 lines frontend, 2,800 lines backend \\ \hline
+Repository & 65 commits; 26 Vue components; 51 API endpoints; 10 tables; 9 migrations \\ \hline
+\end{tabular}
+\end{table}
+
+\section{Implemented features}
+\subsection{Landing page and authentication}
+A visitor first sees a marketing page with the features, a demo video and pricing; the sign-in
+button is at the top right and the language can be switched between English and Vietnamese
+(Figure~\ref{fig:landing.png}). The demo video is a genuine screen recording: a script drives the
+real application in a browser and captures it, so it can only show features that work.
+Registration asks for a name, an email and a password---never a role (Figure~\ref{fig:login.png}).
+
+\shot{landing.png}{0.95}{Landing page}
+\shot{login.png}{0.95}{Sign-in dialog}
+
+\subsection{Projects, members and roles}
+The dashboard lists the user's projects with the user's role in each, creates projects and manages
+the team (Figure~\ref{fig:dashboard.png}). Adding a member by email sends an invitation; the person
+joins only after accepting it.
+
+\shot{dashboard.png}{0.95}{Project dashboard with per-project roles}
+
+\subsection{Kanban board and table view}
+The board has four columns. Cards show the key, title, priority, assignees' avatars, the deadline
+(``in 9d'', ``3d overdue''), the blocking reason and a flame icon for tasks on the critical path.
+Ordering is deadline-first: a low-priority task due yesterday ranks above a critical one due next
+month. The same data is available as a table (Figures~\ref{fig:board-kanban.png} and
+\ref{fig:board-table.png}); the key \code{b} switches between them.
+
+\shot{board-kanban.png}{0.95}{Kanban board}
+\shot{board-table.png}{0.95}{Table view}
+
+Every action has a key (Figure~\ref{fig:shortcuts.png}): $h/j/k/l$ move the selection, Space cycles
+the status, $H/L$ move a task between columns, 1--4 set the priority, $n$ creates a task and $/$
+searches.
+
+\shot{shortcuts.png}{0.8}{Keyboard shortcuts}
+
+\subsection{Task inspector: discussion, evidence and history}
+Opening a task shows its fields, dependencies and acceptance criteria, a discussion thread with
+@mentions and one-level replies, attachments, and the change history recorded by the server
+(Figure~\ref{fig:task-detail.png}). Moving a task to DONE invites the user to attach evidence that
+the work is finished.
+
+\shot{task-detail.png}{0.95}{Task inspector with discussion and history}
+
+\subsection{Scrum}
+The Scrum panel has five tabs. \emph{Sprints} (Figure~\ref{fig:scrum-sprints.png}) lists planned,
+active and completed sprints with their points and commitment; a PM creates, starts and completes
+them, choosing where unfinished work goes. \emph{Planning} (Figure~\ref{fig:scrum-planning.png})
+moves items between the product backlog and a sprint. \emph{Burndown}
+(Figure~\ref{fig:scrum-burndown.png}) plots remaining points against the ideal line;
+\emph{Velocity} (Figure~\ref{fig:scrum-velocity.png}) compares committed and completed points per
+sprint with the average; \emph{Retrospective} (Figure~\ref{fig:scrum-retro.png}) asks the AI for
+what went well, what to improve and concrete actions, grounded in the sprint's numbers.
+
+\shot{scrum-sprints.png}{0.95}{Scrum panel: sprint lifecycle}
+\shot{scrum-planning.png}{0.95}{Scrum panel: backlog planning}
+\shot{scrum-burndown.png}{0.95}{Scrum panel: burndown chart}
+\shot{scrum-velocity.png}{0.95}{Scrum panel: velocity}
+\shot{scrum-retro.png}{0.95}{Scrum panel: AI retrospective}
+
+\subsection{AI tools}
+Four further AI tools are available from the \emph{AI Tools} menu. The weekly summary reports
+progress, risks and priorities (Figure~\ref{fig:ai-weekly.png}); the meeting-minutes generator
+turns raw notes into topics, action items with an owner and priority, and decisions
+(Figure~\ref{fig:ai-minutes.png}); smart assignment shows each member's load and skills and
+recommends an assignee with a rationale and a risk assessment (Figure~\ref{fig:ai-assign.png}); the
+goal decomposer breaks a goal into dependent subtasks that can be inserted into the board in one
+step (Figure~\ref{fig:ai-decomposer.png}).
+
+\shot{ai-weekly.png}{0.95}{AI weekly progress summary}
+\shot{ai-minutes.png}{0.95}{AI meeting minutes}
+\shot{ai-assign.png}{0.95}{AI workload analysis and assignment}
+\shot{ai-decomposer.png}{0.95}{AI goal decomposer}
+
+\subsection{Dependency graph, notifications and profile}
+The DAG view lists tasks in topological order and marks the critical path
+(Figure~\ref{fig:dag.png}). The notification feed reports mentions, replies, assignments and
+invitations---never the user's own actions (Figure~\ref{fig:notifications.png}). The profile page
+edits the name, skills (used by the assignment recommender) and avatar (Figure~\ref{fig:profile.png}).
+
+\shot{dag.png}{0.95}{DAG execution order and critical path}
+\shot{notifications.png}{0.95}{Notification feed}
+\shot{profile.png}{0.95}{Profile page}
+
+\section{Testing}
+\subsection{Strategy}
+Testing had four layers:
+\begin{enumerate}
+  \item \textbf{Backend tests} (pytest, 13 files) exercise the API through a test client: every
+        role and permission rule (including the negative cases---a member receiving 403, an outsider
+        receiving 404), the status cycle, Scrum rules, history, migrations, startup safety checks,
+        and the AI cascade with each tier simulated at the HTTP boundary.
+  \item \textbf{Frontend tests} (Vitest, 19 files) cover the pure algorithms, both stores, the
+        keyboard dispatcher and the components, mounted in a simulated DOM. One test reads every
+        component template and fails if any literal text is not translated.
+  \item \textbf{End-to-end smoke test}: a script seeds a running instance through the public API
+        and performs 32 checks across all features, including the four AI endpoints against the
+        real model.
+  \item \textbf{Browser automation}: Playwright drives the real application to record the demo
+        video and the screenshots in this chapter, and scans each screen for text in the wrong
+        language.
+\end{enumerate}
+Tests were themselves tested by mutation: a guard was removed or a value changed on purpose, and the
+change was accepted only if a test failed. For example, removing the check that a sprint belongs to
+the task's project made two Scrum tests fail; removing the filter on accepted members made the
+assignment test fail.
+
+\subsection{Results}
+\begin{table}[H]
+\centering
+\caption{Test results}\label{tab:tests}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{6cm}|c|c|}
+\hline
+\textbf{Suite} & \textbf{Tests} & \textbf{Result} \\ \hline
+Backend (pytest, SQLite) & 177 & all passed \\ \hline
+Frontend (Vitest) & 442 & all passed \\ \hline
+TypeScript type check and production build & -- & passed \\ \hline
+End-to-end smoke test on the public instance & 32 checks & 0 failed \\ \hline
+Mixed-language scan of 20 screens (English UI) & 20 & none found \\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Defects found}
+Testing found real defects, each recorded in the development book with its cause. A selection:
+\begin{longtable}{|p{1.2cm}|p{9cm}|p{3.3cm}|}
+\caption{Selected defects found and fixed}\label{tab:defects}\\
+\hline
+\textbf{ID} & \textbf{Defect} & \textbf{How found} \\ \hline
+\endfirsthead
+\hline
+\textbf{ID} & \textbf{Defect} & \textbf{How found} \\ \hline
+\endhead
+F-32 & The published backend image contained the developer's \code{.env} with the signing secret and a database. & Inspecting the built image \\ \hline
+F-37 & The documented deploy command copied development settings and databases over production. & Reviewing the command before running it \\ \hline
+F-45 & All attachments and avatars rendered as broken images: an \code{<img>} tag cannot send an authorisation header. & Manual testing \\ \hline
+F-47 & SQLite foreign keys were never enforced, so deleting a task left orphaned rows. & Migration to MySQL \\ \hline
+F-48 & A task could be planned into another project's sprint. & Writing the Scrum tests \\ \hline
+F-49 & A finished task was labelled ``10d overdue''. & Screenshot review \\ \hline
+F-50 & The ``AI'' goal decomposer never called a model; it returned a fixed template. & Testing against the real model \\ \hline
+F-51 & The assignment recommender could suggest someone who had not yet accepted the invitation. & Code review while testing AI \\ \hline
+F-53 & A proposed change faked the PM role in the browser after the server refused it. & Review of incoming changes \\ \hline
+-- & 21 of 26 components contained untranslated text, so the two languages were mixed. & Team member's report; fixed and guarded by a test \\ \hline
+\end{longtable}
+
+\section{Deployment}
+The production configuration runs four containers: MySQL, the FastAPI backend, nginx with the
+built frontend, and \code{cloudflared}. A deployment script builds the images, verifies that no
+secret or database is inside them, backs up the database, applies migrations in a separate step,
+starts the services and checks that the instance is healthy, at the latest schema revision and in
+a production posture (no demo accounts, no wildcard CORS, a non-default secret). The tunnel
+publishes the instance at \url{https://koshi.huynhca.com}, where the team tested it with three
+seeded accounts. Continuous integration on GitHub Actions runs both test suites on every push to the main and development branches.
+
+\end{document}

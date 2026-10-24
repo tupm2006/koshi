@@ -1,0 +1,105 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+
+\section{Rationale}
+Small software teams---student groups in particular---usually manage their work with chat
+messages, spreadsheets or a general-purpose tool such as Trello or Jira. Each choice has a cost.
+Chat loses information; spreadsheets know nothing about status, dependencies or deadlines; and the
+large tools are heavy, mouse-driven, require a constant connection and charge for the features a
+team actually needs, such as Scrum reports. Meanwhile, two developments make a better tool
+practical: browsers can now hold a full working copy of a project locally (the
+\emph{local-first} idea~\cite{kleppmann2019localfirst}), and large language models can turn
+unstructured text---meeting notes, a vague goal---into structured, actionable data.
+
+This project, \textbf{Koshi}, builds a project management system around three ideas: every action
+is reachable from the keyboard; the board keeps working when the network does not; and AI is used
+for the tedious parts of management (summaries, minutes, assignment, task breakdown, sprint
+retrospectives) while always returning structured, checkable output.
+
+\section{Objectives}
+\begin{itemize}
+  \item Build a web application in which users register, create projects and invite members, with
+        roles (Project Manager or Member) assigned \emph{per project} rather than per account.
+  \item Provide a four-column Kanban board and a table view, fully operable from the keyboard,
+        with dependencies between tasks and an automatically computed critical path.
+  \item Support the Scrum process: sprint planning, a product backlog, sprint start and completion,
+        burndown and velocity charts, and an AI-written retrospective.
+  \item Integrate an LLM (Groq, model \code{openai/gpt-oss-120b}) for five AI features, with a
+        three-tier fallback so that the application never fails when the AI service is unavailable.
+  \item Keep a personal project fully usable offline, while preventing conflicting offline edits in
+        shared projects.
+  \item Deploy a production-configured instance on a public domain for the team to test, and
+        verify the system with automated tests.
+\end{itemize}
+
+\section{Scope}
+The system targets small teams (roughly 2--15 people) working on software projects. It is a web
+application usable on desktop and mobile browsers, in English and Vietnamese. Out of scope are time
+tracking, billing, Gantt charts, native mobile applications and integration with third-party issue
+trackers.
+
+\section{Methodology}
+The team applied the process the product supports. Work was organised in sprints with a shared
+backlog; each change was accompanied by tests, and every non-trivial decision was recorded. The
+project keeps eight living documents (D1 Requirements, D2 Module map, D3 Architecture, D4 API and
+data contracts, D5 Tests and acceptance criteria, D6 Risks and policies, D7 Development book and
+decision log, D8 Requirements traceability matrix) in the same repository as the code, so that a
+change to the code and the documents describing it are reviewed together. Testing followed a
+\emph{characterisation-first} approach: before changing untested code, a test describing its
+current behaviour was written; tests themselves were checked by \emph{mutation
+testing}~\cite{demillo1978mutation}---deliberately breaking the code and confirming that a test
+fails.
+
+\section{Team organisation and task allocation}
+The team has three members from class Computer Engineering K23A. Table~\ref{tab:tasks} shows how
+the work was divided.
+
+\begin{longtable}{|p{3.2cm}|p{2.2cm}|p{8.2cm}|}
+\caption{Task allocation among team members}\label{tab:tasks}\\
+\hline
+\textbf{Member} & \textbf{Role} & \textbf{Responsibilities} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Member} & \textbf{Role} & \textbf{Responsibilities} \\
+\hline
+\endhead
+Phạm Văn Huynh \newline (KTMT K23A) & Team leader \newline Scrum Master &
+\begin{itemize}[leftmargin=*,topsep=0pt]
+ \item Project planning, sprint organisation and progress tracking
+ \item Requirements analysis and the documentation set D1--D8
+ \item Scrum module: sprint lifecycle, backlog planning, burndown, velocity, AI retrospective
+ \item AI integration with Groq and prompt design; language-aware AI answers
+ \item Deployment: Docker, MySQL, Cloudflare Tunnel on \code{koshi.huynhca.com}
+ \item Test data, end-to-end smoke tests, demo video, this report
+\end{itemize} \\
+\hline
+Phạm Minh Tú \newline (KTMT K23A) & Lead developer \newline (architecture, frontend) &
+\begin{itemize}[leftmargin=*,topsep=0pt]
+ \item Overall architecture and technology choices
+ \item Vue 3 frontend: Pinia store, Kanban and table views, keyboard engine
+ \item Dependency graph, topological sort and critical path
+ \item Local-first storage (IndexedDB) and the offline write policy
+ \item Landing page, profile page, localisation (English/Vietnamese)
+\end{itemize} \\
+\hline
+Đàm Đức Đôn \newline (KTMT K23A) & Developer \newline (backend, quality) &
+\begin{itemize}[leftmargin=*,topsep=0pt]
+ \item FastAPI backend: authentication, projects, per-project roles and invitations
+ \item Comments, @mentions, replies, attachments, notifications, task history
+ \item Database schema, Alembic migrations, migration from SQLite to MySQL
+ \item Continuous integration (GitHub Actions), backend and frontend test suites
+ \item AI fallback logic and key rotation
+\end{itemize} \\
+\hline
+\end{longtable}
+
+\section{Structure of the report}
+Besides the introduction and conclusion, the report has four chapters. Chapter~1 presents the
+theoretical background: Kanban, Scrum, dependency graphs and the critical path, local-first
+software, LLMs and the technologies used. Chapter~2 analyses the requirements. Chapter~3 describes
+the system design: architecture, data model, API, AI cascade, security and offline policy.
+Chapter~4 presents the implementation with screenshots, the testing strategy and its results, and
+the deployment.
+
+\end{document}

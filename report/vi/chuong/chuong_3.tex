@@ -1,0 +1,168 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+
+\textit{Chương này mô tả kiến trúc, mô hình dữ liệu, API, và thiết kế ba vấn đề xuyên suốt định
+hình hệ thống nhiều nhất: phân quyền, chuỗi dự phòng AI và chính sách ngoại tuyến.}
+
+\section{Kiến trúc tổng thể}
+Koshi là hệ thống client--server. Trình duyệt chạy ứng dụng một trang Vue, giữ bản sao cục bộ của
+dự án đang mở; một container nginx phục vụ ứng dụng và chuyển tiếp \code{/api} tới dịch vụ FastAPI,
+nơi sở hữu CSDL MySQL và gọi nhà cung cấp AI. Để truy cập công khai, Cloudflare Tunnel kết nối
+\emph{từ máy chủ ra} mạng biên của Cloudflare, nên không phải mở cổng trên router và TLS do
+Cloudflare đảm nhận (Hình~\ref{fig:arch}).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners, align=center, font=\footnotesize, minimum height=0.9cm, fill=white},
+  grp/.style={draw, dashed, rounded corners, inner sep=6pt},
+  >=Stealth, node distance=0.5cm]
+\node[box, minimum width=3.2cm] (ui) at (0,0) {Component Vue 3\\(bảng, Scrum, AI)};
+\node[box, minimum width=3.2cm, below=of ui] (store) {Pinia store\\cổng \code{canMutate}};
+\node[box, minimum width=3.2cm, below=of store] (idb) {IndexedDB\\(bản sao cục bộ)};
+\node[grp, fit=(ui)(store)(idb), label={[font=\footnotesize\bfseries]above:Trình duyệt}] (br) {};
+
+\node[box, minimum width=2.6cm] (cf) at (5,0) {Cloudflare edge\\TLS, DNS};
+\node[box, minimum width=2.6cm, below=0.9cm of cf] (tun) {cloudflared\\tunnel};
+\node[box, minimum width=2.6cm, below=0.9cm of tun] (ng) {nginx\\tĩnh + proxy /api};
+
+\node[box, minimum width=3.2cm] (api) at (10,-0.2) {FastAPI routers\\auth, dự án, task,\\sprint, thống kê, AI};
+\node[box, minimum width=3.2cm, below=of api] (svc) {Dịch vụ: chuỗi AI,\\thông báo, tải lên, mention};
+\node[box, minimum width=3.2cm, below=of svc] (db) {MySQL 8.4\\(Alembic migrations)};
+\node[grp, fit=(tun)(ng)(api)(svc)(db), label={[font=\footnotesize\bfseries]below:Máy chủ Docker}] {};
+
+\node[box, minimum width=2.6cm] (llm) at (10,2.0) {Groq API\\gpt-oss-120b};
+
+\draw[<->] (ui) -- (store); \draw[<->] (store) -- node[right,font=\scriptsize]{ghi trước} (idb);
+\draw[->] (br.east) -- node[above,font=\scriptsize]{HTTPS} (cf);
+\draw[<-] (cf) -- node[right,font=\scriptsize]{kết nối ra} (tun);
+\draw[->] (tun) -- (ng);
+\draw[->] (ng.east) -- node[midway, sloped, above, font=\scriptsize]{REST/JSON} (api.west);
+\draw[<->] (api) -- (svc); \draw[<->] (svc) -- (db);
+\draw[->] (api.north) -- node[right,font=\scriptsize]{tầng 1} (llm);
+\end{tikzpicture}
+\caption{Kiến trúc triển khai và các thành phần}\label{fig:arch}
+\end{figure}
+
+Frontend được tổ chức theo trách nhiệm: \code{components/} (26 component Vue), \code{stores/}
+(trạng thái task, giao diện, ngôn ngữ), \code{lib/} (các module thuần, không phụ thuộc framework:
+sắp xếp topo và đường găng, bộ xử lý phím tắt, sắp xếp theo độ gấp, phân tích git diff, phân tích
+mention, bản dịch) và \code{services/api.ts}, nơi duy nhất giao tiếp với server. Backend theo cùng
+cách tách: \code{routers/} (HTTP), \code{schemas/} (hợp đồng Pydantic), \code{models/} (thực thể
+SQLAlchemy), \code{services/} (AI, thông báo, tải lên) và \code{security.py} (xác thực và các hàm
+kiểm tra phạm vi dự án).
+
+\section{Mô hình dữ liệu}
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[ent/.style={draw, rounded corners, font=\scriptsize, align=left, fill=gray!6, minimum width=3.1cm}, >=Stealth]
+\node[ent] (u) at (0,0) {\textbf{users}\\id, email, full\_name,\\hashed\_password, skills, avatar};
+\node[ent] (pm) at (4.4,0) {\textbf{project\_members}\\project\_id, user\_id,\\role (PM/MEMBER),\\status (PENDING/ACCEPTED)};
+\node[ent] (p) at (8.8,0) {\textbf{projects}\\id, name, description,\\owner\_id};
+\node[ent] (s) at (8.8,-3) {\textbf{sprints}\\id, project\_id, name, goal,\\start/end\_date, is\_active,\\completed\_at, committed\_points};
+\node[ent] (t) at (4.4,-3) {\textbf{tasks}\\id, project\_id, sprint\_id,\\status, priority, points,\\due\_date, completed\_at,\\dependencies\_json};
+\node[ent] (ta) at (0,-3) {\textbf{task\_assignees}\\task\_id, user\_id};
+\node[ent] (c) at (4.4,-6) {\textbf{comments}\\task\_id, author\_id, kind,\\content, parent\_id};
+\node[ent] (a) at (8.8,-6) {\textbf{attachments}\\comment\_id, stored\_name,\\content\_type, size};
+\node[ent] (e) at (0,-6) {\textbf{task\_events}\\task\_id, actor\_id, field,\\old\_value, new\_value};
+\node[ent] (n) at (0,-8.4) {\textbf{notifications}\\user\_id, kind, actor\_id,\\task\_id, comment\_id, read\_at};
+\draw (u) -- (pm); \draw (pm) -- (p); \draw (p) -- (s); \draw (p) -- (t); \draw (s) -- (t);
+\draw (t) -- (ta); \draw (ta) -- (u); \draw (t) -- (c); \draw (c) -- (a); \draw (t) -- (e);
+\draw (n.west) -- ++(-0.5,0) |- (u.west);
+\end{tikzpicture}
+\caption{Các thực thể (10 bảng)}\label{fig:er}
+\end{figure}
+
+Ba quyết định thiết kế quan trọng nhất:
+\begin{itemize}
+  \item \textbf{Quyền nằm ở tư cách thành viên, không nằm ở người dùng.} Bảng \code{users} không có
+        cột vai trò; \code{project\_members} giữ vai trò và trạng thái lời mời. Tư cách PENDING
+        không cấp quyền gì: hàm tra cứu mà mọi hàm kiểm tra quyền sử dụng chỉ trả về khi đã chấp nhận.
+  \item \textbf{Nhiều người thực hiện một task} qua bảng \code{task\_assignees}; mỗi người phải là
+        thành viên đã chấp nhận của dự án chứa task.
+  \item \textbf{Lịch sử và Scrum cần thời gian.} \code{tasks.completed\_at} được đặt khi task vào DONE
+        và xoá khi rời DONE---đây là dữ liệu burndown đọc; cột \code{committed\_points} của sprint
+        lưu mức cam kết lúc bắt đầu---đây là mốc để velocity so sánh. \code{task\_events} lưu chuỗi
+        hiển thị thay vì khoá ngoại, nên một bản ghi vẫn đọc đúng sau khi người hay sprint mà nó nhắc
+        tới bị đổi tên hoặc xoá.
+\end{itemize}
+Lược đồ chỉ được tạo và thay đổi bởi chín migration Alembic; ngoài môi trường phát triển, dịch vụ từ
+chối khởi động nếu CSDL chưa ở phiên bản mới nhất.
+
+\section{Thiết kế API}
+REST API có 51 endpoint dưới \code{/api}; Bảng~\ref{tab:api} tóm tắt các endpoint.
+
+\begin{table}[H]
+\centering
+\caption{Tổng quan API}\label{tab:api}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{2.9cm}|c|p{9.0cm}|}
+\hline
+\textbf{Router} & \textbf{Số endpoint} & \textbf{Chức năng chính} \\ \hline
+\code{/auth} & 4 & đăng ký, đăng nhập, đăng nhập Google, người dùng hiện tại \\ \hline
+\code{/users} & 5 & danh sách kèm khối lượng, sửa hồ sơ của mình, tải lên/xem/xoá ảnh đại diện \\ \hline
+\code{/projects} & 11 & dự án của tôi, tạo, xoá, thành viên, mời, chấp nhận/từ chối, đổi vai trò, xoá thành viên \\ \hline
+\code{/tasks} & 11 & liệt kê/lọc, tạo, sửa, xoá, đổi trạng thái, bình luận, đính kèm, lịch sử \\ \hline
+\code{/sprints} & 9 & liệt kê, tạo, sửa, bắt đầu, kết thúc, xoá, thống kê, burndown, velocity \\ \hline
+\code{/stats} & 2 & khối lượng nhóm, task trễ hạn \\ \hline
+\code{/notifications} & 4 & liệt kê, số chưa đọc, đánh dấu đã đọc một / tất cả \\ \hline
+\code{/ai} & 5 & tóm tắt tuần, biên bản họp, giao việc, chia nhỏ, retrospective sprint \\ \hline
+\end{tabular}
+\end{table}
+
+Mã lỗi theo ngữ nghĩa HTTP: 400 cho tham chiếu không hợp lệ (phụ thuộc không tồn tại, sprint của dự
+án khác), 403 khi thành viên thực hiện thao tác của PM, 404 với dự án người gọi không được xem---\emph{không}
+phải 403, vì để lộ việc dự án tồn tại cũng đã là rò rỉ thông tin---và 409 khi bắt đầu sprint thứ hai
+trong lúc đã có sprint đang chạy.
+
+\section{Thiết kế phân quyền}
+Mọi route theo phạm vi dự án đều gọi một trong hai hàm kiểm tra, \code{require\_member} hoặc
+\code{require\_project\_pm}, trước khi chạm vào dữ liệu. Giao diện ẩn các nút mà thành viên không
+được dùng, nhưng đó chỉ là gợi ý thao tác: server mới là ranh giới bảo mật~\cite{owasp2021top10}.
+Trong dự án, có một thay đổi đề xuất vào nhánh chính khiến client \emph{giả làm} PM sau khi server đã
+từ chối đổi vai trò; thay đổi này bị loại chính vì lý do đó. Phiên đăng nhập là JWT ký bằng khoá bí
+mật riêng cho từng bản triển khai, được sinh trên máy chủ và không bao giờ được commit hay đóng gói
+vào image; bước kiểm tra khi khởi động từ chối khoá yếu hoặc khoá mặc định.
+
+\section{Chuỗi dự phòng AI}
+Mỗi chức năng AI gọi một hàm duy nhất, hàm này thử ba tầng theo thứ tự (Hình~\ref{fig:cascade}).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[b/.style={draw, rounded corners, align=center, font=\footnotesize, minimum width=3.2cm, minimum height=1cm}, >=Stealth]
+\node[b] (req) at (0,0) {Yêu cầu AI\\+ ngôn ngữ giao diện};
+\node[b] (t1) at (4.2,0) {Tầng 1\\Groq (cloud)};
+\node[b] (t2) at (8.4,0) {Tầng 2\\Ollama (cục bộ)};
+\node[b] (t3) at (12.6,0) {Tầng 3\\tất định};
+\node[b] (val) at (6.3,-2.2) {Phân tích JSON, kiểm tra,\\chuẩn hoá};
+\draw[->] (req) -- (t1);
+\draw[->] (t1) -- node[above,font=\scriptsize]{lỗi / quá thời gian} (t2);
+\draw[->] (t2) -- node[above,font=\scriptsize]{không kết nối} (t3);
+\draw[->] (t1) -- node[left,font=\scriptsize]{200} (val);
+\draw[->] (t2) -- (val);
+\draw[->] (val) -- node[below,font=\scriptsize, pos=0.6]{không dùng được} (t3);
+\end{tikzpicture}
+\caption{Chuỗi dự phòng AI ba tầng}\label{fig:cascade}
+\end{figure}
+
+Tầng tất định dựng câu trả lời từ chính dữ liệu dự án (ví dụ, retrospective đếm điểm cam kết và điểm
+hoàn thành, liệt kê task bị chặn kèm lý do, và phát hiện phạm vi bị thêm sau khi sprint bắt đầu), nên
+chức năng vẫn chạy khi không có mô hình nào. Việc rơi xuống tầng 3 được ghi log như một sự suy giảm;
+điều này quan trọng vì các tầng trả về cùng một dạng dữ liệu, nếu không thì một API key hết hạn trông
+vẫn hoàn toàn bình thường. Ngôn ngữ giao diện được gửi kèm mỗi yêu cầu (\code{Accept-Language}) và
+thêm vào prompt, nên giao diện tiếng Anh nhận câu trả lời tiếng Anh dù task được viết bằng tiếng Việt.
+
+\section{Chính sách ngoại tuyến và đồng bộ}
+Store áp dụng mọi thay đổi lên màn hình và IndexedDB trước, sau đó mới gửi lên server. Một thuộc tính
+duy nhất, \code{canMutate}, quyết định có được ghi hay không: luôn được khi có mạng; khi ngoại tuyến
+chỉ được ở dự án cá nhân. Mọi nút có thao tác ghi---kể cả công cụ AI chèn task---đều tự kiểm tra
+thuộc tính này, vì store từ chối một cách im lặng, và một nút không kiểm tra sẽ báo thành công dù
+không ghi gì. Hai lỗi kiểu này đã được phát hiện và sửa trong quá trình kiểm thử.
+
+\section{Thiết kế giao diện}
+Giao diện có ba màn hình, không dùng router: trang giới thiệu cho khách, bảng công việc và trang hồ
+sơ. Các hộp thoại cung cấp màn hình chi tiết task, bảng Scrum và các công cụ AI. Mọi chữ hiển thị đều
+lấy từ bảng dịch với một mục tiếng Anh và một mục tiếng Việt cho mỗi khoá (hơn 500 khoá); thiếu khoá
+tiếng Việt là lỗi biên dịch, và một test tự động sẽ báo lỗi nếu component chứa chữ viết cứng.
+
+\end{document}

@@ -1,0 +1,48 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+
+\section*{Kết quả đạt được}
+Dự án đã hoàn thành một hệ thống quản lý dự án chạy được và đáp ứng các mục tiêu đề ra:
+\begin{itemize}
+  \item Tài khoản không có vai trò toàn cục; dự án có vai trò PM và Thành viên theo từng dự án, lời
+        mời phải được chấp nhận, và server kiểm tra quyền ở mọi route.
+  \item Bảng Kanban và dạng bảng ưu tiên bàn phím, sắp xếp theo hạn chót, nhiều người thực hiện mỗi
+        task, phụ thuộc, đường găng và màn hình DAG.
+  \item Quy trình Scrum: vòng đời sprint, lập kế hoạch backlog, burndown, velocity và retrospective
+        do AI viết; cùng lịch sử thay đổi cho mọi task.
+  \item Năm chức năng AI dùng Groq với dự phòng ba tầng, đầu ra có cấu trúc được kiểm tra, và trả lời
+        theo ngôn ngữ giao diện.
+  \item Hoạt động local-first với chính sách ngoại tuyến an toàn; giao diện Anh/Việt hoàn chỉnh.
+  \item Bản triển khai production tại \url{https://koshi.huynhca.com}, 177 test backend và 442 test
+        frontend, tích hợp liên tục, và tám tài liệu sống truy vết mọi yêu cầu tới mã và test.
+\end{itemize}
+
+Ngoài các chức năng, bài học giá trị nhất là về kiểm chứng. Nhiều lỗi nghiêm trọng nhất---khoá bí
+mật nằm trong image container, lệnh triển khai suýt ghi đè production bằng cấu hình phát triển, một
+chức năng ``AI'' chưa từng gọi mô hình, nút chuyển ngôn ngữ để lại nửa giao diện chưa dịch---đều vô
+hình trước một bộ test toàn xanh. Chúng chỉ được tìm thấy khi kiểm tra sản phẩm thật: soi image đã
+build, đọc lệnh trước khi chạy, gọi mô hình thật, quét từng màn hình. Thói quen kiểm thử đột biến cho
+chính các test, và ghi lại mọi quyết định cùng lý do, bắt nguồn từ những trải nghiệm đó.
+
+\section*{Hạn chế}
+\begin{itemize}
+  \item Dự án chung chỉ đọc khi ngoại tuyến; chưa có thuật toán gộp các chỉnh sửa đồng thời ngoại
+        tuyến.
+  \item Burndown được tính theo danh sách task hiện tại của sprint, nên việc bị chuyển ra khỏi sprint
+        sẽ biến mất khỏi lịch sử của sprint đó.
+  \item Câu trả lời dự phòng tất định của AI hiện chỉ có tiếng Việt.
+  \item Bản công khai chưa giới hạn số lần đăng nhập sai, và các chỉ tiêu hiệu năng trong yêu cầu
+        (hiển thị trong một khung hình, dung lượng bộ nhớ) chưa được đo.
+  \item Bản công khai chạy trên một máy duy nhất và không truy cập được khi máy đó tắt.
+\end{itemize}
+
+\section*{Hướng phát triển}
+\begin{itemize}
+  \item Dùng CRDT (kiểu dữ liệu nhân bản không xung đột) để dự án chung cũng sửa được khi ngoại tuyến.
+  \item Nhật ký sự kiện theo sprint để có lịch sử burndown chính xác, và màn hình daily scrum.
+  \item Giới hạn tần suất đăng nhập, khoá tài khoản; chuyển sang hosting có sao lưu tự động.
+  \item Ứng dụng di động gốc và tích hợp với nền tảng Git (tự động liên kết commit, pull request với
+        task).
+\end{itemize}
+
+\end{document}

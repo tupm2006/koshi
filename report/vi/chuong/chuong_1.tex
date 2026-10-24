@@ -1,0 +1,104 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+
+\textit{Chương này trình bày các phương pháp quản lý dự án mà hệ thống hỗ trợ, các thuật toán phía
+sau chức năng phụ thuộc, và các công nghệ dùng để xây dựng hệ thống.}
+
+\section{Quản lý dự án cho nhóm phần mềm nhỏ}
+\subsection{Kanban}
+Kanban trực quan hoá công việc dưới dạng thẻ di chuyển qua các cột biểu diễn trạng thái, và giới hạn
+lượng việc đang làm để nhóm hoàn thành việc trước khi bắt đầu việc mới~\cite{anderson2010kanban}.
+Ưu điểm là luồng công việc liên tục: không có vòng lặp cố định, và việc bị chặn hiện ra ngay. Koshi
+dùng quy trình bốn trạng thái cố định:
+\[
+\text{TODO} \rightarrow \text{IN\_PROGRESS} \rightarrow \text{BLOCKED} \rightarrow \text{DONE} \rightarrow \text{TODO}.
+\]
+Vòng trạng thái này được cài đặt ở cả client và server và phải luôn giống nhau; task ở trạng thái
+BLOCKED mang theo lý do, nên bảng công việc giải thích được \emph{vì sao} việc bị dừng.
+
+\subsection{Scrum}
+Scrum là một khung làm việc trong đó nhóm bàn giao công việc theo các vòng lặp có độ dài cố định gọi
+là \emph{sprint}, thường từ một đến bốn tuần~\cite{schwaber2020scrum}. Các tạo tác gồm \emph{product
+backlog} (mọi việc có thể làm), \emph{sprint backlog} (việc nhóm cam kết trong sprint này) và phần
+tăng trưởng sản phẩm. Các sự kiện gồm sprint planning, daily scrum, sprint review và \emph{sprint
+retrospective}---nơi nhóm nhìn lại cách làm việc và quyết định cần thay đổi gì. Hai thước đo chuẩn:
+\begin{itemize}
+  \item \textbf{Burndown}: khối lượng còn lại (story point) theo từng ngày của sprint, so với đường
+        lý tưởng đi thẳng từ mức cam kết về 0.
+  \item \textbf{Velocity}: số story point hoàn thành mỗi sprint, dùng để định lượng cam kết sprint
+        sau cho thực tế.
+\end{itemize}
+Koshi hỗ trợ Scrum trên nền bảng Kanban: mỗi task hoặc nằm trong product backlog, hoặc thuộc một
+sprint; story point chính là độ phức tạp của task (S=1, M=2, L=3, XL=5).
+
+\section{Đồ thị phụ thuộc và đường găng}
+\subsection{Sắp xếp topo}
+Nếu task $A$ phụ thuộc task $B$ thì $B$ phải xong trước. Các task và phụ thuộc tạo thành đồ thị có
+hướng $G=(V,E)$ với cạnh $B \rightarrow A$. Khi $G$ không có chu trình (\emph{đồ thị có hướng không
+chu trình}, DAG), luôn tồn tại một \emph{thứ tự topo}---dãy mà mỗi task đứng sau mọi điều kiện tiên
+quyết của nó---và có thể tìm bằng thuật toán Kahn~\cite{kahn1962topological}: lặp lại việc lấy một
+task không còn điều kiện tiên quyết chưa xong, đưa ra, rồi xoá các cạnh đi ra của nó. Khi nhiều task
+cùng sẵn sàng, Koshi ưu tiên theo độ ưu tiên, rồi hạn chót, rồi thời điểm tạo, để thứ tự gợi ý đặt
+việc khẩn nhất chưa bị chặn lên đầu. Chu trình (người dùng có thể vô tình tạo ra) không làm thuật
+toán lỗi: các task còn lại trong chu trình được đưa xuống cuối.
+
+\subsection{Đường găng}
+Phương pháp đường găng (CPM)~\cite{kelley1959cpm} tìm chuỗi hoạt động phụ thuộc dài nhất; mọi chậm
+trễ trên chuỗi này làm chậm cả dự án. Koshi tính chuỗi nặng nhất gồm các task \emph{chưa xong} bằng
+tìm kiếm theo chiều sâu có ghi nhớ, với trọng số của task $t$ là
+\[
+w(t) = p(t)\cdot c(t), \qquad
+p \in \{1,2,5,10\}\ \text{(LOW..CRITICAL)},\quad
+c \in \{1,3,5,8\}\ \text{(S..XL)},
+\]
+và trọng số của chuỗi là tổng trọng số các task. Task trên đường găng được đánh dấu trên bảng và
+trong màn hình DAG. Một lỗi tinh vi phát hiện trong dự án liên quan tới việc ghi nhớ khi gặp chu
+trình: giá trị tính cho một lượt duyệt bị cắt ngang bởi chu trình phụ thuộc vào đường đi, nên lưu
+cache khiến kết quả phụ thuộc thứ tự mảng đầu vào. Các kết quả như vậy giờ không bao giờ được cache.
+
+\section{Phần mềm local-first}
+Phần mềm local-first giữ bản chính của dữ liệu trên thiết bị người dùng và coi server là một đầu
+đồng bộ~\cite{kleppmann2019localfirst}. Lợi ích là phản hồi tức thì và chạy được khi ngoại tuyến;
+khó khăn chính là gộp các chỉnh sửa đồng thời. Koshi chọn chính sách thận trọng có chủ đích: trình
+duyệt ghi mọi thay đổi vào IndexedDB trước và hiển thị ngay, sau đó mới đồng bộ với server; khi
+ngoại tuyến, dự án \emph{cá nhân} (một thành viên) vẫn sửa được, còn dự án \emph{chung} chuyển sang
+chỉ đọc, vì khi chưa có thuật toán gộp, hai người cùng sửa ngoại tuyến sẽ âm thầm ghi đè lên nhau.
+
+\section{Mô hình ngôn ngữ lớn và đầu ra có cấu trúc}
+Các mô hình ngôn ngữ lớn dựa trên kiến trúc Transformer~\cite{vaswani2017attention} có thể tóm tắt,
+trích xuất và lập kế hoạch từ ngôn ngữ tự nhiên. Tuy nhiên đầu ra của chúng là văn bản tự do, và ứng
+dụng không thể hành động dựa trên một đoạn văn. Vì vậy Koshi yêu cầu mô hình trả JSON theo lược đồ cố
+định (ví dụ \code{\{went\_well, to\_improve, action\_items\}}), loại bỏ khung Markdown, kiểm tra và
+chuẩn hoá kết quả (giá trị enum lạ được đổi về mặc định; phụ thuộc trỏ tới task không tồn tại bị
+loại bỏ), và chuyển sang câu trả lời tất định khi đầu ra không dùng được. Mô hình sử dụng là
+\code{openai/gpt-oss-120b}~\cite{openai2025gptoss} chạy trên Groq qua API tương thích
+OpenAI~\cite{groqdocs}.
+
+\section{Công nghệ sử dụng}
+\begin{table}[H]
+\centering
+\caption{Các công nghệ sử dụng}\label{tab:stack}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{|p{3.0cm}|p{4.2cm}|p{6.5cm}|}
+\hline
+\textbf{Tầng} & \textbf{Công nghệ} & \textbf{Mục đích} \\ \hline
+Frontend & Vue 3, TypeScript, Pinia, Vite, Tailwind CSS & Ứng dụng một trang; component dùng Composition API và một store trung tâm~\cite{vuejs} \\ \hline
+Lưu trữ cục bộ & IndexedDB (idb-keyval) & Bản sao local-first các task của từng dự án \\ \hline
+Backend & Python, FastAPI, Pydantic v2 & REST API với lược đồ request/response có kiểu~\cite{fastapi} \\ \hline
+Dữ liệu & SQLAlchemy 2, Alembic, MySQL 8.4 & ORM, migration có phiên bản, CSDL production (SQLite khi phát triển) \\ \hline
+Bảo mật & JWT (HS256), bcrypt & Phiên không trạng thái~\cite{rfc7519jwt}, băm mật khẩu \\ \hline
+AI & Groq API, Ollama (tuỳ chọn) & LLM trên cloud, LLM cục bộ tuỳ chọn \\ \hline
+Kiểm thử & pytest, Vitest, Vue Test Utils, Playwright & Kiểm thử đơn vị, component, tự động hoá trình duyệt \\ \hline
+Triển khai & Docker Compose, nginx, GitHub Actions, Cloudflare Tunnel & Container, reverse proxy, CI, truy cập công khai không cần mở cổng~\cite{cloudflaretunnel} \\ \hline
+\end{tabular}
+\end{table}
+
+\section{Tài liệu như một hệ thống kiểm soát}
+Tài liệu mô tả hệ thống sẽ sai ngay khi mã thay đổi mà tài liệu không đổi theo; dự án này kế thừa một
+bản đặc tả mô tả những hành vi mà mã không hề có. Vì vậy nhóm giữ tám tài liệu cạnh mã nguồn (D1--D8,
+liệt kê ở phần Mở đầu), với quy tắc: một thay đổi mã làm tài liệu sai thì chưa hoàn thành cho tới khi
+tài liệu được cập nhật trong cùng commit. D7 ghi lại mọi quyết định quan trọng (\emph{DEC-nnn}) và
+mọi lỗi phát hiện được (\emph{F-nn}) cùng lý do, còn D8 truy vết từng yêu cầu tới mã nguồn và test
+kiểm chứng nó. Các số liệu ở Chương~4 lấy từ những bản ghi này.
+
+\end{document}

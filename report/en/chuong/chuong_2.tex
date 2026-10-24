@@ -1,0 +1,125 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+
+\textit{This chapter analyses existing tools, identifies the actors and states the functional and
+non-functional requirements. The full register (89 functional and 10 non-functional requirements; the group counts below sum to 89)
+is kept in document D1; the most important ones are summarised here.}
+
+\section{Survey of existing tools}
+\begin{table}[H]
+\centering
+\caption{Comparison with common tools}\label{tab:survey}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{|p{3.4cm}|p{2.0cm}|p{2.0cm}|p{2.4cm}|p{2.5cm}|}
+\hline
+\textbf{Criterion} & \textbf{Trello} & \textbf{Jira} & \textbf{Spreadsheet} & \textbf{Koshi} \\ \hline
+Kanban board & Yes & Yes & Manual & Yes \\ \hline
+Scrum reports (burndown, velocity) & Add-on & Yes & No & Yes \\ \hline
+Task dependencies, critical path & No & Partial & No & Yes (DAG) \\ \hline
+Full keyboard control & Limited & Limited & Yes & Yes \\ \hline
+Works offline & No & No & Yes & Personal projects \\ \hline
+AI summaries, minutes, assignment & Paid & Paid & No & Yes \\ \hline
+Learning curve for students & Low & High & Low & Low \\ \hline
+\end{tabular}
+\end{table}
+
+The survey shows a gap the project targets: a tool as light as Trello that still offers Scrum
+reporting, dependency analysis and AI assistance, and that remains usable without a connection.
+
+\section{Actors}
+\begin{table}[H]
+\centering
+\caption{Actors of the system}\label{tab:actors}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{|p{3.2cm}|p{10.5cm}|}
+\hline
+\textbf{Actor} & \textbf{Description} \\ \hline
+Visitor & Not signed in. Sees the landing page (features, demo video, pricing, FAQ) and can register or sign in. \\ \hline
+User & Any signed-in account. Has \emph{no} authority by itself: it can create projects, answer invitations and edit its own profile. \\ \hline
+Project Manager (PM) & A user holding the PM role \emph{in a given project}. Manages members and roles, plans and runs sprints. The creator of a project becomes its PM. \\ \hline
+Member & A user holding the Member role in a project. Creates and updates tasks, comments, uses the AI tools; cannot change roles or sprints. \\ \hline
+AI service & External LLM (Groq) or local model (Ollama) that answers structured prompts. \\ \hline
+\end{tabular}
+\end{table}
+
+Roles are deliberately per project: the same person can be PM of one project and Member of another.
+Registration never asks for a role.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  actor/.style={draw, rounded corners, minimum width=2.4cm, minimum height=0.8cm, fill=gray!10, font=\small},
+  uc/.style={draw, ellipse, minimum width=4.2cm, minimum height=0.75cm, font=\footnotesize, align=center},
+  >=Stealth]
+\node[actor] (pm) at (0,1.2) {Project Manager};
+\node[actor] (mem) at (0,-1.6) {Member};
+\node[actor] (ai) at (12,-0.2) {AI service};
+\node[uc] (u1) at (6,3.0) {Manage members and roles};
+\node[uc] (u2) at (6,2.0) {Plan, start, complete sprints};
+\node[uc] (u3) at (6,1.0) {Create / update / move tasks};
+\node[uc] (u4) at (6,0.0) {Comment, @mention, attach evidence};
+\node[uc] (u5) at (6,-1.0) {View burndown, velocity, DAG};
+\node[uc] (u6) at (6,-2.0) {AI summary, minutes, assignment};
+\node[uc] (u7) at (6,-3.0) {AI decomposer, retrospective};
+\draw[->] (pm) -- (u1); \draw[->] (pm) -- (u2);
+\foreach \u in {u3,u4,u5,u6,u7} { \draw[->] (pm) -- (\u); \draw[->] (mem) -- (\u); }
+\draw[->,dashed] (u6) -- (ai); \draw[->,dashed] (u7) -- (ai);
+\end{tikzpicture}
+\caption{Main use cases (a PM can do everything a Member can)}\label{fig:usecase}
+\end{figure}
+
+\section{Functional requirements}
+\begin{longtable}{|p{2.3cm}|p{9.2cm}|p{2.0cm}|}
+\caption{Functional requirement groups}\label{tab:fr}\\
+\hline
+\textbf{Group} & \textbf{Representative requirements} & \textbf{Count} \\ \hline
+\endfirsthead
+\hline
+\textbf{Group} & \textbf{Representative requirements} & \textbf{Count} \\ \hline
+\endhead
+FR-AUTH & Register with email and password (no role); sign in; JWT session; per-project roles; non-members receive 404 for a project they cannot see. & 10 \\ \hline
+FR-PROJ & Personal dashboard; create and delete projects; invite by email (pending until accepted); change roles; profile page with avatar. & 11 \\ \hline
+FR-DOM & Task with title, description, status, priority, complexity, due date, blocking reason, several assignees, dependencies, acceptance criteria; comments with @mentions, one-level replies and attachments; notifications. & 10 \\ \hline
+FR-INT & Kanban and table views; every action on the keyboard ($h/j/k/l$, Space to cycle status, $n$ new, Enter details, $/$ search, 1--4 priority); deadline-first ordering. & 14 \\ \hline
+FR-GRAPH & Topological order, cycle tolerance, critical path highlighted on the board and in a DAG view. & 5 \\ \hline
+FR-PERS & IndexedDB first, server second; personal projects editable offline, shared projects read-only offline. & 6 \\ \hline
+FR-SCRUM & Sprint lifecycle (planned, active, completed); one active sprint per project; commitment recorded at start; unfinished work moved on completion; backlog planning; burndown; velocity; AI retrospective. & 8 \\ \hline
+FR-HIST & Every change to a task recorded with author and time; shown in the task inspector. & 2 \\ \hline
+FR-AI & Weekly summary; meeting minutes; assignment recommendation; goal decomposition; git-diff analysis; workload and overdue statistics; three-tier fallback. & 8 \\ \hline
+FR-NAV, FR-I18N, FR-MKT & Landing page with sign-in at the top right; English/Vietnamese switch for the whole interface; demo video recorded from the real application. & 15 \\ \hline
+\end{longtable}
+
+\subsection{Scrum workflow}
+The Scrum requirements define a small state machine for a sprint:
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[st/.style={draw, rounded corners, minimum width=2.6cm, minimum height=0.9cm, font=\small}, >=Stealth, node distance=3.3cm]
+\node[st] (p) {PLANNED};
+\node[st, right=of p] (a) {ACTIVE};
+\node[st, right=of a] (c) {COMPLETED};
+\draw[->] (p) -- node[above, font=\scriptsize]{start (PM)} node[below, font=\scriptsize]{commitment saved} (a);
+\draw[->] (a) -- node[above, font=\scriptsize]{complete (PM)} node[below, font=\scriptsize, align=center]{unfinished $\rightarrow$\\next sprint / backlog} (c);
+\end{tikzpicture}
+\caption{Sprint lifecycle}\label{fig:sprint-states}
+\end{figure}
+Only a PM may change a sprint; at most one sprint per project is active; a completed sprint accepts
+no new work; deleting a sprint returns its tasks to the backlog and never deletes work.
+
+\section{Non-functional requirements}
+\begin{table}[H]
+\centering
+\caption{Main non-functional requirements}\label{tab:nfr}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{|p{2.9cm}|p{10.8cm}|}
+\hline
+\textbf{Quality} & \textbf{Requirement} \\ \hline
+Responsiveness & A local change is rendered immediately; the network call never blocks rendering. \\ \hline
+Availability of AI & No AI endpoint returns an error because the model is unavailable; a deterministic answer is served instead and the degradation is logged. \\ \hline
+Security & Authorisation is enforced by the server on every project-scoped route; outside development the service refuses to start with a weak secret, demo accounts, wildcard CORS or an out-of-date schema. \\ \hline
+Data integrity & Schema changes only through versioned migrations; foreign keys enforced; UTF-8 (utf8mb4) end to end so Vietnamese text is never truncated. \\ \hline
+Localisation & Every visible string exists in English and Vietnamese; AI answers follow the interface language. \\ \hline
+Testability & Backend and frontend suites pass on a clean checkout and run in CI. \\ \hline
+\end{tabular}
+\end{table}
+
+\end{document}

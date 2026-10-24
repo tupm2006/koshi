@@ -1,0 +1,125 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+
+\textit{Chương này khảo sát các công cụ hiện có, xác định tác nhân và nêu các yêu cầu chức năng,
+phi chức năng. Danh sách đầy đủ (89 yêu cầu chức năng và 10 yêu cầu phi chức năng; tổng số theo
+nhóm dưới đây bằng 89) nằm trong tài liệu D1; ở đây chỉ tóm tắt các yêu cầu quan trọng nhất.}
+
+\section{Khảo sát các công cụ hiện có}
+\begin{table}[H]
+\centering
+\caption{So sánh với các công cụ phổ biến}\label{tab:survey}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{|p{3.4cm}|p{2.0cm}|p{2.0cm}|p{2.4cm}|p{2.5cm}|}
+\hline
+\textbf{Tiêu chí} & \textbf{Trello} & \textbf{Jira} & \textbf{Bảng tính} & \textbf{Koshi} \\ \hline
+Bảng Kanban & Có & Có & Thủ công & Có \\ \hline
+Báo cáo Scrum (burndown, velocity) & Tiện ích thêm & Có & Không & Có \\ \hline
+Phụ thuộc task, đường găng & Không & Một phần & Không & Có (DAG) \\ \hline
+Điều khiển hoàn toàn bằng bàn phím & Hạn chế & Hạn chế & Có & Có \\ \hline
+Dùng khi ngoại tuyến & Không & Không & Có & Dự án cá nhân \\ \hline
+AI tóm tắt, biên bản, giao việc & Trả phí & Trả phí & Không & Có \\ \hline
+Độ khó cho sinh viên & Thấp & Cao & Thấp & Thấp \\ \hline
+\end{tabular}
+\end{table}
+
+Khảo sát cho thấy khoảng trống mà dự án nhắm tới: một công cụ nhẹ như Trello nhưng vẫn có báo cáo
+Scrum, phân tích phụ thuộc và hỗ trợ AI, đồng thời dùng được khi không có mạng.
+
+\section{Tác nhân}
+\begin{table}[H]
+\centering
+\caption{Các tác nhân của hệ thống}\label{tab:actors}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{|p{3.2cm}|p{10.5cm}|}
+\hline
+\textbf{Tác nhân} & \textbf{Mô tả} \\ \hline
+Khách & Chưa đăng nhập. Xem trang giới thiệu (tính năng, video demo, bảng giá, hỏi đáp) và có thể đăng ký hoặc đăng nhập. \\ \hline
+Người dùng & Mọi tài khoản đã đăng nhập. Bản thân tài khoản \emph{không} có quyền gì: chỉ có thể tạo dự án, trả lời lời mời và sửa hồ sơ của mình. \\ \hline
+Quản lý dự án (PM) & Người dùng giữ vai trò PM \emph{trong một dự án cụ thể}. Quản lý thành viên và vai trò, lập kế hoạch và điều hành sprint. Người tạo dự án trở thành PM của dự án đó. \\ \hline
+Thành viên & Người dùng giữ vai trò Thành viên trong dự án. Tạo và cập nhật task, bình luận, dùng công cụ AI; không được đổi vai trò hay sprint. \\ \hline
+Dịch vụ AI & LLM bên ngoài (Groq) hoặc mô hình cục bộ (Ollama) trả lời các prompt có cấu trúc. \\ \hline
+\end{tabular}
+\end{table}
+
+Vai trò được đặt theo từng dự án một cách có chủ đích: cùng một người có thể là PM ở dự án này và là
+Thành viên ở dự án khác. Khi đăng ký, hệ thống không bao giờ hỏi vai trò.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  actor/.style={draw, rounded corners, minimum width=2.4cm, minimum height=0.8cm, fill=gray!10, font=\small},
+  uc/.style={draw, ellipse, minimum width=4.2cm, minimum height=0.75cm, font=\footnotesize, align=center},
+  >=Stealth]
+\node[actor] (pm) at (0,1.2) {Quản lý dự án};
+\node[actor] (mem) at (0,-1.6) {Thành viên};
+\node[actor] (ai) at (12,-0.2) {Dịch vụ AI};
+\node[uc] (u1) at (6,3.0) {Quản lý thành viên, vai trò};
+\node[uc] (u2) at (6,2.0) {Lập, bắt đầu, kết thúc sprint};
+\node[uc] (u3) at (6,1.0) {Tạo / sửa / chuyển task};
+\node[uc] (u4) at (6,0.0) {Bình luận, @mention, minh chứng};
+\node[uc] (u5) at (6,-1.0) {Xem burndown, velocity, DAG};
+\node[uc] (u6) at (6,-2.0) {AI tóm tắt, biên bản, giao việc};
+\node[uc] (u7) at (6,-3.0) {AI chia nhỏ, retrospective};
+\draw[->] (pm) -- (u1); \draw[->] (pm) -- (u2);
+\foreach \u in {u3,u4,u5,u6,u7} { \draw[->] (pm) -- (\u); \draw[->] (mem) -- (\u); }
+\draw[->,dashed] (u6) -- (ai); \draw[->,dashed] (u7) -- (ai);
+\end{tikzpicture}
+\caption{Các ca sử dụng chính (PM làm được mọi việc của Thành viên)}\label{fig:usecase}
+\end{figure}
+
+\section{Yêu cầu chức năng}
+\begin{longtable}{|p{2.3cm}|p{9.2cm}|p{2.0cm}|}
+\caption{Các nhóm yêu cầu chức năng}\label{tab:fr}\\
+\hline
+\textbf{Nhóm} & \textbf{Yêu cầu tiêu biểu} & \textbf{Số lượng} \\ \hline
+\endfirsthead
+\hline
+\textbf{Nhóm} & \textbf{Yêu cầu tiêu biểu} & \textbf{Số lượng} \\ \hline
+\endhead
+FR-AUTH & Đăng ký bằng email và mật khẩu (không chọn vai trò); đăng nhập; phiên JWT; vai trò theo dự án; người ngoài nhận 404 với dự án họ không được xem. & 10 \\ \hline
+FR-PROJ & Bảng điều khiển cá nhân; tạo, xoá dự án; mời qua email (chờ chấp nhận); đổi vai trò; trang hồ sơ có ảnh đại diện. & 11 \\ \hline
+FR-DOM & Task có tiêu đề, mô tả, trạng thái, ưu tiên, độ phức tạp, hạn chót, lý do bị chặn, nhiều người thực hiện, phụ thuộc, tiêu chí chấp nhận; bình luận có @mention, trả lời một cấp, đính kèm; thông báo. & 10 \\ \hline
+FR-INT & Kanban và dạng bảng; mọi thao tác bằng phím ($h/j/k/l$, Space đổi trạng thái, $n$ tạo mới, Enter xem chi tiết, $/$ tìm kiếm, 1--4 đổi ưu tiên); sắp xếp theo hạn chót trước. & 14 \\ \hline
+FR-GRAPH & Thứ tự topo, chịu được chu trình, đường găng hiển thị trên bảng và màn hình DAG. & 5 \\ \hline
+FR-PERS & IndexedDB trước, server sau; dự án cá nhân sửa được khi ngoại tuyến, dự án chung chỉ đọc. & 6 \\ \hline
+FR-SCRUM & Vòng đời sprint (đã lên kế hoạch, đang chạy, đã xong); mỗi dự án tối đa một sprint đang chạy; ghi nhận cam kết khi bắt đầu; chuyển việc chưa xong khi kết thúc; lập kế hoạch backlog; burndown; velocity; retrospective AI. & 8 \\ \hline
+FR-HIST & Mọi thay đổi của task được ghi kèm người sửa và thời điểm; hiển thị trong màn hình chi tiết. & 2 \\ \hline
+FR-AI & Tóm tắt tuần; biên bản họp; gợi ý giao việc; chia nhỏ mục tiêu; phân tích git diff; thống kê khối lượng và task trễ hạn; dự phòng ba tầng. & 8 \\ \hline
+FR-NAV, FR-I18N, FR-MKT & Trang giới thiệu với nút đăng nhập góc trên bên phải; chuyển Anh/Việt cho toàn bộ giao diện; video demo quay từ ứng dụng thật. & 15 \\ \hline
+\end{longtable}
+
+\subsection{Quy trình Scrum}
+Các yêu cầu Scrum định nghĩa một máy trạng thái nhỏ cho sprint:
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[st/.style={draw, rounded corners, minimum width=2.6cm, minimum height=0.9cm, font=\small}, >=Stealth, node distance=3.3cm]
+\node[st] (p) {PLANNED};
+\node[st, right=of p] (a) {ACTIVE};
+\node[st, right=of a] (c) {COMPLETED};
+\draw[->] (p) -- node[above, font=\scriptsize]{bắt đầu (PM)} node[below, font=\scriptsize]{lưu cam kết} (a);
+\draw[->] (a) -- node[above, font=\scriptsize]{kết thúc (PM)} node[below, font=\scriptsize, align=center]{việc chưa xong $\rightarrow$\\sprint sau / backlog} (c);
+\end{tikzpicture}
+\caption{Vòng đời sprint}\label{fig:sprint-states}
+\end{figure}
+Chỉ PM được thay đổi sprint; mỗi dự án tối đa một sprint đang chạy; sprint đã xong không nhận thêm
+việc; xoá sprint sẽ trả task về backlog chứ không bao giờ xoá công việc.
+
+\section{Yêu cầu phi chức năng}
+\begin{table}[H]
+\centering
+\caption{Các yêu cầu phi chức năng chính}\label{tab:nfr}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{|p{2.9cm}|p{10.8cm}|}
+\hline
+\textbf{Thuộc tính} & \textbf{Yêu cầu} \\ \hline
+Độ phản hồi & Thay đổi cục bộ hiển thị ngay; lời gọi mạng không bao giờ chặn việc hiển thị. \\ \hline
+Tính sẵn sàng của AI & Không endpoint AI nào trả lỗi vì mô hình không sẵn sàng; thay vào đó trả câu trả lời tất định và ghi log tình trạng suy giảm. \\ \hline
+Bảo mật & Server kiểm tra quyền ở mọi route theo dự án; ngoài môi trường phát triển, dịch vụ từ chối khởi động nếu khoá bí mật yếu, còn tài khoản demo, CORS dạng wildcard hoặc lược đồ CSDL chưa cập nhật. \\ \hline
+Toàn vẹn dữ liệu & Chỉ thay đổi lược đồ qua migration có phiên bản; bắt buộc khoá ngoại; UTF-8 (utf8mb4) xuyên suốt để tiếng Việt không bị cắt. \\ \hline
+Đa ngôn ngữ & Mọi chuỗi hiển thị đều có bản tiếng Anh và tiếng Việt; câu trả lời của AI theo ngôn ngữ giao diện. \\ \hline
+Khả năng kiểm thử & Bộ test backend và frontend chạy được trên bản checkout sạch và chạy trong CI. \\ \hline
+\end{tabular}
+\end{table}
+
+\end{document}

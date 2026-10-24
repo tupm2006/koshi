@@ -1,0 +1,172 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+
+\textit{This chapter describes the architecture, the data model, the API, and the design of the
+three cross-cutting concerns that shaped the system most: authorisation, the AI cascade and the
+offline policy.}
+
+\section{Overall architecture}
+Koshi is a client--server system. The browser runs a Vue single-page application that keeps a
+local copy of the open project; an nginx container serves the application and forwards
+\code{/api} to a FastAPI service, which owns the MySQL database and calls the AI provider. For
+public access, a Cloudflare Tunnel connects outwards from the host to Cloudflare's edge, so no port
+is opened on the router and TLS is terminated by Cloudflare (Figure~\ref{fig:arch}).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw, rounded corners, align=center, font=\footnotesize, minimum height=0.9cm, fill=white},
+  grp/.style={draw, dashed, rounded corners, inner sep=6pt},
+  >=Stealth, node distance=0.5cm]
+\node[box, minimum width=3.2cm] (ui) at (0,0) {Vue 3 components\\(board, table, Scrum, AI)};
+\node[box, minimum width=3.2cm, below=of ui] (store) {Pinia task store\\\code{canMutate} gate};
+\node[box, minimum width=3.2cm, below=of store] (idb) {IndexedDB\\(local copy)};
+\node[grp, fit=(ui)(store)(idb), label={[font=\footnotesize\bfseries]above:Browser}] (br) {};
+
+\node[box, minimum width=2.6cm] (cf) at (5,0) {Cloudflare edge\\TLS, DNS};
+\node[box, minimum width=2.6cm, below=0.9cm of cf] (tun) {cloudflared\\tunnel};
+\node[box, minimum width=2.6cm, below=0.9cm of tun] (ng) {nginx\\static + /api proxy};
+
+\node[box, minimum width=3.2cm] (api) at (10,-0.2) {FastAPI routers\\auth, projects, tasks,\\sprints, stats, AI};
+\node[box, minimum width=3.2cm, below=of api] (svc) {Services: AI cascade,\\notify, uploads, mentions};
+\node[box, minimum width=3.2cm, below=of svc] (db) {MySQL 8.4\\(Alembic migrations)};
+\node[grp, fit=(tun)(ng)(api)(svc)(db), label={[font=\footnotesize\bfseries]below:Docker host}] {};
+
+\node[box, minimum width=2.6cm] (llm) at (10,2.0) {Groq API\\gpt-oss-120b};
+
+\draw[<->] (ui) -- (store); \draw[<->] (store) -- node[right,font=\scriptsize]{write first} (idb);
+\draw[->] (br.east) -- node[above,font=\scriptsize]{HTTPS} (cf);
+\draw[<-] (cf) -- node[right,font=\scriptsize]{outbound} (tun);
+\draw[->] (tun) -- (ng);
+\draw[->] (ng.east) -- node[midway, sloped, above, font=\scriptsize]{REST/JSON} (api.west);
+\draw[<->] (api) -- (svc); \draw[<->] (svc) -- (db);
+\draw[->] (api.north) -- node[right,font=\scriptsize]{tier 1} (llm);
+\end{tikzpicture}
+\caption{Deployment and component architecture}\label{fig:arch}
+\end{figure}
+
+The frontend is organised by responsibility: \code{components/} (26 Vue components),
+\code{stores/} (task, theme and language state), \code{lib/} (pure, framework-free modules:
+topological sort and critical path, keyboard dispatcher, urgency ordering, git-diff parser, mention
+parsing, translations), and \code{services/api.ts}, the only place that talks to the server. The
+backend follows the same separation: \code{routers/} (HTTP), \code{schemas/} (Pydantic
+contracts), \code{models/} (SQLAlchemy entities), \code{services/} (AI, notifications, uploads) and
+\code{security.py} (authentication and the project-scope guards).
+
+\section{Data model}
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[ent/.style={draw, rounded corners, font=\scriptsize, align=left, fill=gray!6, minimum width=3.1cm}, >=Stealth]
+\node[ent] (u) at (0,0) {\textbf{users}\\id, email, full\_name,\\hashed\_password, skills, avatar};
+\node[ent] (pm) at (4.4,0) {\textbf{project\_members}\\project\_id, user\_id,\\role (PM/MEMBER),\\status (PENDING/ACCEPTED)};
+\node[ent] (p) at (8.8,0) {\textbf{projects}\\id, name, description,\\owner\_id};
+\node[ent] (s) at (8.8,-3) {\textbf{sprints}\\id, project\_id, name, goal,\\start/end\_date, is\_active,\\completed\_at, committed\_points};
+\node[ent] (t) at (4.4,-3) {\textbf{tasks}\\id, project\_id, sprint\_id,\\status, priority, points,\\due\_date, completed\_at,\\dependencies\_json};
+\node[ent] (ta) at (0,-3) {\textbf{task\_assignees}\\task\_id, user\_id};
+\node[ent] (c) at (4.4,-6) {\textbf{comments}\\task\_id, author\_id, kind,\\content, parent\_id};
+\node[ent] (a) at (8.8,-6) {\textbf{attachments}\\comment\_id, stored\_name,\\content\_type, size};
+\node[ent] (e) at (0,-6) {\textbf{task\_events}\\task\_id, actor\_id, field,\\old\_value, new\_value};
+\node[ent] (n) at (0,-8.4) {\textbf{notifications}\\user\_id, kind, actor\_id,\\task\_id, comment\_id, read\_at};
+\draw (u) -- (pm); \draw (pm) -- (p); \draw (p) -- (s); \draw (p) -- (t); \draw (s) -- (t);
+\draw (t) -- (ta); \draw (ta) -- (u); \draw (t) -- (c); \draw (c) -- (a); \draw (t) -- (e);
+\draw (n.west) -- ++(-0.5,0) |- (u.west);
+\end{tikzpicture}
+\caption{Entities (10 tables)}\label{fig:er}
+\end{figure}
+
+Three design decisions matter most:
+\begin{itemize}
+  \item \textbf{Authority lives on the membership, not on the user.} \code{users} has no role
+        column; \code{project\_members} holds the role and the invitation status. A PENDING
+        membership grants nothing: the lookup used by every guard returns it only once accepted.
+  \item \textbf{Several assignees per task} through \code{task\_assignees}; each must be an
+        accepted member of the task's project.
+  \item \textbf{History and Scrum need time.} \code{tasks.completed\_at} is set when a task
+        enters DONE and cleared when it leaves, which is what the burndown reads;
+        the sprint's \code{committed\_points} snapshots the commitment when a sprint starts, which is
+        what velocity compares against. \code{task\_events} stores display strings rather than
+        foreign keys, so an entry still reads correctly after the person or sprint it names is
+        renamed or deleted.
+\end{itemize}
+The schema is created and changed only by nine Alembic migrations; outside development the
+service refuses to start if the database is not at the latest revision.
+
+\section{API design}
+The REST API has 51 endpoints under \code{/api}; Table~\ref{tab:api} summarises them.
+
+\begin{table}[H]
+\centering
+\caption{API overview}\label{tab:api}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{2.9cm}|c|p{9.0cm}|}
+\hline
+\textbf{Router} & \textbf{Endpoints} & \textbf{Main operations} \\ \hline
+\code{/auth} & 4 & register, login, Google sign-in, current user \\ \hline
+\code{/users} & 5 & list with workload, update own profile, avatar upload/serve/delete \\ \hline
+\code{/projects} & 11 & my projects, create, delete, members, invite, accept/decline, change role, remove \\ \hline
+\code{/tasks} & 11 & list/filter, create, update, delete, cycle status, comments, attachments, history \\ \hline
+\code{/sprints} & 9 & list, create, update, start, complete, delete, statistics, burndown, velocity \\ \hline
+\code{/stats} & 2 & team workload, overdue tasks \\ \hline
+\code{/notifications} & 4 & list, unread count, mark one / all read \\ \hline
+\code{/ai} & 5 & weekly summary, meeting minutes, assignment, decompose, sprint retrospective \\ \hline
+\end{tabular}
+\end{table}
+
+Errors follow HTTP semantics: 400 for an invalid reference (an unknown dependency, a sprint of
+another project), 403 when a member attempts a PM action, 404 for a project the caller cannot
+see---\emph{not} 403, because revealing that a project exists is itself a leak---and 409 when a
+second sprint is started while one is active.
+
+\section{Authorisation design}
+Every project-scoped route calls one of two guards, \code{require\_member} or
+\code{require\_project\_pm}, before touching data. The user interface hides controls a member cannot
+use, but this is only an affordance: the server is the security boundary~\cite{owasp2021top10}.
+During the project a code change proposed for the main branch made the client \emph{pretend} to be
+PM after the server had refused a role change; it was rejected for exactly this reason. Sessions are
+JWTs signed with a per-deployment secret that is generated on the host and never committed or
+copied into an image; the startup check refuses weak or default secrets.
+
+\section{AI cascade}
+Each AI feature calls one function that tries three tiers in order (Figure~\ref{fig:cascade}).
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[b/.style={draw, rounded corners, align=center, font=\footnotesize, minimum width=3.2cm, minimum height=1cm}, >=Stealth]
+\node[b] (req) at (0,0) {AI request\\+ UI language};
+\node[b] (t1) at (4.2,0) {Tier 1\\Groq (cloud)};
+\node[b] (t2) at (8.4,0) {Tier 2\\Ollama (local)};
+\node[b] (t3) at (12.6,0) {Tier 3\\deterministic};
+\node[b] (val) at (6.3,-2.2) {Parse JSON, validate,\\normalise};
+\draw[->] (req) -- (t1);
+\draw[->] (t1) -- node[above,font=\scriptsize]{error / timeout} (t2);
+\draw[->] (t2) -- node[above,font=\scriptsize]{unreachable} (t3);
+\draw[->] (t1) -- node[left,font=\scriptsize]{200} (val);
+\draw[->] (t2) -- (val);
+\draw[->] (val) -- node[below,font=\scriptsize, pos=0.6]{unusable} (t3);
+\end{tikzpicture}
+\caption{Three-tier AI cascade}\label{fig:cascade}
+\end{figure}
+
+The deterministic tier builds an answer from the project's own data (for example, the
+retrospective counts committed and completed points, lists blocked tasks with their reasons and
+detects scope added after the sprint started), so the feature still works with no model at all.
+Falling through to tier 3 is logged as a degradation; this matters because the tiers return the same
+shape and an expired key would otherwise look perfectly healthy. The interface language is sent
+with each request (\code{Accept-Language}) and added to the prompt, so an English interface
+receives English answers even when the tasks are written in Vietnamese.
+
+\section{Offline policy and synchronisation}
+The store applies every change to the screen and to IndexedDB first, then sends it to the server.
+A single property, \code{canMutate}, decides whether a write is allowed: always when online; when
+offline, only in a personal project. Every control that writes---including the AI tools that insert
+tasks---checks it itself, because the store refuses silently and a control that did not check would
+report success having written nothing. Two such defects were found and fixed during testing.
+
+\section{User interface design}
+The interface has three screens without a router: the landing page for visitors, the board, and
+the profile page. Modals provide the task inspector, the Scrum panel and the AI tools. All visible
+text comes from a translation table with an English and a Vietnamese entry for every key (more than
+500 keys); a missing Vietnamese key is a compile error, and an automated test fails if a component
+contains literal text.
+
+\end{document}

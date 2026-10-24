@@ -1,0 +1,100 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+
+\section{Lý do chọn đề tài}
+Các nhóm phát triển phần mềm nhỏ---đặc biệt là nhóm sinh viên---thường quản lý công việc bằng tin
+nhắn, bảng tính hoặc một công cụ đa năng như Trello hay Jira. Mỗi lựa chọn đều có cái giá của nó.
+Tin nhắn làm thất lạc thông tin; bảng tính không biết gì về trạng thái, phụ thuộc hay hạn chót; còn
+các công cụ lớn thì nặng, phụ thuộc chuột, luôn cần kết nối mạng và thu phí đúng những chức năng nhóm
+cần như báo cáo Scrum. Trong khi đó, hai xu hướng giúp một công cụ tốt hơn trở nên khả thi: trình
+duyệt giờ có thể lưu toàn bộ bản sao làm việc của dự án ngay trên máy (ý tưởng \emph{local-first}
+\cite{kleppmann2019localfirst}), và các mô hình ngôn ngữ lớn có thể biến văn bản tự do---biên bản
+họp, một mục tiêu còn mơ hồ---thành dữ liệu có cấu trúc, có thể hành động được.
+
+Dự án \textbf{Koshi} xây dựng một hệ thống quản lý dự án quanh ba ý tưởng: mọi thao tác đều làm
+được bằng bàn phím; bảng công việc vẫn hoạt động khi mất mạng; và AI đảm nhận các phần tẻ nhạt của
+quản lý (tóm tắt, biên bản, giao việc, chia nhỏ công việc, retrospective cuối sprint) nhưng luôn
+trả về kết quả có cấu trúc, kiểm tra được.
+
+\section{Mục tiêu}
+\begin{itemize}
+  \item Xây dựng ứng dụng web cho phép người dùng đăng ký, tạo dự án và mời thành viên, với vai trò
+        (Quản lý dự án hoặc Thành viên) được gán \emph{theo từng dự án} chứ không theo tài khoản.
+  \item Cung cấp bảng Kanban 4 cột và chế độ xem dạng bảng, điều khiển hoàn toàn bằng bàn phím, có
+        phụ thuộc giữa các task và đường găng được tính tự động.
+  \item Hỗ trợ quy trình Scrum: lập kế hoạch sprint, product backlog, bắt đầu và kết thúc sprint,
+        biểu đồ burndown và velocity, retrospective do AI viết.
+  \item Tích hợp mô hình ngôn ngữ lớn (Groq, model \code{openai/gpt-oss-120b}) cho năm chức năng AI,
+        với cơ chế dự phòng ba tầng để ứng dụng không bao giờ lỗi khi dịch vụ AI không sẵn sàng.
+  \item Giữ dự án cá nhân dùng được đầy đủ khi ngoại tuyến, đồng thời ngăn chỉnh sửa xung đột khi
+        ngoại tuyến ở dự án có nhiều thành viên.
+  \item Triển khai bản chạy cấu hình production trên tên miền công khai để nhóm kiểm thử, và kiểm
+        chứng hệ thống bằng kiểm thử tự động.
+\end{itemize}
+
+\section{Phạm vi}
+Hệ thống hướng tới nhóm nhỏ (khoảng 2--15 người) làm dự án phần mềm. Đây là ứng dụng web dùng được
+trên trình duyệt máy tính và điện thoại, bằng tiếng Anh và tiếng Việt. Ngoài phạm vi: chấm công,
+thanh toán, biểu đồ Gantt, ứng dụng di động gốc và tích hợp với các hệ thống quản lý issue khác.
+
+\section{Phương pháp thực hiện}
+Nhóm áp dụng chính quy trình mà sản phẩm hỗ trợ. Công việc được tổ chức theo sprint với một backlog
+chung; mỗi thay đổi đi kèm kiểm thử, mọi quyết định quan trọng đều được ghi lại. Dự án duy trì tám
+tài liệu sống (D1 Yêu cầu, D2 Bản đồ module, D3 Kiến trúc, D4 Hợp đồng API và dữ liệu, D5 Kiểm thử và
+tiêu chí chấp nhận, D6 Rủi ro và chính sách, D7 Sổ tay phát triển và nhật ký quyết định, D8 Ma trận
+truy vết yêu cầu) nằm cùng kho mã nguồn, để mỗi thay đổi mã và tài liệu mô tả nó được xem xét cùng
+nhau. Kiểm thử theo hướng \emph{characterisation-first}: trước khi sửa đoạn mã chưa có test, viết
+test mô tả hành vi hiện tại; bản thân các test được kiểm tra bằng \emph{kiểm thử đột biến} (mutation
+testing)~\cite{demillo1978mutation}---cố ý làm hỏng mã và xác nhận có test báo lỗi.
+
+\section{Tổ chức nhóm và phân công nhiệm vụ}
+Nhóm gồm ba thành viên lớp Kỹ thuật máy tính K23A. Bảng~\ref{tab:tasks} trình bày phân công công việc.
+
+\begin{longtable}{|p{3.2cm}|p{2.4cm}|p{8.0cm}|}
+\caption{Phân công nhiệm vụ các thành viên}\label{tab:tasks}\\
+\hline
+\textbf{Thành viên} & \textbf{Vai trò} & \textbf{Nhiệm vụ} \\
+\hline
+\endfirsthead
+\hline
+\textbf{Thành viên} & \textbf{Vai trò} & \textbf{Nhiệm vụ} \\
+\hline
+\endhead
+Phạm Văn Huynh \newline (KTMT K23A) & Nhóm trưởng \newline Scrum Master &
+\begin{itemize}[leftmargin=*,topsep=0pt]
+ \item Lập kế hoạch dự án, tổ chức sprint, theo dõi tiến độ
+ \item Phân tích yêu cầu và bộ tài liệu D1--D8
+ \item Module Scrum: vòng đời sprint, lập kế hoạch backlog, burndown, velocity, retrospective AI
+ \item Tích hợp AI với Groq, thiết kế prompt; AI trả lời theo ngôn ngữ giao diện
+ \item Triển khai: Docker, MySQL, Cloudflare Tunnel trên \code{koshi.huynhca.com}
+ \item Dữ liệu kiểm thử, smoke test đầu-cuối, video demo, báo cáo
+\end{itemize} \\
+\hline
+Phạm Minh Tú \newline (KTMT K23A) & Lập trình viên chính \newline (kiến trúc, frontend) &
+\begin{itemize}[leftmargin=*,topsep=0pt]
+ \item Kiến trúc tổng thể và lựa chọn công nghệ
+ \item Frontend Vue 3: Pinia store, Kanban và bảng, bộ xử lý phím tắt
+ \item Đồ thị phụ thuộc, sắp xếp topo và đường găng
+ \item Lưu trữ local-first (IndexedDB) và chính sách ghi khi ngoại tuyến
+ \item Trang giới thiệu, trang hồ sơ, đa ngôn ngữ Anh/Việt
+\end{itemize} \\
+\hline
+Đàm Đức Đôn \newline (KTMT K23A) & Lập trình viên \newline (backend, chất lượng) &
+\begin{itemize}[leftmargin=*,topsep=0pt]
+ \item Backend FastAPI: xác thực, dự án, vai trò theo dự án và lời mời
+ \item Bình luận, @mention, trả lời, đính kèm, thông báo, lịch sử task
+ \item Lược đồ CSDL, Alembic migration, chuyển từ SQLite sang MySQL
+ \item Tích hợp liên tục (GitHub Actions), bộ test backend và frontend
+ \item Logic dự phòng AI và xoay vòng API key
+\end{itemize} \\
+\hline
+\end{longtable}
+
+\section{Cấu trúc báo cáo}
+Ngoài phần mở đầu và kết luận, báo cáo gồm bốn chương. Chương~1 trình bày cơ sở lý thuyết: Kanban,
+Scrum, đồ thị phụ thuộc và đường găng, phần mềm local-first, mô hình ngôn ngữ lớn và các công nghệ sử
+dụng. Chương~2 phân tích yêu cầu. Chương~3 mô tả thiết kế hệ thống: kiến trúc, mô hình dữ liệu, API,
+chuỗi dự phòng AI, bảo mật và chính sách ngoại tuyến. Chương~4 trình bày kết quả cài đặt kèm ảnh chụp
+màn hình, chiến lược kiểm thử, kết quả và việc triển khai.
+
+\end{document}
