@@ -8,7 +8,7 @@ sau chức năng phụ thuộc, và các công nghệ dùng để xây dựng h�
 \subsection{Kanban}
 Kanban trực quan hoá công việc dưới dạng thẻ di chuyển qua các cột biểu diễn trạng thái, và giới hạn
 lượng việc đang làm để nhóm hoàn thành việc trước khi bắt đầu việc mới~\cite{anderson2010kanban}.
-Ưu điểm là luồng công việc liên tục: không có vòng lặp cố định, và việc bị chặn hiện ra ngay. Koshi
+Ưu điểm là luồng công việc liên tục: không có vòng lặp cố định, và việc bị chặn hiện ra ngay. Hệ thống
 dùng quy trình bốn trạng thái cố định:
 \[
 \text{TODO} \rightarrow \text{IN\_PROGRESS} \rightarrow \text{BLOCKED} \rightarrow \text{DONE} \rightarrow \text{TODO}.
@@ -28,7 +28,7 @@ retrospective}---nơi nhóm nhìn lại cách làm việc và quyết định c�
   \item \textbf{Velocity}: số story point hoàn thành mỗi sprint, dùng để định lượng cam kết sprint
         sau cho thực tế.
 \end{itemize}
-Koshi hỗ trợ Scrum trên nền bảng Kanban: mỗi task hoặc nằm trong product backlog, hoặc thuộc một
+Hệ thống hỗ trợ Scrum trên nền bảng Kanban: mỗi task hoặc nằm trong product backlog, hoặc thuộc một
 sprint; story point chính là độ phức tạp của task (S=1, M=2, L=3, XL=5).
 
 \section{Đồ thị phụ thuộc và đường găng}
@@ -38,13 +38,13 @@ hướng $G=(V,E)$ với cạnh $B \rightarrow A$. Khi $G$ không có chu trình
 chu trình}, DAG), luôn tồn tại một \emph{thứ tự topo}---dãy mà mỗi task đứng sau mọi điều kiện tiên
 quyết của nó---và có thể tìm bằng thuật toán Kahn~\cite{kahn1962topological}: lặp lại việc lấy một
 task không còn điều kiện tiên quyết chưa xong, đưa ra, rồi xoá các cạnh đi ra của nó. Khi nhiều task
-cùng sẵn sàng, Koshi ưu tiên theo độ ưu tiên, rồi hạn chót, rồi thời điểm tạo, để thứ tự gợi ý đặt
+cùng sẵn sàng, hệ thống ưu tiên theo độ ưu tiên, rồi hạn chót, rồi thời điểm tạo, để thứ tự gợi ý đặt
 việc khẩn nhất chưa bị chặn lên đầu. Chu trình (người dùng có thể vô tình tạo ra) không làm thuật
 toán lỗi: các task còn lại trong chu trình được đưa xuống cuối.
 
 \subsection{Đường găng}
 Phương pháp đường găng (CPM)~\cite{kelley1959cpm} tìm chuỗi hoạt động phụ thuộc dài nhất; mọi chậm
-trễ trên chuỗi này làm chậm cả dự án. Koshi tính chuỗi nặng nhất gồm các task \emph{chưa xong} bằng
+trễ trên chuỗi này làm chậm cả dự án. Hệ thống tính chuỗi nặng nhất gồm các task \emph{chưa xong} bằng
 tìm kiếm theo chiều sâu có ghi nhớ, với trọng số của task $t$ là
 \[
 w(t) = p(t)\cdot c(t), \qquad
@@ -59,7 +59,7 @@ cache khiến kết quả phụ thuộc thứ tự mảng đầu vào. Các kế
 \section{Phần mềm local-first}
 Phần mềm local-first giữ bản chính của dữ liệu trên thiết bị người dùng và coi server là một đầu
 đồng bộ~\cite{kleppmann2019localfirst}. Lợi ích là phản hồi tức thì và chạy được khi ngoại tuyến;
-khó khăn chính là gộp các chỉnh sửa đồng thời. Koshi chọn chính sách thận trọng có chủ đích: trình
+khó khăn chính là gộp các chỉnh sửa đồng thời. Hệ thống chọn chính sách thận trọng có chủ đích: trình
 duyệt ghi mọi thay đổi vào IndexedDB trước và hiển thị ngay, sau đó mới đồng bộ với server; khi
 ngoại tuyến, dự án \emph{cá nhân} (một thành viên) vẫn sửa được, còn dự án \emph{chung} chuyển sang
 chỉ đọc, vì khi chưa có thuật toán gộp, hai người cùng sửa ngoại tuyến sẽ âm thầm ghi đè lên nhau.
@@ -67,7 +67,7 @@ chỉ đọc, vì khi chưa có thuật toán gộp, hai người cùng sửa ng
 \section{Mô hình ngôn ngữ lớn và đầu ra có cấu trúc}
 Các mô hình ngôn ngữ lớn dựa trên kiến trúc Transformer~\cite{vaswani2017attention} có thể tóm tắt,
 trích xuất và lập kế hoạch từ ngôn ngữ tự nhiên. Tuy nhiên đầu ra của chúng là văn bản tự do, và ứng
-dụng không thể hành động dựa trên một đoạn văn. Vì vậy Koshi yêu cầu mô hình trả JSON theo lược đồ cố
+dụng không thể hành động dựa trên một đoạn văn. Vì vậy hệ thống yêu cầu mô hình trả JSON theo lược đồ cố
 định (ví dụ \code{\{went\_well, to\_improve, action\_items\}}), loại bỏ khung Markdown, kiểm tra và
 chuẩn hoá kết quả (giá trị enum lạ được đổi về mặc định; phụ thuộc trỏ tới task không tồn tại bị
 loại bỏ), và chuyển sang câu trả lời tất định khi đầu ra không dùng được. Mô hình sử dụng là

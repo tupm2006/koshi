@@ -6,7 +6,7 @@ three cross-cutting concerns that shaped the system most: authorisation, the AI 
 offline policy.}
 
 \section{Overall architecture}
-Koshi is a client--server system. The browser runs a Vue single-page application that keeps a
+The system is a client--server system. The browser runs a Vue single-page application that keeps a
 local copy of the open project; an nginx container serves the application and forwards
 \code{/api} to a FastAPI service, which owns the MySQL database and calls the AI provider. For
 public access, a Cloudflare Tunnel connects outwards from the host to Cloudflare's edge, so no port

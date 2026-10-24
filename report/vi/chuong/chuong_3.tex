@@ -5,7 +5,7 @@
 hình hệ thống nhiều nhất: phân quyền, chuỗi dự phòng AI và chính sách ngoại tuyến.}
 
 \section{Kiến trúc tổng thể}
-Koshi là hệ thống client--server. Trình duyệt chạy ứng dụng một trang Vue, giữ bản sao cục bộ của
+Hệ thống có kiến trúc client--server. Trình duyệt chạy ứng dụng một trang Vue, giữ bản sao cục bộ của
 dự án đang mở; một container nginx phục vụ ứng dụng và chuyển tiếp \code{/api} tới dịch vụ FastAPI,
 nơi sở hữu CSDL MySQL và gọi nhà cung cấp AI. Để truy cập công khai, Cloudflare Tunnel kết nối
 \emph{từ máy chủ ra} mạng biên của Cloudflare, nên không phải mở cổng trên router và TLS do

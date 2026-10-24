@@ -9,7 +9,7 @@ behind its dependency features, and the technologies used to build it.}
 Kanban visualises work as cards moving across columns that represent states, and limits the amount
 of work in progress so that the team finishes work before starting more~\cite{anderson2010kanban}.
 Its strength is continuous flow: there is no fixed iteration, and a blocked item is visible
-immediately. Koshi uses a fixed four-state workflow:
+immediately. The system uses a fixed four-state workflow:
 \[
 \text{TODO} \rightarrow \text{IN\_PROGRESS} \rightarrow \text{BLOCKED} \rightarrow \text{DONE} \rightarrow \text{TODO}.
 \]
@@ -29,7 +29,7 @@ decides what to change. Two measures are standard:
   \item \textbf{Velocity}: the story points completed per sprint, used to size the next
         commitment realistically.
 \end{itemize}
-Koshi supports Scrum on top of the Kanban board: a task belongs either to the product backlog or to
+The system supports Scrum on top of the Kanban board: a task belongs either to the product backlog or to
 one sprint; story points are the task's complexity (S=1, M=2, L=3, XL=5).
 
 \section{Dependency graphs and the critical path}
@@ -39,13 +39,13 @@ directed graph $G=(V,E)$ with an edge $B \rightarrow A$. When $G$ has no cycle (
 acyclic graph}, DAG), a \emph{topological order}---a sequence in which every task appears after all
 its prerequisites---exists and can be found with Kahn's algorithm~\cite{kahn1962topological}:
 repeatedly take a task with no unfinished prerequisite, output it, and remove its outgoing edges.
-Koshi breaks ties between ready tasks by priority, then due date, then creation time, so the
+The system breaks ties between ready tasks by priority, then due date, then creation time, so the
 suggested order puts the most urgent unblocked work first. A cycle (which users can create by
 mistake) does not make the algorithm fail: tasks left in a cycle are appended at the end.
 
 \subsection{Critical path}
 The Critical Path Method~\cite{kelley1959cpm} finds the longest chain of dependent activities; any
-delay on it delays the whole project. Koshi computes the heaviest chain of \emph{unfinished} tasks
+delay on it delays the whole project. The system computes the heaviest chain of \emph{unfinished} tasks
 with memoised depth-first search, where the weight of a task $t$ is
 \[
 w(t) = p(t)\cdot c(t), \qquad
@@ -60,7 +60,7 @@ depend on the order of the input array. Such results are now never cached.
 \section{Local-first software}
 Local-first software keeps the primary copy of the user's data on the user's device and treats the
 server as a synchronisation peer~\cite{kleppmann2019localfirst}. The benefits are instant response
-and offline operation; the main difficulty is merging concurrent edits. Koshi adopts a deliberately
+and offline operation; the main difficulty is merging concurrent edits. The system adopts a deliberately
 conservative policy: the browser writes every change to IndexedDB first and renders it immediately,
 then synchronises with the server; while offline, a \emph{personal} project (one member) stays
 editable, whereas a \emph{shared} project becomes read-only, because without a merge algorithm two
@@ -69,7 +69,7 @@ people editing offline would silently overwrite each other.
 \section{Large language models and structured output}
 Large language models based on the Transformer architecture~\cite{vaswani2017attention} can
 summarise, extract and plan from natural language. Their output is free text, however, and an
-application cannot act on a paragraph. Koshi therefore asks the model for JSON with a fixed schema
+application cannot act on a paragraph. The system therefore asks the model for JSON with a fixed schema
 (for example \code{\{went\_well, to\_improve, action\_items\}}), strips Markdown fences, validates and
 normalises the result (unknown enum values become a default; dependencies naming a task that does not
 exist are dropped), and falls back to a deterministic answer when the output is unusable. The model
