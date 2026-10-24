@@ -140,10 +140,19 @@ class Sprint(Base):
     start_date = Column(DateTime, nullable=False)
     end_date = Column(DateTime, nullable=False)
     is_active = Column(Boolean, default=True)
+    # Scrum lifecycle (migration 0008). PLANNED = not active, not completed.
+    completed_at = Column(DateTime, nullable=True)
+    committed_points = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=utcnow)
-    
+
     project = relationship("Project", back_populates="sprints")
     tasks = relationship("Task", back_populates="sprint")
+
+    @property
+    def state(self) -> str:
+        if self.completed_at is not None:
+            return "COMPLETED"
+        return "ACTIVE" if self.is_active else "PLANNED"
 
 class Task(Base):
     __tablename__ = "tasks"
@@ -160,6 +169,8 @@ class Task(Base):
     blocking_reason = Column(String(255), nullable=True)
     dependencies_json = Column(Text, default="[]")  # JSON list of task IDs
     acceptance_criteria_json = Column(Text, default="[]")  # JSON list of strings
+    # Set on entering DONE, cleared on leaving it. Burndown reads this.
+    completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=utcnow)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
 

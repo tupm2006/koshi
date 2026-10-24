@@ -1,7 +1,7 @@
 # D5 — Tests & Acceptance Criteria
 
 **Purpose:** define what "correct" means, and record honestly what is currently verified.
-**Last verified by execution:** 2026-08-29 — backend `155 passed`, frontend `399 passed`.
+**Last verified by execution:** 2026-10-24 — backend `170 passed`, frontend `410 passed`.
 
 ---
 
@@ -15,7 +15,19 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 pytest -q
 ```
-Expected: **155 passed**. (`app/database.py` creates the sqlite directory itself, so no `mkdir` is needed.) Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
+Expected: **170 passed**. (`app/database.py` creates the sqlite directory itself, so no `mkdir` is needed.) Config in `pytest.ini` (`pythonpath=.`, `testpaths=tests`, `asyncio_mode=auto`).
+
+### End-to-end against a running instance (DEC-028)
+
+```bash
+python3 scripts/seed-demo.py http://localhost:8090
+docker exec -i koshi-backend-prod-local python - < scripts/seed-backdate.py
+python3 scripts/smoke-test.py http://localhost:8090      # exit code = failed checks
+```
+37 checks: auth, per-project roles and 404-for-outsiders, the status cycle, dependency/assignee
+validation, comments and replies, the Scrum lifecycle and its guards, stats, notifications, and all
+four AI endpoints against the real model. Last run 2026-10-24: **0 failed**, AI answered by Groq
+(no `AI DEGRADED` in the log).
 
 ### Database migrations
 
@@ -36,7 +48,7 @@ creates nothing and **refuses to start** unless the database is at head (D3 §5c
 
 ```bash
 pnpm install
-pnpm test                     # vitest run — 399 tests
+pnpm test                     # vitest run — 410 tests
 pnpm run test:watch           # vitest, watch mode
 pnpm run build                # vue-tsc -b && vite build
 pnpm run dev                  # manual verification at :5173
@@ -239,10 +251,11 @@ A change is done when **all** hold:
 
 ## 5. Tests that encode defects
 
-`test_mandated_ai_features` asserts `len(decomp_data["subtasks"]) == 3`. `/ai/decompose` returns
-three hardcoded subtasks (FR-AI-04 is a stub), so this assertion **locks in the stub**. If the
-endpoint is ever given a real model, this test will fail for the right reason — do not "fix" it by
-loosening the assertion without reading D7 / DEC-003.
+~~`test_mandated_ai_features` asserting `len(subtasks) == 3` locked in the decompose stub.~~ Since
+DEC-029 the endpoint is model-backed, and the assertion now describes only the **fallback** path —
+true in the suite because no model is reachable there. The model path is covered by
+`test_ai_cascade.py::test_decompose_uses_the_model_when_one_answers`. No test currently encodes a
+known defect.
 
 ## 6. Prioritised test gaps
 

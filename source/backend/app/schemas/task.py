@@ -100,6 +100,7 @@ class TaskOut(BaseModel):
     blocking_reason: Optional[str] = None
     dependencies: List[int]
     acceptance_criteria: List[str]
+    completed_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
     comments: Optional[List[CommentOut]] = []

@@ -74,9 +74,9 @@ services:
       - CORS_ORIGINS=http://localhost:8090
       - SEED_DEMO_DATA=false
       - ALLOW_UNVERIFIED_GOOGLE_TOKENS=false
-      - AI_API_URL=https://api.openai.com/v1/chat/completions
+      - AI_API_URL=${AI_API_URL:-https://api.groq.com/openai/v1/chat/completions}
       - AI_API_KEY=${AI_API_KEY:-}
-      - AI_MODEL_NAME=gpt-4o-mini
+      - AI_MODEL_NAME=${AI_MODEL_NAME:-openai/gpt-oss-120b}
       - OLLAMA_URL=http://host.docker.internal:11434/v1/chat/completions
     extra_hosts:
       - "host.docker.internal:host-gateway"

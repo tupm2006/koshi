@@ -136,6 +136,10 @@ describe('dueLabel', () => {
     expect(dueLabel(task({ dueDate: inDays(4) }), NOW)).toBe('in 4d');
   });
 
+  it('never calls finished work overdue', () => {
+    expect(dueLabel(task({ dueDate: inDays(-10), status: 'DONE' }), NOW)).toBe('Done');
+  });
+
   it('is null when there is no deadline to describe', () => {
     expect(dueLabel(task({}), NOW)).toBeNull();
     expect(dueLabel(task({ dueDate: 'nonsense' }), NOW)).toBeNull();

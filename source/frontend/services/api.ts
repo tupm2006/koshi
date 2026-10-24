@@ -423,6 +423,42 @@ export class ApiClient {
   // A stub used to live at this spot and shadowed the real parser, returning
   // fabricated results that did not even satisfy GitDiffAnalysisResult (F-25).
 
+  // Scrum (DEC-028)
+  async listSprints(projectId: number): Promise<Sprint[]> {
+    return this.request<Sprint[]>(`/sprints?project_id=${projectId}`);
+  }
+
+  async createSprint(body: { project_id: number; name: string; goal: string; start_date: string; end_date: string }): Promise<Sprint> {
+    // Created PLANNED; starting it is a separate, deliberate step.
+    return this.request<Sprint>('/sprints', { method: 'POST', body: JSON.stringify({ ...body, is_active: false }) });
+  }
+
+  async startSprint(id: number): Promise<Sprint> {
+    return this.request<Sprint>(`/sprints/${id}/start`, { method: 'POST' });
+  }
+
+  async completeSprint(id: number, moveUnfinishedTo: number | null): Promise<Sprint> {
+    return this.request<Sprint>(`/sprints/${id}/complete`, {
+      method: 'POST', body: JSON.stringify({ move_unfinished_to: moveUnfinishedTo }),
+    });
+  }
+
+  async deleteSprint(id: number): Promise<void> {
+    await this.request<void>(`/sprints/${id}`, { method: 'DELETE' });
+  }
+
+  async getBurndown(id: number): Promise<Burndown> {
+    return this.request<Burndown>(`/sprints/${id}/burndown`);
+  }
+
+  async getVelocity(projectId: number): Promise<VelocityEntry[]> {
+    return this.request<VelocityEntry[]>(`/sprints/velocity/history?project_id=${projectId}`);
+  }
+
+  async setTaskSprint(taskId: number, sprintId: number | null): Promise<any> {
+    return this.request<any>(`/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify({ sprint_id: sprintId }) });
+  }
+
   // Workload & Delayed Tasks
   async getWorkloads(projectId: number): Promise<any[]> {
     return this.request<any[]>(`/stats/workload?project_id=${projectId}`);
@@ -434,3 +470,31 @@ export class ApiClient {
 }
 
 export const api = new ApiClient();
+
+export type SprintState = 'PLANNED' | 'ACTIVE' | 'COMPLETED';
+
+export interface Sprint {
+  id: number;
+  project_id: number;
+  name: string;
+  goal: string;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  state: SprintState;
+  completed_at: string | null;
+  committed_points: number | null;
+}
+
+export interface Burndown {
+  sprint_id: number;
+  total_points: number;
+  days: { date: string; ideal: number; remaining: number | null }[];
+}
+
+export interface VelocityEntry {
+  sprint_id: number;
+  sprint_name: string;
+  committed_points: number;
+  completed_points: number;
+}

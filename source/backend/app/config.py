@@ -35,9 +35,13 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
     
     # AI Service Configuration
-    AI_API_URL: str = "https://api.openai.com/v1/chat/completions"
+    # Any OpenAI-compatible endpoint. Default is Groq (DEC-029).
+    AI_API_URL: str = os.getenv("AI_API_URL", "https://api.groq.com/openai/v1/chat/completions")
     AI_API_KEY: str = os.getenv("AI_API_KEY", "")
-    AI_MODEL_NAME: str = "gpt-4o-mini"
+    # Reasoning models on Groq take 2-7s for a weekly summary; 10s was cutting
+    # the long ones off and silently serving the fallback.
+    AI_TIMEOUT_SECONDS: float = float(os.getenv("AI_TIMEOUT_SECONDS", "30"))
+    AI_MODEL_NAME: str = os.getenv("AI_MODEL_NAME", "openai/gpt-oss-120b")
     
     # Accept Google ID tokens whose signature could not be verified, by decoding
     # the JWT payload directly. Required by the offline test-suite; catastrophic

@@ -7,6 +7,7 @@ from typing import List, Optional
 from datetime import datetime
 from app.database import get_db
 from app.models.entities import (
+    Sprint,
     Attachment, Comment, CommentKindEnum, ProjectMember, Task, TaskAssignee,
     TaskStatusEnum, User,
 )
@@ -52,6 +53,7 @@ def _task_out(task: Task) -> TaskOut:
         complexity_points=task.complexity_points,
         due_date=task.due_date,
         blocking_reason=task.blocking_reason,
+        completed_at=task.completed_at,
         dependencies=task.dependencies,
         acceptance_criteria=task.acceptance_criteria,
         created_at=task.created_at,
@@ -159,6 +161,7 @@ def list_tasks(
 def create_task(req: TaskCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     require_member(db, req.project_id, current_user)
     _validate_dependencies(db, req.project_id, req.dependencies)
+    _validate_sprint(db, req.project_id, req.sprint_id)
     task = Task(
         project_id=req.project_id,
         sprint_id=req.sprint_id,
@@ -175,6 +178,7 @@ def create_task(req: TaskCreate, db: Session = Depends(get_db), current_user: Us
     if req.acceptance_criteria:
         task.acceptance_criteria = req.acceptance_criteria
         
+    _stamp_completion(task)
     db.add(task)
     db.flush()
     if req.assignee_ids:
@@ -209,6 +213,26 @@ def _validate_dependencies(db: Session, project_id: int, dep_ids, exclude_id: in
         )
 
 
+def _validate_sprint(db: Session, project_id: int, sprint_id) -> None:
+    """A task may only be planned into a sprint of its own project."""
+    if sprint_id is None:
+        return
+    sprint = db.query(Sprint).filter(Sprint.id == sprint_id).first()
+    if sprint is None or sprint.project_id != project_id:
+        raise HTTPException(status_code=400, detail="Unknown sprint for this project")
+    if sprint.completed_at is not None:
+        raise HTTPException(status_code=400, detail="Cannot add work to a completed sprint")
+
+
+def _stamp_completion(task: Task) -> None:
+    """Keep completed_at in step with status; burndown depends on it."""
+    if task.status == TaskStatusEnum.DONE:
+        if task.completed_at is None:
+            task.completed_at = utcnow()
+    else:
+        task.completed_at = None
+
+
 def _get_task_for_member(db: Session, task_id: int, user: User) -> Task:
     """Load a task and assert the caller is a member of its project."""
     task = db.query(Task).filter(Task.id == task_id).first()
@@ -241,9 +265,13 @@ def update_task(task_id: int, req: TaskUpdate, db: Session = Depends(get_db), cu
         # leaves the roster alone.
         _set_assignees(db, task, update_data.pop("assignee_ids") or [])
 
+    if "sprint_id" in update_data:
+        _validate_sprint(db, task.project_id, update_data["sprint_id"])
+
     for k, v in update_data.items():
         setattr(task, k, v)
-        
+    _stamp_completion(task)
+
     task.updated_at = utcnow()
     db.commit()
     db.refresh(task)
@@ -263,6 +291,7 @@ def cycle_task_status(task_id: int, db: Session = Depends(get_db), current_user:
     cycle = [TaskStatusEnum.TODO, TaskStatusEnum.IN_PROGRESS, TaskStatusEnum.BLOCKED, TaskStatusEnum.DONE]
     current_idx = cycle.index(task.status)
     task.status = cycle[(current_idx + 1) % len(cycle)]
+    _stamp_completion(task)
     task.updated_at = utcnow()
 
     db.commit()

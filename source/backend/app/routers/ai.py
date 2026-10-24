@@ -84,7 +84,9 @@ async def recommend_assignment(
 
     # Candidates are the members of *this* project, not every user in the system.
     members = db.query(ProjectMember).filter(ProjectMember.project_id == project_id).all()
-    users = [m.user for m in members if m.user is not None]
+    # Accepted members only: an invitee cannot be assigned (the task router
+    # refuses it), so recommending one is a suggestion that cannot be applied.
+    users = [m.user for m in members if m.user is not None and m.is_active]
     workload_payload = []
 
     for u in users:
@@ -125,7 +127,15 @@ async def decompose_goal(
     goal = req.goal.strip()
     if not goal:
         raise HTTPException(status_code=400, detail="Goal cannot be empty")
-        
+
+    generated = await AIService.decompose_goal(goal)
+    if generated is not None:
+        return AIDecomposeResponse(
+            status="success", goal=goal, rationale=generated["rationale"],
+            subtasks=[DecomposedSubtask(**t) for t in generated["subtasks"]],
+        )
+
+    # Deterministic template: no model reachable, or its answer was unusable.
     subtasks = [
         DecomposedSubtask(
             title=f"Phân tích yêu cầu & thiết kế kiến trúc: {goal[:30]}",

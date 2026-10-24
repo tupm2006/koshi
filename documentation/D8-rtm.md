@@ -70,7 +70,7 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 | FR-MKT-01 | Landing sections | `LandingPage.vue` | ✅ | ✅ |
 | FR-MKT-02 | Small top-right sign-in | `LandingPage.vue` nav | ✅ | ✅ |
 | FR-MKT-03 | Auth dialog | `AuthDialog.vue` | ✅ | ✅ |
-| FR-MKT-04 | Video only when configured | `VITE_DEMO_VIDEO_URL` guard | ✅ | ✅ |
+| FR-MKT-04 | Real recorded demo video | `public/demo.mp4`, `scripts/demo-video/`, `LandingPage.vue` | ✅ `LandingPage.test.ts` (default src, switch-off) | ✅ |
 | FR-MKT-05 | No fabricated testimonials | absent by design (D6 P14) | ✅ asserted | ✅ |
 
 ### 2.2 Domain model
@@ -141,6 +141,16 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 | FR-PROJ-11 | Membership list | `ProfilePage.vue`, `routers/projects.py::list_my_projects` | ✅ both sides | ✅ |
 | — | Roles independent across projects | `entities.py::ProjectMember` | ✅ `test_roles_are_independent_across_projects` | ✅ |
 
+### 2.5c Scrum
+
+| Req | Work item | Implementation | Verification | St |
+|:--|:--|:--|:--|:--:|
+| FR-SCRUM-01..03 | Lifecycle | `routers/sprints.py` (start/complete/delete), `entities.py::Sprint.state`, migration 0008, `SprintPanel.vue` | ✅ `test_scrum.py` (lifecycle, one-active, carry-over, delete) + `SprintPanel.test.ts` | ✅ |
+| FR-SCRUM-04 | Planning | `tasks.py::_validate_sprint`, `api.setTaskSprint`, `SprintPanel.vue` | ✅ `test_task_cannot_be_planned_into_another_projects_sprint`, `SprintPanel.test.ts` (re-sync) | ✅ |
+| FR-SCRUM-05 | Burndown | `sprints.py::sprint_burndown`, `tasks.py::_stamp_completion` | ✅ `test_burndown_counts_done_points`, `test_completed_at_follows_status` | ✅ |
+| FR-SCRUM-06 | Velocity | `sprints.py::velocity` | ✅ `test_complete_moves_unfinished_work_and_keeps_done`, `SprintPanel.test.ts` (average) | ✅ |
+| FR-SCRUM-07 | Permissions | `require_project_pm`/`require_member`; `canEdit` in `SprintPanel.vue` | ✅ `test_member_cannot_run_the_lifecycle`, `test_outsider_gets_404_on_sprint_reads`, `SprintPanel.test.ts` (member, offline) | ✅ |
+
 ### 2.6 AI workflows
 
 | Req | Work item | Implementation | Verification | St |
@@ -148,7 +158,7 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 | FR-AI-01 | Weekly summary | `routers/ai.py::generate_weekly_summary`, `ai_service.py::generate_weekly_summary`, `WeeklySummaryModal.vue` | ✅ `test_mandated_ai_features`, `test_ai_cascade.py`, `AIModals.test.ts` (6) | ✅ |
 | FR-AI-02 | Meeting minutes | `routers/ai.py::extract_meeting_minutes`, `ai_service.py::extract_meeting_minutes`, `MeetingMinutesModal.vue` | ✅ same + `test_ai_cascade.py` (fence stripping, unparseable-JSON degradation) + `AIModals.test.ts` (5) | ✅ |
 | FR-AI-03 | Assignment recommendation | `routers/ai.py::recommend_assignment`, `ai_service.py::recommend_task_assignment`, `WorkloadAssignModal.vue` | ✅ same + `test_ai_cascade.py` + `AIModals.test.ts` (6) | ✅ |
-| FR-AI-04 | Goal decomposition | `routers/ai.py::decompose_goal` (hardcoded), `lib/aiDecomposer.ts`, `AIDecomposerModal.vue` | ✅ asserts `len == 3`; `AIModals.test.ts` (7) covers insertion and dependency wiring | ⚠️✅ **test pins the stub** — D5 §5, DEC-003 |
+| FR-AI-04 | Goal decomposition | `routers/ai.py::decompose_goal`, `ai_service.py::decompose_goal`, `AIDecomposerModal.vue` | ✅ `test_ai_cascade.py::test_decompose_*` (model, no-model, bad JSON) + `AIModals.test.ts` (7) | ✅ |
 | FR-AI-05 | Git diff analysis | `lib/gitParser.ts::parseGitDiff` called directly by `GitDiffModal.vue` | ✅ `gitParser.test.ts` (39) + `AIModals.test.ts` (5) | ✅ — but the BLOCKED-task heuristic is loose by design; OQ-08 |
 | FR-AI-06 | 3-tier cascade | `ai_service.py::_call_llm`, `_deterministic_fallback`, `AITier` | ✅ `test_ai_cascade.py` (26) — each tier mocked at the httpx boundary, asserted by provenance | ✅ |
 | FR-AI-07 | Workload stats | `routers/stats.py::get_member_workloads` | ✅ `test_workload_and_delayed_tasks_stats` | ✅ |

@@ -80,9 +80,16 @@ describe('structure', () => {
 });
 
 describe('content commitments', () => {
-  it('renders no demo video when none is configured', () => {
-    // FR-MKT-04: a fake player would imply a tour that does not exist.
+  it('plays the shipped screen recording by default', () => {
     const w = open();
+    expect(w.find('video').attributes('src')).toBe('/demo.mp4');
+  });
+
+  it('renders no player when the video is switched off', () => {
+    // FR-MKT-04: a fake player would imply a tour that does not exist.
+    vi.stubEnv('VITE_DEMO_VIDEO_URL', '');
+    const w = open();
+    vi.unstubAllEnvs();
     expect(w.find('video').exists()).toBe(false);
     expect(w.text()).toContain(MESSAGES.en['how.videoMissing']);
   });

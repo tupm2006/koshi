@@ -34,7 +34,7 @@ submission/     frozen coursework snapshot — do not edit
 ```bash
 pnpm install
 pnpm run dev            # http://localhost:5173, proxies /api → :8000
-pnpm test               # vitest run — 399 tests
+pnpm test               # vitest run — 410 tests
 pnpm run build          # vue-tsc -b && vite build → dist/
 ```
 
@@ -46,7 +46,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 alembic upgrade head               # build/update the schema
-pytest -q                          # 155 tests (SQLite; see CLAUDE.md for MySQL)
+pytest -q                          # 170 tests (SQLite; see CLAUDE.md for MySQL)
 ```
 
 On first run with an empty database the app seeds two accounts (`pm@tupm.qzz.io` and
@@ -167,7 +167,7 @@ Tier 3 output is currently indistinguishable from real model output to the calle
 
 ## Project status
 
-The backend is covered end to end (155/155), with authorisation and the AI cascade the best-tested
+The backend is covered end to end (170/170), with authorisation and the AI cascade the best-tested
 areas. The frontend
 has 260 tests over both pure libraries, both stores, the keyboard dispatcher and thirteen
 components — every suite mutation-verified. Overall: 83% of requirements automated, 7% unverified.
@@ -200,3 +200,21 @@ in [D6 §4](./documentation/D6-risks-delegation-policies.md). Still open and wor
 - Đàm Đức Đôn
 
 MIT License.
+
+## Test data, smoke test and demo video
+
+```bash
+python3 scripts/seed-demo.py http://localhost:8090          # 5 accounts, password Koshi@2026
+docker exec -i koshi-backend-prod-local python - < scripts/seed-backdate.py
+python3 scripts/smoke-test.py http://localhost:8090         # end-to-end, incl. AI
+```
+
+Seeded accounts: `an@`, `binh@`, `cuong@`, `dung@`, `em@koshi-local.dev`. `an` is PM of
+"Koshi Mobile App" (Scrum: 2 completed sprints, 1 active, 1 planned, a backlog) and of
+"Website Bán Hàng Q4" (Kanban, with overdue and blocked work); `binh` also has a personal project.
+
+AI tier 1 is Groq by default — put `AI_API_KEY=gsk_...` in the gitignored root `.env`.
+
+The landing page video (`source/frontend/public/demo.mp4`) is recorded from the running app by
+`scripts/demo-video/record.py` and encoded by `scripts/demo-video/encode.sh` — re-run both after a
+UI change so the video never shows a product that no longer exists.

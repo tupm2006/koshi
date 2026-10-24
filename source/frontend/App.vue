@@ -8,6 +8,7 @@ import TaskTable from './components/TaskTable.vue';
 import KanbanBoard from './components/KanbanBoard.vue';
 import AIDecomposerModal from './components/AIDecomposerModal.vue';
 import WeeklySummaryModal from './components/WeeklySummaryModal.vue';
+import SprintPanel from './components/SprintPanel.vue';
 import MeetingMinutesModal from './components/MeetingMinutesModal.vue';
 import WorkloadAssignModal from './components/WorkloadAssignModal.vue';
 import LandingPage from './components/LandingPage.vue';
@@ -39,6 +40,7 @@ import {
   ChevronDown,
   FolderKanban,
   Bell,
+  Timer,
 } from 'lucide-vue-next';
 import type { FilterStatus } from './types/task';
 
@@ -62,6 +64,7 @@ const isMeetingMinutesOpen = ref(false);
 const isWorkloadAssignOpen = ref(false);
 const isGitDiffOpen = ref(false);
 const isDAGOpen = ref(false);
+const isSprintPanelOpen = ref(false);
 const isShortcutsHelpOpen = ref(false);
 const isCreateModalOpen = ref(false);
 const isExportImportOpen = ref(false);
@@ -95,6 +98,7 @@ function closeAllModals() {
     taskStore.isDashboardOpen ||
     isGitDiffOpen.value ||
     isDAGOpen.value ||
+    isSprintPanelOpen.value ||
     isShortcutsHelpOpen.value ||
     isCreateModalOpen.value ||
     isExportImportOpen.value ||
@@ -108,6 +112,7 @@ function closeAllModals() {
   taskStore.isDashboardOpen = false;
   isGitDiffOpen.value = false;
   isDAGOpen.value = false;
+  isSprintPanelOpen.value = false;
   isShortcutsHelpOpen.value = false;
   isCreateModalOpen.value = false;
   isExportImportOpen.value = false;
@@ -327,6 +332,19 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
               </button>
             </div>
           </div>
+
+          <!-- Scrum: sprints, backlog, burndown, velocity (DEC-028) -->
+          <button
+            type="button"
+            class="h-8 inline-flex items-center gap-1.5 px-3 rounded-md bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-mono cursor-pointer shadow-2xs"
+            data-testid="open-scrum"
+            :disabled="taskStore.currentProjectId === null"
+            @click="isSprintPanelOpen = true"
+            title="Scrum"
+          >
+            <Timer class="w-3.5 h-3.5" />
+            <span class="hidden sm:inline">Scrum</span>
+          </button>
 
           <!-- DAG Graph -->
           <button
@@ -574,6 +592,7 @@ const statusTabs: FilterStatus[] = ['ALL', 'TODO', 'IN_PROGRESS', 'BLOCKED', 'DO
     <AIDecomposerModal v-if="isAIDecomposerOpen" @close="isAIDecomposerOpen = false" />
     <GitDiffModal v-if="isGitDiffOpen" @close="isGitDiffOpen = false" />
     <DAGVisualizerModal v-if="isDAGOpen" @close="isDAGOpen = false" />
+    <SprintPanel v-if="isSprintPanelOpen" @close="isSprintPanelOpen = false" />
     <ShortcutsHelpModal v-if="isShortcutsHelpOpen" @close="isShortcutsHelpOpen = false" />
     <CreateTaskModal v-if="isCreateModalOpen" @close="isCreateModalOpen = false" />
     <!-- Opened by the store from every path a task can reach DONE by, so no

@@ -103,6 +103,9 @@ export function dueLabel(task: Task, now: number): string | null {
   if (!task.dueDate) return null;
   const days = daysUntil(task.dueDate, now);
   if (days === null) return null;
+  // Finished work is not late. The colour already said so (urgencyOf), but the
+  // label still read "10d overdue" on a DONE card.
+  if (task.status === 'DONE') return 'Done';
   if (days < 0) return `${Math.abs(days)}d overdue`;
   if (days === 0) return 'Today';
   if (days === 1) return 'Tomorrow';

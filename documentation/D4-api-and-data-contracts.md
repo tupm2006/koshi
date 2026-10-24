@@ -196,8 +196,17 @@ Base URL: `/api`. All responses JSON. All endpoints except `POST /auth/register`
 | GET | `/projects/{id}` | member | `404` if absent **or** if the caller is not a member. |
 | DELETE | `/projects/{id}` | **PM** | `204`. Cascades to members, sprints, tasks. |
 | GET | `/sprints?project_id=` | member | `project_id` is **required**. |
-| POST | `/sprints` | **PM** | `{project_id, name, goal?, start_date, end_date}` → `201`. |
+| POST | `/sprints` | **PM** | `{project_id, name, goal?, start_date, end_date, is_active?}` → `201`. The Scrum UI sends `is_active:false` (PLANNED). |
 | GET | `/sprints/{id}/stats` | member | Membership derived from the sprint's project. |
+| PATCH | `/sprints/{id}` | **PM** | `{name?, goal?, start_date?, end_date?}`; `400` on a completed sprint or end < start. |
+| POST | `/sprints/{id}/start` | **PM** | Snapshots `committed_points`. `409` if another sprint in the project is ACTIVE; `400` if completed. |
+| POST | `/sprints/{id}/complete` | **PM** | `{move_unfinished_to: int\|null}` — a PLANNED sprint of the **same** project, or `null` = backlog. DONE tasks stay. |
+| DELETE | `/sprints/{id}` | **PM** | `204`. Tasks return to the backlog; none are deleted. |
+| GET | `/sprints/{id}/burndown` | member | `{sprint_id, total_points, days:[{date, ideal, remaining\|null}]}` — `null` for days not yet reached. |
+| GET | `/sprints/velocity/history?project_id=` | member | `[{sprint_id, sprint_name, committed_points, completed_points}]`, completed sprints only. |
+
+`SprintOut` gained (additive, migration 0008) `state: PLANNED|ACTIVE|COMPLETED` (derived), `completed_at`, `committed_points`.
+`TaskOut` gained `completed_at` (set on entering DONE, cleared on leaving). `sprint_id` on task create/PATCH must belong to the task's project and not be completed → else `400` (F-48).
 
 ```jsonc
 // ProjectOut — `my_role` is relative to the CALLING user, so the same project
@@ -265,7 +274,7 @@ check membership through `_get_task_for_member`. A non-member receives `404` on 
 | POST | `/ai/weekly-summary?project_id=` | — (query param) | `{status, project_id, summary}` — `summary` is **markdown text, not structured**. |
 | POST | `/ai/meeting-minutes` | `{notes}` | `{status, main_topics[], action_items[], key_decisions[]}`; `400` if notes blank. |
 | POST | `/ai/recommend-assignment?project_id=` | `{title, description?}` | `{status, recommendation:{recommended_user_id, recommended_name, rationale, risk_assessment}}` |
-| POST | `/ai/decompose` | `{goal}` | `{status, goal, rationale, subtasks[3]}`; `400` if goal blank. **Hardcoded — no model call.** |
+| POST | `/ai/decompose` | `{goal}` | `{status, goal, rationale, subtasks[]}`; `400` if goal blank. Model-backed (DEC-029); priority/complexity normalised, dangling `depends_on_titles` dropped; the 3-item template when no model answers. |
 
 Subtask fields are `acceptance_criteria` / `depends_on_titles` — snake_case, consistent with the
 rest of the API since F-16.

@@ -833,6 +833,12 @@ Observations that are not yet decisions. Each should become a decision or a work
 | F-45 | Every attachment and avatar rendered as a broken image: `<img src="/api/...">` is a plain browser request and cannot carry an `Authorization` header, so the route answered 401. The route was never wrong — every test and manual check sent the header, and an `<img>` tag is the one caller that cannot. | `CommentThread.vue`, `ProfilePage.vue`, `AssigneeAvatars.vue` | High | ✅ Closed — DEC-026 (`AuthedMedia` / `AuthedAvatar`) |
 | F-46 | nginx had no `client_max_body_size`, so its 1 MB default rejected uploads with its own HTML error page before FastAPI saw them. The app's 25 MB limit was decorative behind the proxy. | `nginx.conf` | Medium | ✅ Closed — DEC-026 (30 MB) |
 | F-47 | SQLite ignores foreign keys unless `PRAGMA foreign_keys=ON`, which was never set — so every `ondelete="CASCADE"` written since migration 0003 was decorative. Deleting a task left comments, attachments and assignment rows as orphans; nothing failed and nothing cleaned up. | `app/database.py` | Medium | ✅ Closed — DEC-026 |
+| F-48 | `sprint_id` on task create/update was stored unchecked, so a task could be planned into another project's sprint — a cross-project write, and the other project's burndown would count it. | `routers/tasks.py` | Medium | ✅ Closed — DEC-028 (`_validate_sprint`) |
+| F-49 | A DONE card still read "10d overdue". `urgencyOf` already treated DONE as never urgent (the colour was right), but `dueLabel` ignored status, so the text contradicted the colour. | `lib/urgency.ts` | Low | ✅ Closed — DEC-028 |
+| F-50 | "AI Goal Decomposer" never called a model: `/ai/decompose` returned the same three template subtasks for any goal (DEC-003, OQ-04). | `routers/ai.py` | Medium | ✅ Closed — DEC-029 (model first, template as fallback) |
+| F-51 | Assignment recommendation fed PENDING invitees to the model as candidates, so it could recommend somebody the task router then refuses to assign. Breaks "a PENDING membership grants nothing". | `routers/ai.py` | Medium | ✅ Closed — DEC-029 |
+| F-52 | With a real model the weekly summary came back as a Markdown table with emoji, which the modal's `###`/`- ` parser renders as raw pipes; minutes and assignment answered in English to Vietnamese input; and the 10 s tier-1 timeout was close to a reasoning model's answer time (4–7 s observed). | `services/ai_service.py` | Medium | ✅ Closed — DEC-029 (format and language in the prompts, `AI_TIMEOUT_SECONDS`=30) |
+| F-53 | `origin/main` added `toggleMyRole`, which on a refused role change (403) sets a client-side `simulatedRole` — the UI then presents PM controls to a member. Violates P11 (server is the boundary). | `origin/main: stores/taskStore.ts` | High | ⛔ Not merged — DEC-030 |
 | F-23 | Deleting the SQLite file under a running uvicorn leaves it writing to a deleted inode ("attempt to write a readonly database"). Restart the process, do not just replace the file. | operational | Low | Open — documented here |
 
 ### DEC-018 — gitParser and the AI modals tested; a secret-leaking image found
@@ -1412,6 +1418,72 @@ is that SQLite is now a convenience for development and MySQL is what ships, and
 run against MySQL before anything touching the schema, a constraint, or a dialect-specific
 migration.
 
+### DEC-028 — Scrum: sprint lifecycle, backlog planning, burndown and velocity
+
+**Date:** 2026-10-24 · **Migration:** 0008 · **Tests:** backend 170, frontend 410
+
+Requested as "a project management process, e.g. Scrum". Sprints already existed as rows, but only
+as rows: `is_active` was the single state, nothing cleared it, and no screen used them. What was
+added:
+
+- **Lifecycle** `PLANNED → ACTIVE → COMPLETED`, derived (`Sprint.state`) from `is_active` and the new
+  `completed_at`. One active sprint per project (409 otherwise). Every transition is a PM action;
+  members read.
+- **Commitment** — `committed_points` is snapshotted when a sprint starts, so velocity compares what
+  was promised with what was done, and scope added mid-sprint shows rather than hides.
+- **Completion** moves unfinished work to a chosen PLANNED sprint of the same project or back to the
+  product backlog (`sprint_id = NULL`). DONE work stays, which is what velocity counts. Deleting a
+  sprint never deletes work.
+- **Burndown** needs to know when each task finished, so `tasks.completed_at` is set on entering DONE
+  and cleared on leaving it, on every path (PATCH, create, cycle-status). Backfilled from
+  `updated_at`. Remaining points are computed from the sprint's *current* membership — work moved
+  out mid-sprint disappears from its history. Accepted; a change log is the fix if it matters.
+- **UI** — `SprintPanel.vue`, a modal (Sprints / Planning / Burndown / Velocity) opened from a header
+  button. A modal and not a fourth `appView`, to keep "three screens, no router". It talks to the API
+  directly instead of adding `sprintId` to `types/task.ts`, which would force an IndexedDB key bump
+  for data the board does not use. Controls check `isProjectManager && canMutate`; the server checks
+  `require_project_pm` regardless.
+
+Found while doing it: F-48 (cross-project sprint id). The migration was run on MySQL 8.4 in the
+local production stack, not only on SQLite.
+
+### DEC-029 — Groq replaces the previous AI vendor; the decomposer uses the model
+
+**Date:** 2026-10-24
+
+Tier 1 now defaults to Groq (`https://api.groq.com/openai/v1/chat/completions`), model
+`openai/gpt-oss-120b`. `llama-3.3-70b-versatile`, the obvious choice, is not available to the
+supplied key — the model list was queried rather than assumed. The key lives only in the gitignored
+root `.env` (`AI_API_KEY`); URL and model are environment-overridable in every compose file.
+
+Running the features against a real model, rather than tier 3, surfaced F-50, F-51 and F-52. The
+decomposer now asks the model first and normalises the answer (unknown priority/complexity → MEDIUM/M,
+dependencies on titles not in the list dropped so the client's DAG sort never sees a dangling edge);
+the template remains as the fallback. This supersedes DEC-003 and answers OQ-04.
+
+The friends' `origin/main` deterministic fallback (summary and assignment built from the real data
+instead of canned text naming one team member) was ported in; their key rotator was not — see
+DEC-030.
+
+### DEC-030 — `origin/main` reviewed before merging, and mostly not merged
+
+**Date:** 2026-10-24
+
+`origin/main` had eight new commits. They fast-forwarded cleanly and every test passed — which is
+exactly why a green merge was not taken as approval. This branch is developed separately from main,
+so each change was read:
+
+| Taken | Not taken |
+|:--|:--|
+| CI workflow (`.github/workflows/test.yml`), Node 20 polyfill for the test runner | `toggleMyRole` / `simulatedRole` — fakes PM client-side after a 403 (F-53) |
+| `deploy.sh`: don't flag the remote's own root `.env` as a leak on re-deploy (a real bug in this branch's script) | A fourth `PROJECTS` view, against "three screens, no router" |
+| `.gitignore` additions | Hard-coded Vietnamese UI strings bypassing `translations.ts`; a "Guest — sign in" pill for a removed mode |
+| Data-driven deterministic fallbacks (DEC-029) | Key rotator reading `GEMINI_API_KEYS` — single Groq key now; revisit if keys multiply |
+| | Root duplicates (`prompts.md` ×2, `antigravity_history.md`, `SRS.md`/`URD.md` the docs set retired in DEC-008), `source_code/` symlinks undoing the DEC-001 split, binary `nhom4.docx` edit |
+
+The UX ideas in the rejected commits (create-in-column, backdrop drag-dismiss, "crit" counting
+CRITICAL tasks) are reasonable and can be redone within the invariants if wanted.
+
 ## Part III — Timeline
 
 | Date | Event |
@@ -1444,13 +1516,14 @@ migration.
 | **2026-08-29** | @mentions, one-level threaded replies, clipboard paste for images (DEC-025, migration 0006). Backend → 134, frontend → 383. |
 | **2026-08-29** | MySQL 8.4 adopted for production; live data migrated and verified; suite run on both engines (DEC-027). |
 | **2026-08-29** | Notification feed (DEC-026, migration 0007). Authed media fixed (F-45), nginx body limit (F-46), and SQLite foreign keys found to have never been enforced (F-47). Backend → 155, frontend → 399. |
+| **2026-10-24** | `origin/main` reviewed, partly taken (DEC-030). Groq adopted; decomposer made model-backed; F-50–F-52 (DEC-029). Scrum lifecycle, burndown, velocity (DEC-028, migration 0008). Seed + end-to-end smoke scripts; real screen-recorded landing video. Backend → 170, frontend → 410. |
 
 ## Part IV — Open questions
 
 Questions the code cannot answer for itself. Each needs a human decision, and each is referenced
 from the finding or decision that raised it.
 
-- **OQ-04** — should `/ai/decompose` keep returning hardcoded subtasks? (product)
+- ~~**OQ-04**~~ — answered by DEC-029: the model first, the template only as fallback.
 - **OQ-07** — should `blocking_reason` be mandatory on BLOCKED, given `cycle-status` enters BLOCKED
   with no reason? (product; see F-09)
 

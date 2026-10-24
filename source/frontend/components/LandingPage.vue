@@ -11,8 +11,10 @@
  *  - No testimonials. Inventing quotes from users who do not exist would be
  *    fabricated social proof, so the "who it is for" section describes use
  *    cases instead.
- *  - No demo video file ships with the repo. The player renders only when
- *    VITE_DEMO_VIDEO_URL is set, so nothing pretends a tour exists.
+ *  - The demo video is a real screen recording of the product
+ *    (scripts/demo-video/record.py drives the live app; nothing is staged).
+ *    VITE_DEMO_VIDEO_URL overrides it; set it to "" to hide the player, which
+ *    then shows the "no video" note rather than a fake tour.
  */
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useI18nStore } from '../stores/i18nStore';
@@ -34,7 +36,9 @@ const isNavOpen = ref(false);
 const openFaq = ref<number | null>(0);
 const scrolled = ref(false);
 
-const demoVideoUrl = import.meta.env.VITE_DEMO_VIDEO_URL as string | undefined;
+// Inside <script setup>, so it is read per mount (and stubbable in tests).
+const envVideo = import.meta.env.VITE_DEMO_VIDEO_URL as string | undefined;
+const demoVideoUrl = envVideo === undefined ? '/demo.mp4' : envVideo || undefined;
 
 const navLinks = [
   { href: '#features', key: 'nav.features' },
@@ -323,9 +327,11 @@ onUnmounted(() => {
               <video
                 v-if="demoVideoUrl"
                 :src="demoVideoUrl"
+                poster="/demo-poster.jpg"
                 controls
+                muted
                 playsinline
-                preload="none"
+                preload="metadata"
                 class="w-full h-full object-cover"
               />
               <p v-else class="text-[11px] font-mono text-slate-400 dark:text-slate-600 px-4 text-center">

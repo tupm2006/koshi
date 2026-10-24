@@ -144,7 +144,7 @@ project it belongs to, and may be `PM` of one project while being `MEMBER` of an
 | FR-MKT-01 | The landing page presents the product: hero, product preview, features, how-it-works, use cases, pricing, FAQ and a closing call to action. | Must | Implemented |
 | FR-MKT-02 | Sign-in is a small control in the top-right navigation, not a form occupying the fold. | Must | Implemented |
 | FR-MKT-03 | Authentication opens in a dialog from the navigation or any call-to-action. | Must | Implemented |
-| FR-MKT-04 | A demo video renders **only** when `VITE_DEMO_VIDEO_URL` is configured, so the page never implies a tour that does not exist. | Should | Implemented |
+| FR-MKT-04 | The demo video is a genuine screen recording of the product (`scripts/demo-video/`), served as `/demo.mp4`; `VITE_DEMO_VIDEO_URL` overrides it and `""` hides the player. Never a staged or mocked tour. | Should | Implemented |
 | FR-MKT-05 | The page carries no testimonials or customer quotes. Inventing them would be fabricated social proof. | Must | Implemented — use cases are used instead |
 
 > ⚠️ Pricing figures in `lib/translations.ts` are **placeholders**. They are plausible defaults, not
@@ -166,6 +166,18 @@ project it belongs to, and may be `PM` of one project while being `MEMBER` of an
 | FR-PROJ-10 | The user may edit their own display name and skills from the profile page. | Should | Implemented |
 | FR-PROJ-11 | The profile page lists every project the user belongs to with their role in each, and switching to one opens its board. | Should | Implemented |
 
+### 3.6b Functional — Scrum (FR-SCRUM)
+
+| ID | Requirement | Priority | Status |
+|:--|:--|:--|:--|
+| FR-SCRUM-01 | A PM creates sprints (name, goal, dates); a new sprint is PLANNED. | Must | Implemented |
+| FR-SCRUM-02 | A PM starts a sprint; at most one sprint per project is ACTIVE; the story points in it are recorded as the commitment. | Must | Implemented |
+| FR-SCRUM-03 | A PM completes the active sprint; unfinished work moves to a chosen PLANNED sprint or back to the product backlog; DONE work stays. | Must | Implemented |
+| FR-SCRUM-04 | Planning: items move between the product backlog (no sprint) and a sprint; only sprints of the same project, never a completed one. | Must | Implemented |
+| FR-SCRUM-05 | Burndown per sprint: ideal line vs remaining points per elapsed day. | Should | Implemented |
+| FR-SCRUM-06 | Velocity: committed vs completed points for every completed sprint, and the average. | Should | Implemented |
+| FR-SCRUM-07 | Members read all of the above; every change is PM-only and refused by the server otherwise; offline in a shared project it is read-only. | Must | Implemented |
+
 ### 3.7 Functional — AI workflows (FR-AI)
 
 All AI endpoints must return **schema-valid structured output** or fail closed to a deterministic
@@ -176,7 +188,7 @@ generator. No endpoint may return free-form text where a schema is declared.
 | FR-AI-01 | Weekly progress summary aggregating status, blockers, and priorities for a project. | Must | Implemented (LLM-backed, text output) |
 | FR-AI-02 | Meeting-minutes extraction: raw transcript → `main_topics`, `action_items`, `key_decisions`. | Must | Implemented (LLM-backed, JSON) |
 | FR-AI-03 | Assignment recommendation from member skills and in-flight complexity points. | Must | Implemented (LLM-backed, JSON) |
-| FR-AI-04 | Goal decomposition: a goal string → a dependency-linked subtask list. | Should | **Stub** — returns three hardcoded Vietnamese subtasks; the LLM is never called. See D7 / DEC-003. |
+| FR-AI-04 | Goal decomposition: a goal string → a dependency-linked subtask list. | Should | Implemented — model-backed (DEC-029); the old template is the tier-3 fallback. |
 | FR-AI-05 | Git diff analysis: unified diff → resolved task IDs + architectural concerns. | Should | Implemented — `GitDiffModal` calls `lib/gitParser.ts` directly. |
 | FR-AI-06 | Every AI call degrades through a three-tier cascade and never returns a 5xx due to LLM unavailability. | Must | Implemented |
 | FR-AI-07 | Team workload statistics: per-member active task count, complexity points, overload flag. | Must | Implemented |
@@ -215,5 +227,5 @@ generator. No endpoint may return free-form text where a schema is declared.
 | OQ-05 | Should a project support more than two roles (e.g. a read-only VIEWER)? | FR-AUTH-06 |
 | OQ-06 | Should adding a member send an invitation, rather than requiring the account to exist already? | FR-PROJ-04 |
 | ~~OQ-03~~ | ~~Is unverified Google token decoding acceptable outside test environments?~~ **Resolved 2026-08-28:** no. It is now opt-in via `ALLOW_UNVERIFIED_GOOGLE_TOKENS`, off by default, and blocked outside development. | — |
-| OQ-04 | Should FR-AI-04 call a real model, or is deterministic decomposition the intended product? | FR-AI-04 |
+| ~~OQ-04~~ | Answered (DEC-029): a real model, template as fallback. | FR-AI-04 |
 | OQ-07 | Should `blocking_reason` be mandatory when a task enters `BLOCKED`? It conflicts with `POST /tasks/{id}/cycle-status`, which cycles into `BLOCKED` with no reason available. | FR-DOM-07 |

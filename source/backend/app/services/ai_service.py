@@ -20,6 +20,7 @@ class AIFeature(str, enum.Enum):
     WEEKLY_SUMMARY = "weekly_summary"
     MEETING_MINUTES = "meeting_minutes"
     ASSIGNMENT = "assignment"
+    DECOMPOSE = "decompose"
 
 
 class AITier(str, enum.Enum):
@@ -71,7 +72,7 @@ class AIService:
                     ],
                     "temperature": 0.2
                 }
-                async with httpx.AsyncClient(timeout=10.0) as client:
+                async with httpx.AsyncClient(timeout=settings.AI_TIMEOUT_SECONDS) as client:
                     res = await client.post(settings.AI_API_URL, headers=headers, json=payload)
                     if res.status_code == 200:
                         data = res.json()
@@ -150,14 +151,81 @@ class AIService:
 
         # Assignment Recommendation (Feature C)
         if feature is AIFeature.ASSIGNMENT:
+            try:
+                json_match = re.search(r"(\[.*\])", user_prompt, re.DOTALL)
+                workload_data = json.loads(json_match.group(1)) if json_match else []
+            except Exception:
+                workload_data = []
+
+            if workload_data:
+                best_member = min(
+                    workload_data,
+                    key=lambda m: (m.get("active_tasks_count", 0), m.get("total_complexity_points", 0))
+                )
+                return json.dumps({
+                    "recommended_user_id": best_member.get("user_id"),
+                    "recommended_name": best_member.get("name"),
+                    "rationale": f"Thành viên {best_member.get('name')} có tải công việc tối ưu nhất hiện tại ({best_member.get('active_tasks_count', 0)} nhiệm vụ, {best_member.get('total_complexity_points', 0)} điểm độ khó) và phù hợp để nhận việc mới.",
+                    "risk_assessment": "Khối lượng công việc khả thi; không có nguy cơ trễ hạn sprint."
+                }, ensure_ascii=False)
+
             return json.dumps({
                 "recommended_user_id": 1,
-                "recommended_name": "Phạm Minh Tú",
+                "recommended_name": "Thành viên đội ngũ",
                 "rationale": "Thành viên có năng lực phù hợp nhất với mô tả công việc và đang có khối lượng công việc trong ngưỡng an toàn.",
                 "risk_assessment": "Khối lượng công việc khả thi; không có nguy cơ trễ hạn sprint."
             }, ensure_ascii=False)
 
         # Default: Weekly Summary (Feature A)
+        try:
+            json_match = re.search(r"(\[.*\])", user_prompt, re.DOTALL)
+            tasks_data = json.loads(json_match.group(1)) if json_match else []
+        except Exception:
+            tasks_data = []
+
+        if tasks_data:
+            total = len(tasks_data)
+            done = [t for t in tasks_data if t.get("status") == "DONE"]
+            blocked = [t for t in tasks_data if t.get("status") == "BLOCKED"]
+            in_prog = [t for t in tasks_data if t.get("status") == "IN_PROGRESS"]
+            todo = [t for t in tasks_data if t.get("status") == "TODO"]
+            high_crit = [t for t in tasks_data if t.get("priority") in ("HIGH", "CRITICAL") and t.get("status") != "DONE"]
+
+            overview_lines = [
+                f"- Tổng số nhiệm vụ: {total} (Hoàn thành: {len(done)}, Đang thực hiện: {len(in_prog)}, Đang chờ: {len(todo)}).",
+                f"- Tỉ lệ hoàn thành hiện tại đạt {int((len(done) / total) * 100)}%." if total > 0 else "- Chưa có nhiệm vụ nào.",
+            ]
+            if done:
+                overview_lines.append(f"- Đã hoàn thành gần nhất: {', '.join(t.get('title', '') for t in done[:3])}.")
+
+            blocker_lines = []
+            if blocked:
+                for b in blocked:
+                    reason = b.get("blocking_reason") or "đang chờ xử lý"
+                    blocker_lines.append(f"- [BLOCKED] {b.get('title')}: {reason} (Người phụ trách: {b.get('assignee', 'Chưa giao')}).")
+            else:
+                blocker_lines.append("- Không có nhiệm vụ nào đang bị tắc nghẽn (Không có blocker).")
+
+            priority_lines = []
+            if high_crit:
+                for h in high_crit[:4]:
+                    priority_lines.append(f"- [{h.get('priority')}] {h.get('title')} ({h.get('status')}) - phụ trách: {h.get('assignee', 'Chưa giao')}.")
+            elif in_prog:
+                for p in in_prog[:3]:
+                    priority_lines.append(f"- Đẩy nhanh tiến độ: {p.get('title')}.")
+            else:
+                priority_lines.append("- Rà soát backlog và bắt đầu các nhiệm vụ TODO trong sprint.")
+
+            return (
+                "### Báo Cáo Tiến Độ Tuần & Nhận Diện Rủi Ro\n\n"
+                "**1. Tổng quan tiến độ:**\n"
+                + "\n".join(overview_lines) + "\n\n"
+                "**2. Nhận diện rủi ro & Điểm nghẽn (Blockers):**\n"
+                + "\n".join(blocker_lines) + "\n\n"
+                "**3. Việc cần ưu tiên:**\n"
+                + "\n".join(priority_lines)
+            )
+
         return (
             "### Báo Cáo Tiến Độ Tuần & Nhận Diện Rủi Ro\n\n"
             "**1. Tổng quan tiến độ:**\n"
@@ -176,8 +244,15 @@ class AIService:
         """Feature A: Weekly project progress summary."""
         system_prompt = (
             "Bạn là trợ lý quản lý dự án kỹ thuật. Nhiệm vụ: Tóm tắt tiến độ tuần, "
-            "nhận diện rủi ro từ các task bị BLOCKED hoặc quá hạn, và đề xuất việc ưu tiên."
-        )
+            "nhận diện rủi ro từ các task bị BLOCKED hoặc quá hạn, và đề xuất việc ưu tiên.\n"
+            # The modal parses '###' headings and '- ' bullets (WeeklySummaryModal
+            # parsedSections). Tables and other Markdown render as raw pipes.
+            "ĐỊNH DẠNG BẮT BUỘC: đúng 3 mục, mỗi mục bắt đầu bằng một dòng tiêu đề '### ', "
+            "theo thứ tự: '### 1. Tổng quan tiến độ', '### 2. Rủi ro & Điểm nghẽn', '### 3. Việc cần ưu tiên'. "
+            "Dưới mỗi tiêu đề chỉ dùng các dòng gạch đầu dòng '- '. Không dùng bảng, không dùng emoji, "
+            "không thêm lời mở đầu hay kết luận. "
+            "Trả lời bằng cùng ngôn ngữ với dữ liệu đầu vào (mặc định tiếng Việt). "
+            "Không đoán giới tính: gọi thành viên bằng tên, không dùng anh/chị/he/she.\n"        )
         user_prompt = f"Dữ liệu nhiệm vụ tuần này:\n{json.dumps(task_data, ensure_ascii=False, indent=2)}"
         text, _tier = await cls._call_llm(AIFeature.WEEKLY_SUMMARY, system_prompt, user_prompt)
         return text
@@ -190,7 +265,9 @@ class AIService:
             "1. main_topics (danh sách tóm tắt nội dung)\n"
             "2. action_items (danh sách các object: {title, assignee_name, priority, deadline})\n"
             "3. key_decisions (các quyết định đã chốt).\n"
-            "Chỉ trả về định dạng JSON hợp lệ."
+            "priority là một trong LOW, MEDIUM, HIGH, CRITICAL. "
+            "Trả lời bằng cùng ngôn ngữ với dữ liệu đầu vào (mặc định tiếng Việt). "
+            "Không đoán giới tính: gọi thành viên bằng tên, không dùng anh/chị/he/she.\n"            "Chỉ trả về định dạng JSON hợp lệ."
         )
         user_prompt = f"Nội dung ghi chép cuộc họp thô:\n{raw_notes}"
         raw_res, _tier = await cls._call_llm(AIFeature.MEETING_MINUTES, system_prompt, user_prompt)
@@ -220,7 +297,9 @@ class AIService:
         system_prompt = (
             "Bạn là điều phối viên kỹ thuật. Dựa trên kỹ năng và khối lượng công việc hiện tại "
             "của từng thành viên (số task đang làm, điểm complexity), hãy gợi ý người phù hợp nhất để gán task mới.\n"
-            "Trả về JSON: {recommended_user_id, recommended_name, rationale, risk_assessment}"
+            "recommended_user_id phải là user_id của một thành viên trong danh sách. "
+            "Trả lời bằng cùng ngôn ngữ với dữ liệu đầu vào (mặc định tiếng Việt). "
+            "Không đoán giới tính: gọi thành viên bằng tên, không dùng anh/chị/he/she.\n"            "Trả về JSON: {recommended_user_id, recommended_name, rationale, risk_assessment}"
         )
         user_prompt = (
             f"Nhiệm vụ mới:\nTitle: {task_title}\nDesc: {task_desc}\n\n"
@@ -241,3 +320,48 @@ class AIService:
                 "serving the deterministic fallback.", _tier.value,
             )
             return json.loads(cls._deterministic_fallback(AIFeature.ASSIGNMENT, user_prompt))
+
+    @classmethod
+    async def decompose_goal(cls, goal: str) -> Optional[Dict[str, Any]]:
+        """
+        Feature D: break a goal into dependent subtasks.
+
+        Returns None when no model answered usable JSON, so the router can serve
+        its deterministic template — that template used to be the ONLY path,
+        which made the "AI" decomposer a fixed three-step string format.
+        """
+        system_prompt = (
+            "Bạn là tech lead. Chia mục tiêu thành 3-7 nhiệm vụ kỹ thuật cụ thể, có thứ tự phụ thuộc.\n"
+            "Trả về JSON: {\"rationale\": str, \"subtasks\": [{\"title\": str, \"description\": str, "
+            "\"priority\": \"LOW|MEDIUM|HIGH|CRITICAL\", \"complexity\": \"S|M|L|XL\", "
+            "\"acceptance_criteria\": [str], \"depends_on_titles\": [str]}]}. "
+            "depends_on_titles chỉ được chứa title của nhiệm vụ khác trong cùng danh sách. "
+            "Trả lời bằng cùng ngôn ngữ với dữ liệu đầu vào (mặc định tiếng Việt). "
+            "Không đoán giới tính: gọi thành viên bằng tên, không dùng anh/chị/he/she.\n"            "Chỉ trả về JSON hợp lệ."
+        )
+        raw, tier = await cls._call_llm(AIFeature.DECOMPOSE, system_prompt, f"Mục tiêu: {goal}")
+        if tier is AITier.DETERMINISTIC:
+            return None
+        clean = raw.strip()
+        if clean.startswith("```"):
+            clean = re.sub(r"^```[a-zA-Z]*\n", "", clean)
+            clean = re.sub(r"\n```$", "", clean)
+        try:
+            data = json.loads(clean)
+            subtasks = data["subtasks"]
+            titles = {t["title"] for t in subtasks}
+            for t in subtasks:
+                if t.get("priority") not in ("LOW", "MEDIUM", "HIGH", "CRITICAL"):
+                    t["priority"] = "MEDIUM"
+                if t.get("complexity") not in ("S", "M", "L", "XL"):
+                    t["complexity"] = "M"
+                t.setdefault("description", "")
+                t["acceptance_criteria"] = [str(a) for a in t.get("acceptance_criteria") or []]
+                # A dangling dependency would break the client's DAG sort.
+                t["depends_on_titles"] = [d for d in t.get("depends_on_titles") or [] if d in titles and d != t["title"]]
+            if not subtasks:
+                raise ValueError("no subtasks")
+            return {"rationale": str(data.get("rationale", "")), "subtasks": subtasks}
+        except Exception:
+            logger.warning("AI tier %s returned unusable JSON for decompose; serving the template.", tier.value)
+            return None

@@ -370,3 +370,52 @@ async def test_the_endpoint_still_succeeds_when_every_tier_is_down(route, client
 
     assert res.status_code == 200
     assert len(res.json()["summary"]) > 20
+
+
+# --------------------------------------------------------------------------
+# Decompose: the endpoint used to be a fixed template that never called a model.
+# --------------------------------------------------------------------------
+
+_DECOMPOSED = json.dumps({
+    "rationale": "r",
+    "subtasks": [
+        {"title": "Thiết kế API", "description": "d", "priority": "HIGH", "complexity": "M",
+         "acceptance_criteria": ["ok"], "depends_on_titles": []},
+        {"title": "Tích hợp MoMo", "priority": "URGENT", "complexity": "huge",
+         "depends_on_titles": ["Thiết kế API", "Không tồn tại"]},
+    ],
+}, ensure_ascii=False)
+
+
+def test_decompose_uses_the_model_when_one_answers(route, client, pm_auth_headers):
+    router = route(cloud=FakeResponse(200, openai_reply(_DECOMPOSED)))
+    res = client.post("/api/ai/decompose", json={"goal": "Thanh toán MoMo"}, headers=pm_auth_headers)
+    assert res.status_code == 200
+    subs = res.json()["subtasks"]
+    assert [s["title"] for s in subs] == ["Thiết kế API", "Tích hợp MoMo"]
+    assert router.calls, "the model was never asked"
+    # Invalid enum values are normalised and dangling dependencies dropped, so
+    # the client's DAG sort never sees a title that does not exist.
+    assert subs[1]["priority"] == "MEDIUM" and subs[1]["complexity"] == "M"
+    assert subs[1]["depends_on_titles"] == ["Thiết kế API"]
+
+
+def test_decompose_falls_back_to_the_template_when_no_model(route, client, pm_auth_headers):
+    route(cloud=None, ollama=None)
+    res = client.post("/api/ai/decompose", json={"goal": "Thanh toán MoMo"}, headers=pm_auth_headers)
+    assert res.status_code == 200
+    assert len(res.json()["subtasks"]) == 3
+
+
+def test_decompose_falls_back_on_unusable_json(route, client, pm_auth_headers):
+    route(cloud=FakeResponse(200, openai_reply("not json at all")))
+    res = client.post("/api/ai/decompose", json={"goal": "x"}, headers=pm_auth_headers)
+    assert res.status_code == 200 and len(res.json()["subtasks"]) == 3
+
+
+def test_assignment_never_recommends_a_pending_invitee(route, client, pm_auth_headers, project_with_pending_invite):
+    pid, invitee = project_with_pending_invite
+    router = route(cloud=FakeResponse(200, openai_reply('{"recommended_user_id": 1, "recommended_name": "x", "rationale": "r"}')))
+    client.post(f"/api/ai/recommend-assignment?project_id={pid}", json={"title": "t"}, headers=pm_auth_headers)
+    sent = router.calls[0]["json"]["messages"][1]["content"]
+    assert f'"user_id": {invitee}' not in sent
