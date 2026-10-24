@@ -8,7 +8,7 @@ it with the response that did.
     python3 scripts/seed-demo.py                       # http://localhost:8090
     python3 scripts/seed-demo.py http://localhost:8080
 
-Creates five accounts (password from SEED_PASSWORD, default "Koshi@2026"),
+Creates three accounts (password from SEED_PASSWORD, default "Koshi@2026"),
 three projects — one shared Scrum project, one shared Kanban project, one
 personal — with sprints, a product backlog, dependencies, assignees, comments,
 @mentions and replies. Idempotent per account: an email that already exists is
@@ -27,7 +27,7 @@ from datetime import datetime, timedelta, timezone
 
 BASE = (sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8090").rstrip("/") + "/api"
 PASSWORD = os.environ.get("SEED_PASSWORD", "Koshi@2026")
-DOMAIN = "koshi-local.dev"  # .test is rejected by EmailStr
+DOMAIN = "koshi.dev"  # .test is rejected by EmailStr
 
 
 def call(method, path, token=None, body=None, ok=(200, 201, 204)):
@@ -52,11 +52,9 @@ def iso(days):
 
 
 PEOPLE = [
-    ("an", "Nguyễn Văn An", "management,scrum,architecture"),
-    ("binh", "Trần Thị Bình", "frontend,vue,tailwind,typescript"),
-    ("cuong", "Lê Minh Cường", "backend,python,fastapi,mysql"),
-    ("dung", "Phạm Thu Dung", "qa,testing,playwright"),
-    ("em", "Hoàng Gia Em", "devops,docker,ci"),
+    ("huynh", "Phạm Văn Huynh", "management,scrum,architecture,qa"),
+    ("tu", "Phạm Minh Tú", "frontend,vue,tailwind,typescript,devops"),
+    ("don", "Đàm Đức Đôn", "backend,python,fastapi,mysql,testing"),
 ]
 
 
@@ -78,11 +76,11 @@ def main():
         token, user = account(slug, name, skills)
         users[slug] = {"token": token, **user}
         print(f"  account  {user['email']}")
-    pm = users["an"]["token"]
+    pm = users["huynh"]["token"]
 
     existing = {p["name"] for p in call("GET", "/projects", pm)}
 
-    def project(name, desc, members, owner="an"):
+    def project(name, desc, members, owner="huynh"):
         tok = users[owner]["token"]
         if name in existing:
             print(f"  project  {name} (exists, skipped)")
@@ -103,7 +101,7 @@ def main():
     p = project(
         "Koshi Mobile App",
         "Ứng dụng di động cho Koshi — quản lý theo Scrum, sprint 2 tuần.",
-        [("binh", "MEMBER"), ("cuong", "MEMBER"), ("dung", "MEMBER"), ("em", "PM")],
+        [("tu", "MEMBER"), ("don", "MEMBER")],
     )
     if p:
         pid = p["id"]
@@ -121,31 +119,31 @@ def main():
             call("PATCH", f"/tasks/{t['id']}", pm, {"status": "DONE"})
 
         # Sprint 1: completed, 1 item carried over.
-        a = task(pid, pm, "Thiết lập dự án React Native + TypeScript", sprint_id=s1["id"], complexity_points=3, priority="HIGH", assignee_ids=[uid["em"]])
-        b = task(pid, pm, "Màn hình đăng nhập email/mật khẩu", sprint_id=s1["id"], complexity_points=5, priority="HIGH", assignee_ids=[uid["binh"]], dependencies=[a["id"]],
+        a = task(pid, pm, "Thiết lập dự án React Native + TypeScript", sprint_id=s1["id"], complexity_points=3, priority="HIGH", assignee_ids=[uid["tu"]])
+        b = task(pid, pm, "Màn hình đăng nhập email/mật khẩu", sprint_id=s1["id"], complexity_points=5, priority="HIGH", assignee_ids=[uid["tu"]], dependencies=[a["id"]],
                  acceptance_criteria=["Sai mật khẩu hiện lỗi rõ ràng", "Token lưu an toàn trong Keychain"])
-        c = task(pid, pm, "Pipeline CI build APK", sprint_id=s1["id"], complexity_points=3, priority="MEDIUM", assignee_ids=[uid["em"]], dependencies=[a["id"]])
-        carry = task(pid, pm, "Đăng nhập bằng Google", sprint_id=s1["id"], complexity_points=5, priority="MEDIUM", assignee_ids=[uid["cuong"]], dependencies=[b["id"]])
+        c = task(pid, pm, "Pipeline CI build APK", sprint_id=s1["id"], complexity_points=3, priority="MEDIUM", assignee_ids=[uid["tu"]], dependencies=[a["id"]])
+        carry = task(pid, pm, "Đăng nhập bằng Google", sprint_id=s1["id"], complexity_points=5, priority="MEDIUM", assignee_ids=[uid["don"]], dependencies=[b["id"]])
         call("POST", f"/sprints/{s1['id']}/start", pm)
         for t in (a, b, c):
             done(t)
         call("POST", f"/sprints/{s1['id']}/complete", pm, {"move_unfinished_to": s2["id"]})
 
         # Sprint 2: completed fully.
-        d = task(pid, pm, "Danh sách task dạng thẻ", sprint_id=s2["id"], complexity_points=5, priority="HIGH", assignee_ids=[uid["binh"]])
-        e = task(pid, pm, "API phân trang task", sprint_id=s2["id"], complexity_points=3, priority="HIGH", assignee_ids=[uid["cuong"]])
-        f = task(pid, pm, "Kiểm thử E2E luồng đăng nhập", sprint_id=s2["id"], complexity_points=2, priority="MEDIUM", assignee_ids=[uid["dung"]], dependencies=[b["id"]])
+        d = task(pid, pm, "Danh sách task dạng thẻ", sprint_id=s2["id"], complexity_points=5, priority="HIGH", assignee_ids=[uid["tu"]])
+        e = task(pid, pm, "API phân trang task", sprint_id=s2["id"], complexity_points=3, priority="HIGH", assignee_ids=[uid["don"]])
+        f = task(pid, pm, "Kiểm thử E2E luồng đăng nhập", sprint_id=s2["id"], complexity_points=2, priority="MEDIUM", assignee_ids=[uid["don"]], dependencies=[b["id"]])
         call("POST", f"/sprints/{s2['id']}/start", pm)
         for t in (carry, d, e, f):
             done(t)
         call("POST", f"/sprints/{s2['id']}/complete", pm, {})
 
         # Sprint 3: active, mixed progress.
-        g = task(pid, pm, "Lưu task vào SQLite trên máy", sprint_id=s3["id"], complexity_points=5, priority="CRITICAL", assignee_ids=[uid["cuong"], uid["binh"]], due_date=iso(4))
-        h = task(pid, pm, "Hàng đợi thay đổi khi mất mạng", sprint_id=s3["id"], complexity_points=8, priority="CRITICAL", assignee_ids=[uid["cuong"]], dependencies=[g["id"]], due_date=iso(7))
-        i = task(pid, pm, "Giải quyết xung đột khi hai người cùng sửa", sprint_id=s3["id"], complexity_points=5, priority="HIGH", assignee_ids=[uid["an"]], dependencies=[h["id"]], due_date=iso(9))
-        j = task(pid, pm, "Biểu tượng trạng thái mạng", sprint_id=s3["id"], complexity_points=2, priority="LOW", assignee_ids=[uid["binh"]])
-        k = task(pid, pm, "Test đồng bộ trên mạng chập chờn", sprint_id=s3["id"], complexity_points=3, priority="MEDIUM", assignee_ids=[uid["dung"]], dependencies=[h["id"]])
+        g = task(pid, pm, "Lưu task vào SQLite trên máy", sprint_id=s3["id"], complexity_points=5, priority="CRITICAL", assignee_ids=[uid["don"], uid["tu"]], due_date=iso(4))
+        h = task(pid, pm, "Hàng đợi thay đổi khi mất mạng", sprint_id=s3["id"], complexity_points=8, priority="CRITICAL", assignee_ids=[uid["don"]], dependencies=[g["id"]], due_date=iso(7))
+        i = task(pid, pm, "Giải quyết xung đột khi hai người cùng sửa", sprint_id=s3["id"], complexity_points=5, priority="HIGH", assignee_ids=[uid["huynh"]], dependencies=[h["id"]], due_date=iso(9))
+        j = task(pid, pm, "Biểu tượng trạng thái mạng", sprint_id=s3["id"], complexity_points=2, priority="LOW", assignee_ids=[uid["tu"]])
+        k = task(pid, pm, "Test đồng bộ trên mạng chập chờn", sprint_id=s3["id"], complexity_points=3, priority="MEDIUM", assignee_ids=[uid["don"]], dependencies=[h["id"]])
         call("POST", f"/sprints/{s3['id']}/start", pm)
         done(j)
         done(g)
@@ -153,7 +151,7 @@ def main():
         call("PATCH", f"/tasks/{k['id']}", pm, {"status": "BLOCKED", "blocking_reason": "Chờ hàng đợi thay đổi (TSK-%d) xong" % h["id"]})
 
         # Sprint 4: planned. Plus a product backlog.
-        task(pid, pm, "Đăng ký Firebase Cloud Messaging", sprint_id=s4["id"], complexity_points=3, priority="MEDIUM", assignee_ids=[uid["em"]])
+        task(pid, pm, "Đăng ký Firebase Cloud Messaging", sprint_id=s4["id"], complexity_points=3, priority="MEDIUM", assignee_ids=[uid["tu"]])
         task(pid, pm, "Nhắc việc trước hạn 24 giờ", sprint_id=s4["id"], complexity_points=5, priority="MEDIUM")
         for title, pts, prio in [
             ("Chế độ tối cho ứng dụng di động", 2, "LOW"),
@@ -165,31 +163,31 @@ def main():
             task(pid, pm, title, complexity_points=pts, priority=prio, description="Chưa ước lượng chi tiết — chờ refinement.")
 
         # Collaboration: comment, @mention, reply.
-        binh_tag = f"@[{users['binh']['full_name']}]({uid['binh']})"
-        c1 = call("POST", f"/tasks/{h['id']}/comments", users["cuong"]["token"],
-                  {"content": f"Mình đề xuất dùng bảng outbox. {binh_tag} xem giúp phần UI hiển thị trạng thái chờ đồng bộ nhé?"})
-        call("POST", f"/tasks/{h['id']}/comments", users["binh"]["token"],
+        tu_tag = f"@[{users['tu']['full_name']}]({uid['tu']})"
+        c1 = call("POST", f"/tasks/{h['id']}/comments", users["don"]["token"],
+                  {"content": f"Mình đề xuất dùng bảng outbox. {tu_tag} xem giúp phần UI hiển thị trạng thái chờ đồng bộ nhé?"})
+        call("POST", f"/tasks/{h['id']}/comments", users["tu"]["token"],
              {"content": "Ok, mình sẽ thêm badge 'đang chờ' trên thẻ.", "parent_id": c1["id"]})
-        call("POST", f"/tasks/{k['id']}/comments", users["dung"]["token"],
+        call("POST", f"/tasks/{k['id']}/comments", users["don"]["token"],
              {"content": "Đã chuẩn bị kịch bản test với Network Link Conditioner, chỉ chờ build có hàng đợi."})
 
     # ------------------------------------------------------------ Kanban project
     q = project(
         "Website Bán Hàng Q4",
         "Làm lại website thương mại điện tử trước mùa sale cuối năm.",
-        [("binh", "MEMBER"), ("dung", "MEMBER")],
+        [("tu", "MEMBER"), ("don", "MEMBER")],
     )
     if q:
         qid = q["id"]
         uid = {k: v["id"] for k, v in users.items()}
         rows = [
-            ("Thiết kế lại trang chủ", "DONE", "HIGH", 3, -10, [uid["binh"]]),
-            ("Giỏ hàng lưu theo phiên", "IN_PROGRESS", "CRITICAL", 5, 2, [uid["binh"]]),
-            ("Tích hợp cổng thanh toán VNPay", "BLOCKED", "CRITICAL", 8, -1, [uid["an"]]),
-            ("Tối ưu ảnh sản phẩm (WebP)", "TODO", "MEDIUM", 2, 6, [uid["binh"]]),
-            ("Kiểm thử tải 1.000 người dùng đồng thời", "TODO", "HIGH", 5, 12, [uid["dung"]]),
+            ("Thiết kế lại trang chủ", "DONE", "HIGH", 3, -10, [uid["tu"]]),
+            ("Giỏ hàng lưu theo phiên", "IN_PROGRESS", "CRITICAL", 5, 2, [uid["tu"]]),
+            ("Tích hợp cổng thanh toán VNPay", "BLOCKED", "CRITICAL", 8, -1, [uid["huynh"]]),
+            ("Tối ưu ảnh sản phẩm (WebP)", "TODO", "MEDIUM", 2, 6, [uid["tu"]]),
+            ("Kiểm thử tải 1.000 người dùng đồng thời", "TODO", "HIGH", 5, 12, [uid["don"]]),
             ("Trang chính sách đổi trả", "TODO", "LOW", 1, 15, []),
-            ("Sửa lỗi hiển thị giá trên Safari", "IN_PROGRESS", "HIGH", 2, -3, [uid["dung"], uid["binh"]]),
+            ("Sửa lỗi hiển thị giá trên Safari", "IN_PROGRESS", "HIGH", 2, -3, [uid["don"], uid["tu"]]),
         ]
         made = []
         for title, st, prio, pts, due, who in rows:
@@ -198,9 +196,9 @@ def main():
         call("PATCH", f"/tasks/{made[4]['id']}", pm, {"dependencies": [made[1]["id"], made[2]["id"]]})
 
     # ------------------------------------------------------------ personal
-    r = project("Việc cá nhân của Bình", "Dự án một người — vẫn sửa được khi mất mạng.", [], owner="binh")
+    r = project("Việc cá nhân của Tú", "Dự án một người — vẫn sửa được khi mất mạng.", [], owner="tu")
     if r:
-        bt = users["binh"]["token"]
+        bt = users["tu"]["token"]
         for title, st in [("Học Vue 3 Composition API", "DONE"), ("Đọc sách Clean Architecture", "IN_PROGRESS"),
                           ("Chuẩn bị slide thuyết trình đồ án", "TODO"), ("Gia hạn domain cá nhân", "TODO")]:
             task(r["id"], bt, title, status=st, complexity_points=2, priority="MEDIUM")

@@ -38,16 +38,16 @@ def check(name, cond, detail=""):
 
 
 def login(slug):
-    s, b = call("POST", "/auth/login", body={"email": f"{slug}@koshi-local.dev", "password": PW})
+    s, b = call("POST", "/auth/login", body={"email": f"{slug}@koshi.dev", "password": PW})
     assert s == 200, f"login {slug}: {s} {b}"
     return b["access_token"]
 
 
 print(f"Smoke test {BASE}")
-an, binh, dung = login("an"), login("binh"), login("dung")
+an, binh, dung = login("huynh"), login("tu"), login("don")
 
 print("auth")
-s, _ = call("POST", "/auth/login", body={"email": "an@koshi-local.dev", "password": "wrong"})
+s, _ = call("POST", "/auth/login", body={"email": "huynh@koshi.dev", "password": "wrong"})
 check("wrong password -> 401", s == 401, s)
 s, me = call("GET", "/auth/me", an)
 check("me has no global role", s == 200 and "role" not in me, me)
@@ -61,14 +61,14 @@ mob, web = byname["Koshi Mobile App"], byname["Website Bán Hàng Q4"]
 check("PM role on own project", mob["my_role"] == "PM", mob)
 s, ps_b = call("GET", "/projects", binh)
 roles_b = {p["name"]: p["my_role"] for p in ps_b}
-check("binh is MEMBER on Mobile, PM on personal", roles_b.get("Koshi Mobile App") == "MEMBER" and roles_b.get("Việc cá nhân của Bình") == "PM", roles_b)
-personal = [p for p in ps_b if p["name"] == "Việc cá nhân của Bình"][0]
+check("tu is MEMBER on Mobile, PM on personal", roles_b.get("Koshi Mobile App") == "MEMBER" and roles_b.get("Việc cá nhân của Tú") == "PM", roles_b)
+personal = [p for p in ps_b if p["name"] == "Việc cá nhân của Tú"][0]
 s, _ = call("GET", f"/projects/{personal['id']}", an)
 check("outsider -> 404 on personal project", s == 404, s)
 s, _ = call("PATCH", f"/projects/{mob['id']}/members/{me['id']}", binh, {"role": "MEMBER"})
 check("member cannot change roles -> 403", s == 403, s)
 s, mem = call("GET", f"/projects/{mob['id']}/members", binh)
-check("members list (5)", s == 200 and len(mem) == 5, len(mem) if isinstance(mem, list) else mem)
+check("members list (3)", s == 200 and len(mem) == 3, len(mem) if isinstance(mem, list) else mem)
 
 print("tasks")
 s, tasks = call("GET", f"/tasks?project_id={mob['id']}", an)
@@ -83,7 +83,7 @@ s, _ = call("PATCH", f"/tasks/{t['id']}", binh, {"dependencies": [999999]})
 check("unknown dependency -> 400", s == 400, s)
 s, _ = call("PATCH", f"/tasks/{t['id']}", binh, {"assignee_ids": [99999]})
 check("assign non-member -> 400", s == 400, s)
-s, _ = call("GET", f"/tasks/{t['id']}", login("em") if False else dung)
+s, _ = call("GET", f"/tasks/{t['id']}", dung)
 check("member reads task", s == 200, s)
 s, c = call("POST", f"/tasks/{t['id']}/comments", binh, {"content": "comment from smoke test"})
 check("comment", s == 201, c)
@@ -112,11 +112,11 @@ check("task into another project's sprint -> 400", s == 400, s)
 
 print("stats & notifications")
 s, w = call("GET", f"/stats/workload?project_id={mob['id']}", an)
-check("workload", s == 200 and len(w) >= 4, w)
+check("workload", s == 200 and len(w) >= 3, w)
 s, d = call("GET", f"/stats/delayed-tasks?project_id={web['id']}", an)
 check("delayed tasks (web has overdue)", s == 200 and len(d) >= 1, d)
 s, n = call("GET", "/notifications", binh)
-check("binh has notifications (mention/assign)", s == 200 and len(n) >= 1, n)
+check("tu has notifications (mention/assign)", s == 200 and len(n) >= 1, n)
 
 print("AI (Groq)")
 tiers = {}

@@ -204,14 +204,14 @@ MIT License.
 ## Test data, smoke test and demo video
 
 ```bash
-python3 scripts/seed-demo.py http://localhost:8090          # 5 accounts, password Koshi@2026
+python3 scripts/seed-demo.py http://localhost:8090          # 3 accounts, password Koshi@2026
 docker exec -i koshi-backend-prod-local python - < scripts/seed-backdate.py
 python3 scripts/smoke-test.py http://localhost:8090         # end-to-end, incl. AI
 ```
 
-Seeded accounts: `an@`, `binh@`, `cuong@`, `dung@`, `em@koshi-local.dev`. `an` is PM of
+Seeded accounts: `huynh@koshi.dev`, `tu@koshi.dev`, `don@koshi.dev` (type the full email). `huynh` is PM of
 "Koshi Mobile App" (Scrum: 2 completed sprints, 1 active, 1 planned, a backlog) and of
-"Website Bán Hàng Q4" (Kanban, with overdue and blocked work); `binh` also has a personal project.
+"Website Bán Hàng Q4" (Kanban, with overdue and blocked work); `tu` and `don` are members, and `tu` has a personal project.
 
 AI tier 1 is Groq by default — put `AI_API_KEY=gsk_...` in the gitignored root `.env`.
 

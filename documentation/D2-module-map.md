@@ -52,7 +52,7 @@ koshi/
 
 | Script | Purpose |
 |:--|:--|
-| `scripts/seed-demo.py [url]` | Seeds 5 accounts (`*@koshi-local.dev`, password `Koshi@2026`), a Scrum project, a Kanban project and a personal one — through the API. |
+| `scripts/seed-demo.py [url]` | Seeds 3 accounts (`huynh`, `tu`, `don` `@koshi.dev`, password `Koshi@2026`), a Scrum project, a Kanban project and a personal one — through the API. |
 | `scripts/seed-backdate.py` | Run inside the backend container after seeding: spreads completion dates so burndown/velocity have history. |
 | `scripts/smoke-test.py [url]` | End-to-end check of every feature area, permissions and the AI endpoints against a running seeded instance. |
 | `scripts/demo-video/record.py`, `encode.sh` | Drive the real app with Playwright, capture via DevTools screencast, encode `public/demo.mp4`. |

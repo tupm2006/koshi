@@ -21,7 +21,7 @@ from playwright.async_api import async_playwright
 
 BASE = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8090"
 OUT = sys.argv[2] if len(sys.argv) > 2 else "demo-out"
-EMAIL, PASSWORD = "an@koshi-local.dev", os.environ.get("SEED_PASSWORD", "Koshi@2026")
+EMAIL, PASSWORD = "huynh@koshi.dev", os.environ.get("SEED_PASSWORD", "Koshi@2026")
 W, H = 1280, 720
 
 
