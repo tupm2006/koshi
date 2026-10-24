@@ -8,7 +8,7 @@
 Built from the ICTU LaTeX template (`documentation/template_khoa_luan_ictu.zip`), with the
 statement of originality removed (group project) and a task-allocation table added.
 
-**Before submitting, fill in:** the supervisor's name on both covers (`*/bia/bia_*.tex`), and check
+**Before submitting, check**
 the task-allocation table (`*/chuong/mo_dau.tex`) and the faculty name match your class.
 
 ## Build

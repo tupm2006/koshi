@@ -49,21 +49,21 @@ Thành viên ở dự án khác. Khi đăng ký, hệ thống không bao giờ h
 \centering
 \begin{tikzpicture}[
   actor/.style={draw, rounded corners, minimum width=2.4cm, minimum height=0.8cm, fill=gray!10, font=\small},
-  uc/.style={draw, ellipse, minimum width=4.2cm, minimum height=0.75cm, font=\footnotesize, align=center},
+  uc/.style={draw, ellipse, minimum width=5.6cm, minimum height=0.8cm, inner xsep=0pt, font=\footnotesize, align=center},
   >=Stealth]
-\node[actor] (pm) at (0,1.2) {Quản lý dự án};
-\node[actor] (mem) at (0,-1.6) {Thành viên};
-\node[actor] (ai) at (12,-0.2) {Dịch vụ AI};
-\node[uc] (u1) at (6,3.0) {Quản lý thành viên, vai trò};
-\node[uc] (u2) at (6,2.0) {Lập, bắt đầu, kết thúc sprint};
-\node[uc] (u3) at (6,1.0) {Tạo / sửa / chuyển task};
-\node[uc] (u4) at (6,0.0) {Bình luận, @mention, minh chứng};
-\node[uc] (u5) at (6,-1.0) {Xem burndown, velocity, DAG};
-\node[uc] (u6) at (6,-2.0) {AI tóm tắt, biên bản, giao việc};
-\node[uc] (u7) at (6,-3.0) {AI chia nhỏ, retrospective};
-\draw[->] (pm) -- (u1); \draw[->] (pm) -- (u2);
-\foreach \u in {u3,u4,u5,u6,u7} { \draw[->] (pm) -- (\u); \draw[->] (mem) -- (\u); }
-\draw[->,dashed] (u6) -- (ai); \draw[->,dashed] (u7) -- (ai);
+\node[actor] (pm) at (0,1.9) {Quản lý dự án};
+\node[actor] (mem) at (0,-2.4) {Thành viên};
+\node[actor] (ai) at (12.0,-3.2) {Dịch vụ AI};
+\node[uc] (u1) at (6.4,4.50) {Quản lý thành viên, vai trò};
+\node[uc] (u2) at (6.4,3.00) {Lập, bắt đầu, kết thúc sprint};
+\node[uc] (u3) at (6.4,1.50) {Tạo / sửa / chuyển task};
+\node[uc] (u4) at (6.4,0.00) {Bình luận, @mention, minh chứng};
+\node[uc] (u5) at (6.4,-1.50) {Xem burndown, velocity, DAG};
+\node[uc] (u6) at (6.4,-3.00) {AI tóm tắt, biên bản, giao việc};
+\node[uc] (u7) at (6.4,-4.50) {AI chia nhỏ, retrospective};
+\draw[->] (pm.east) -- (u1.west); \draw[->] (pm.east) -- (u2.west);
+\foreach \u in {u3,u4,u5,u6,u7} { \draw[->] (pm.east) -- (\u.west); \draw[->] (mem.east) -- (\u.west); }
+\draw[->,dashed] (u6.east) -- (ai.west); \draw[->,dashed] (u7.east) -- (ai.west);
 \end{tikzpicture}
 \caption{Các ca sử dụng chính (PM làm được mọi việc của Thành viên)}\label{fig:usecase}
 \end{figure}

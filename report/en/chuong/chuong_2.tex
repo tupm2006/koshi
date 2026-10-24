@@ -49,21 +49,21 @@ Registration never asks for a role.
 \centering
 \begin{tikzpicture}[
   actor/.style={draw, rounded corners, minimum width=2.4cm, minimum height=0.8cm, fill=gray!10, font=\small},
-  uc/.style={draw, ellipse, minimum width=4.2cm, minimum height=0.75cm, font=\footnotesize, align=center},
+  uc/.style={draw, ellipse, minimum width=5.6cm, minimum height=0.8cm, inner xsep=0pt, font=\footnotesize, align=center},
   >=Stealth]
-\node[actor] (pm) at (0,1.2) {Project Manager};
-\node[actor] (mem) at (0,-1.6) {Member};
-\node[actor] (ai) at (12,-0.2) {AI service};
-\node[uc] (u1) at (6,3.0) {Manage members and roles};
-\node[uc] (u2) at (6,2.0) {Plan, start, complete sprints};
-\node[uc] (u3) at (6,1.0) {Create / update / move tasks};
-\node[uc] (u4) at (6,0.0) {Comment, @mention, attach evidence};
-\node[uc] (u5) at (6,-1.0) {View burndown, velocity, DAG};
-\node[uc] (u6) at (6,-2.0) {AI summary, minutes, assignment};
-\node[uc] (u7) at (6,-3.0) {AI decomposer, retrospective};
-\draw[->] (pm) -- (u1); \draw[->] (pm) -- (u2);
-\foreach \u in {u3,u4,u5,u6,u7} { \draw[->] (pm) -- (\u); \draw[->] (mem) -- (\u); }
-\draw[->,dashed] (u6) -- (ai); \draw[->,dashed] (u7) -- (ai);
+\node[actor] (pm) at (0,1.9) {Project Manager};
+\node[actor] (mem) at (0,-2.4) {Member};
+\node[actor] (ai) at (12.0,-3.2) {AI service};
+\node[uc] (u1) at (6.4,4.50) {Manage members and roles};
+\node[uc] (u2) at (6.4,3.00) {Plan, start, complete sprints};
+\node[uc] (u3) at (6.4,1.50) {Create / update / move tasks};
+\node[uc] (u4) at (6.4,0.00) {Comment, @mention, attach evidence};
+\node[uc] (u5) at (6.4,-1.50) {View burndown, velocity, DAG};
+\node[uc] (u6) at (6.4,-3.00) {AI summary, minutes, assignment};
+\node[uc] (u7) at (6.4,-4.50) {AI decomposer, retrospective};
+\draw[->] (pm.east) -- (u1.west); \draw[->] (pm.east) -- (u2.west);
+\foreach \u in {u3,u4,u5,u6,u7} { \draw[->] (pm.east) -- (\u.west); \draw[->] (mem.east) -- (\u.west); }
+\draw[->,dashed] (u6.east) -- (ai.west); \draw[->,dashed] (u7.east) -- (ai.west);
 \end{tikzpicture}
 \caption{Main use cases (a PM can do everything a Member can)}\label{fig:usecase}
 \end{figure}

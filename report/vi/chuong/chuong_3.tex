@@ -129,18 +129,18 @@ Mỗi chức năng AI gọi một hàm duy nhất, hàm này thử ba tầng the
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[b/.style={draw, rounded corners, align=center, font=\footnotesize, minimum width=3.2cm, minimum height=1cm}, >=Stealth]
+\begin{tikzpicture}[b/.style={draw, rounded corners, align=center, font=\footnotesize, text width=2.1cm, minimum height=1.1cm}, >=Stealth]
 \node[b] (req) at (0,0) {Yêu cầu AI\\+ ngôn ngữ giao diện};
-\node[b] (t1) at (4.2,0) {Tầng 1\\Groq (cloud)};
-\node[b] (t2) at (8.4,0) {Tầng 2\\Ollama (cục bộ)};
-\node[b] (t3) at (12.6,0) {Tầng 3\\tất định};
-\node[b] (val) at (6.3,-2.2) {Phân tích JSON, kiểm tra,\\chuẩn hoá};
+\node[b] (t1) at (4.5,0) {Tầng 1\\Groq (cloud)};
+\node[b] (t2) at (9.0,0) {Tầng 2\\Ollama (cục bộ)};
+\node[b] (t3) at (13.5,0) {Tầng 3\\tất định};
+\node[b] (val) at (6.75,-2.6) {Phân tích JSON, kiểm tra,\\chuẩn hoá};
 \draw[->] (req) -- (t1);
-\draw[->] (t1) -- node[above,font=\scriptsize]{lỗi / quá thời gian} (t2);
-\draw[->] (t2) -- node[above,font=\scriptsize]{không kết nối} (t3);
+\draw[->] (t1) -- node[above=2pt, align=center, font=\scriptsize]{lỗi /\\ quá thời gian} (t2);
+\draw[->] (t2) -- node[above=2pt, align=center, font=\scriptsize]{không\\ kết nối} (t3);
 \draw[->] (t1) -- node[left,font=\scriptsize]{200} (val);
 \draw[->] (t2) -- (val);
-\draw[->] (val) -- node[below,font=\scriptsize, pos=0.6]{không dùng được} (t3);
+\draw[->] (val) -- node[below right=1pt, font=\scriptsize, pos=0.45]{không dùng được} (t3);
 \end{tikzpicture}
 \caption{Chuỗi dự phòng AI ba tầng}\label{fig:cascade}
 \end{figure}

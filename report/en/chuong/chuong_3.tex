@@ -131,18 +131,18 @@ Each AI feature calls one function that tries three tiers in order (Figure~\ref{
 
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[b/.style={draw, rounded corners, align=center, font=\footnotesize, minimum width=3.2cm, minimum height=1cm}, >=Stealth]
+\begin{tikzpicture}[b/.style={draw, rounded corners, align=center, font=\footnotesize, text width=2.1cm, minimum height=1.1cm}, >=Stealth]
 \node[b] (req) at (0,0) {AI request\\+ UI language};
-\node[b] (t1) at (4.2,0) {Tier 1\\Groq (cloud)};
-\node[b] (t2) at (8.4,0) {Tier 2\\Ollama (local)};
-\node[b] (t3) at (12.6,0) {Tier 3\\deterministic};
-\node[b] (val) at (6.3,-2.2) {Parse JSON, validate,\\normalise};
+\node[b] (t1) at (4.5,0) {Tier 1\\Groq (cloud)};
+\node[b] (t2) at (9.0,0) {Tier 2\\Ollama (local)};
+\node[b] (t3) at (13.5,0) {Tier 3\\deterministic};
+\node[b] (val) at (6.75,-2.6) {Parse JSON, validate,\\normalise};
 \draw[->] (req) -- (t1);
-\draw[->] (t1) -- node[above,font=\scriptsize]{error / timeout} (t2);
-\draw[->] (t2) -- node[above,font=\scriptsize]{unreachable} (t3);
+\draw[->] (t1) -- node[above=2pt, align=center, font=\scriptsize]{error /\\ timeout} (t2);
+\draw[->] (t2) -- node[above=2pt, align=center, font=\scriptsize]{not\\ reachable} (t3);
 \draw[->] (t1) -- node[left,font=\scriptsize]{200} (val);
 \draw[->] (t2) -- (val);
-\draw[->] (val) -- node[below,font=\scriptsize, pos=0.6]{unusable} (t3);
+\draw[->] (val) -- node[below right=1pt, font=\scriptsize, pos=0.45]{unusable} (t3);
 \end{tikzpicture}
 \caption{Three-tier AI cascade}\label{fig:cascade}
 \end{figure}
