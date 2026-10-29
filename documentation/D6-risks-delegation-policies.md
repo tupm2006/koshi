@@ -126,6 +126,12 @@ summaries — if either drifts from D1–D8, D1–D8 win.
 
 ## 6. Standing policies for AI agents
 
+**Enforcement (DEC-033).** The zones in §1 and policies P9, P10, P12 are no longer only prose: the
+Claude Code hooks in `.claude/settings.json` run `.claude/hooks/policy.py` before every edit and
+shell command (deny / ask a human / allow-with-reminder) and gate the agent's Stop on the Definition
+of Done. Changing `policy.py` or `.claude/**` is itself 🔴. The prose here remains the source of
+truth; when they disagree, fix the code to match the prose, and add a test.
+
 **P1 — Verify, do not assume.** Read the implementation before describing behaviour. This
 documentation set exists because four documents in this repo confidently describe behaviour the
 code does not have.

@@ -58,6 +58,10 @@ class Settings(BaseSettings):
     OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://localhost:11434/v1/chat/completions")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "qwen2.5:7b")
 
+    # Bearer token for GET /api/metrics. Empty means the endpoint answers only in
+    # development; in production it is 404 until a token is configured.
+    METRICS_TOKEN: str = os.getenv("METRICS_TOKEN", "")
+
     class Config:
         env_file = ".env"
         extra = "ignore"

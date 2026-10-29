@@ -178,6 +178,8 @@ All paths are relative to the repository root. All requirement IDs come from D1 
 | NFR-06 | `ai_service.py` httpx timeouts (10 s / 4 s) | — | 🟡 |
 | NFR-07 | whole backend | ✅ `pytest -q` → 6 passed | ✅ |
 | NFR-08 | — | — | ❌ **no frontend tests exist** |
+| NFR-11 | `services/monitoring.py`, `main.py` health/metrics, `docker-compose.prod-local.yml` healthcheck, `scripts/monitor.sh` | `test_monitoring.py` | ✅ |
+| NFR-12 | `.claude/settings.json`, `.claude/hooks/{policy,guard}.py`, `.claude/agents/*`, `.claude/commands/*` | `.claude/hooks/test_policy.py`, CI job `guardrails` | ✅ |
 
 ---
 

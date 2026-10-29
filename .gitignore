@@ -50,3 +50,6 @@ coverage/
 playwright-report/
 test-results/
 
+
+# Per-developer Claude Code overrides (the shared factory config is .claude/settings.json)
+.claude/settings.local.json

@@ -7,14 +7,15 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Four secrets, all per-machine and all generated here:
+# Five secrets, all per-machine and all generated here:
 #   JWT_SECRET       dev stack signing key
 #   PROD_JWT_SECRET  local production signing key — separate on purpose, so a
 #                    session minted against seeded demo data cannot authenticate
 #                    against the real instance
 #   MYSQL_PASSWORD / MYSQL_ROOT_PASSWORD  for the local production database
+#   METRICS_TOKEN    bearer token for /api/metrics (scripts/monitor.sh)
 wrote=0
-for name in JWT_SECRET PROD_JWT_SECRET MYSQL_PASSWORD MYSQL_ROOT_PASSWORD; do
+for name in JWT_SECRET PROD_JWT_SECRET MYSQL_PASSWORD MYSQL_ROOT_PASSWORD METRICS_TOKEN; do
   if [ -f .env ] && grep -q "^${name}=.\+" .env; then
     echo "  ${name}: already set, leaving it alone"
   else

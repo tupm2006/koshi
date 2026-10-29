@@ -7,6 +7,8 @@ from contextvars import ContextVar
 from typing import List, Dict, Any, Optional, Tuple
 from app.config import settings
 
+from app.services import monitoring
+
 logger = logging.getLogger(__name__)
 
 #: UI language of the current request ("en" / "vi"), set by the AI router from
@@ -56,6 +58,15 @@ class AITier(str, enum.Enum):
 class AIService:
     @classmethod
     async def _call_llm(
+        cls, feature: "AIFeature", system_prompt: str, user_prompt: str
+    ) -> Tuple[str, "AITier"]:
+        """The cascade below, counted per tier so a silent fallback is visible on /metrics."""
+        text, tier = await cls._cascade(feature, system_prompt, user_prompt)
+        monitoring.record_ai_tier(feature.value, tier.value)
+        return text, tier
+
+    @classmethod
+    async def _cascade(
         cls, feature: "AIFeature", system_prompt: str, user_prompt: str
     ) -> Tuple[str, "AITier"]:
         """

@@ -19,7 +19,7 @@ Guidance for AI agents working in this repository. **Read `documentation/` befor
 
 ```bash
 # Backend — must stay green
-cd source/backend && pytest -q          # expect: 177 passed  (SQLite)
+cd source/backend && pytest -q          # expect: 185 passed  (SQLite)
 
 # The same suite against the engine that ships. Run this before anything that
 # touches the schema, a constraint, or a dialect-specific migration — F-47
@@ -48,6 +48,21 @@ then either
 
 Both run at once. Every compose file declares an explicit top-level `name:` — without it they share
 the directory-derived project name and `up` on one deletes the others (F-38).
+
+## The agent factory and its guardrails
+
+`.claude/` turns this file and D6 into something enforced (DEC-033):
+
+- **Hooks** (`.claude/settings.json` → `.claude/hooks/guard.py` → `policy.py`) run before every edit
+  and shell command. Secrets in content, `.env`, `submission/`, generated trees and applied migrations
+  are refused; 🔴 paths, `git push`, `deploy.sh` and volume removal ask the human; YELLOW files come
+  back with a reminder. Your Stop is refused while `source/` changed without docs or tests. A
+  refusal is policy, not a bug to route around. `python -m pytest -q .claude/hooks` → 56 passed.
+- **Stations** (`.claude/agents/`): requirements-analyst, architect, test-engineer, implementer,
+  reviewer, release-engineer. `/feature <description>` runs them in order; `/verify` runs every
+  gate; `/release-check` packages, runs, smoke-tests and reads metrics.
+- **Operations**: `/api/health` (checks the DB), `/api/metrics` (token-gated, Prometheus text,
+  includes AI answers by tier), `X-Request-ID` on every response, `./scripts/monitor.sh`.
 
 ## Standing rules
 

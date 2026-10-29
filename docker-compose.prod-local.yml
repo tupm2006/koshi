@@ -60,6 +60,19 @@ services:
       context: ./source/backend
       dockerfile: Dockerfile
     container_name: koshi-backend-prod-local
+    # One JSON log per container, capped: an access line per request otherwise
+    # grows without bound on a long-running host.
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+    # Docker marks the container unhealthy when the API or its database stops
+    # answering; `docker ps` and scripts/monitor.sh read that state.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=4).status == 200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
     depends_on:
       koshi-db:
@@ -78,6 +91,8 @@ services:
       - ALLOW_UNVERIFIED_GOOGLE_TOKENS=false
       - AI_API_URL=${AI_API_URL:-https://api.groq.com/openai/v1/chat/completions}
       - AI_API_KEY=${AI_API_KEY:-}
+      # /api/metrics answers only with this bearer token; unset ⇒ 404 (production).
+      - METRICS_TOKEN=${METRICS_TOKEN:-}
       - AI_MODEL_NAME=${AI_MODEL_NAME:-openai/gpt-oss-120b}
       - OLLAMA_URL=http://host.docker.internal:11434/v1/chat/completions
     extra_hosts:

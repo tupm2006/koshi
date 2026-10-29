@@ -1,6 +1,10 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+import hmac
+import logging
+from fastapi import FastAPI, Header, HTTPException
+from fastapi.responses import PlainTextResponse
+from sqlalchemy import text
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta
 from app.config import settings
@@ -12,6 +16,9 @@ from app.models.entities import (
 from app.security import get_password_hash
 from app.routers import auth, users, projects, sprints, tasks, stats, ai, notifications
 from app.utils.time import utcnow
+from app.services import monitoring
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
 def seed_initial_data():
     db = SessionLocal()
@@ -230,6 +237,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Added after CORS so it is the outermost layer and times the whole request.
+app.add_middleware(monitoring.RequestMetricsMiddleware)
+
 app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
 app.include_router(users.router, prefix=settings.API_V1_PREFIX)
 app.include_router(projects.router, prefix=settings.API_V1_PREFIX)
@@ -241,8 +251,31 @@ app.include_router(notifications.router, prefix=settings.API_V1_PREFIX)
 
 @app.get(f"{settings.API_V1_PREFIX}/health", tags=["Health"])
 def health_check():
-    return {
-        "status": "healthy",
+    # Liveness alone said "healthy" with the database down; ask it.
+    db_ok = True
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception:
+        db_ok = False
+    body = {
+        "status": "healthy" if db_ok else "degraded",
         "service": settings.PROJECT_NAME,
-        "version": settings.VERSION
+        "version": settings.VERSION,
+        "database": "ok" if db_ok else "unreachable",
     }
+    if not db_ok:
+        raise HTTPException(status_code=503, detail=body)
+    return body
+
+
+@app.get(f"{settings.API_V1_PREFIX}/metrics", tags=["Health"], response_class=PlainTextResponse)
+def metrics(authorization: str = Header(default="")):
+    """Prometheus text format. Route counts reveal traffic shape, so not public."""
+    token = settings.METRICS_TOKEN
+    if token:
+        if not hmac.compare_digest(authorization, f"Bearer {token}"):
+            raise HTTPException(status_code=404, detail="Not Found")
+    elif not _is_development():
+        raise HTTPException(status_code=404, detail="Not Found")
+    return monitoring.render()
