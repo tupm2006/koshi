@@ -102,7 +102,7 @@ hành động của chính người dùng (Hình~\ref{fig:notifications.png}). T
 
 \section{Kiểm thử}
 \subsection{Chiến lược}
-Kiểm thử gồm bốn lớp:
+Kiểm thử gồm bốn lớp (Chương~5 phân loại theo mức đơn vị và tích hợp):
 \begin{enumerate}
   \item \textbf{Test backend} (pytest, 13 file) gọi API qua test client: mọi quy tắc vai trò và quyền
         (kể cả trường hợp phủ định---thành viên nhận 403, người ngoài nhận 404), vòng trạng thái, quy
@@ -129,7 +129,8 @@ giao việc báo lỗi.
 \begin{tabular}{|p{6.5cm}|c|c|}
 \hline
 \textbf{Bộ kiểm thử} & \textbf{Số test} & \textbf{Kết quả} \\ \hline
-Backend (pytest, SQLite) & 177 & đạt toàn bộ \\ \hline
+Backend (pytest, SQLite) & 185 & đạt toàn bộ \\ \hline
+Rào chắn agent (pytest) & 56 & đạt toàn bộ \\ \hline
 Frontend (Vitest) & 442 & đạt toàn bộ \\ \hline
 Kiểm tra kiểu TypeScript và build production & -- & đạt \\ \hline
 Smoke test đầu-cuối trên bản công khai & 32 bước & 0 lỗi \\ \hline
@@ -167,6 +168,7 @@ sao lưu CSDL, chạy migration ở một bước riêng, khởi động dịch 
 ở phiên bản lược đồ mới nhất và đúng tư thế production (không có tài khoản demo, không có CORS
 wildcard, khoá bí mật không phải mặc định). Tunnel công khai instance tại
 \url{https://koshi.huynhca.com}, nơi nhóm đã kiểm thử với ba tài khoản được tạo sẵn. Tích hợp liên tục
-trên GitHub Actions chạy cả hai bộ test mỗi lần push lên nhánh chính và nhánh phát triển.
+trên GitHub Actions chạy các bộ test frontend, backend và rào chắn mỗi lần push lên nhánh chính và
+nhánh phát triển. Vận hành và theo dõi được trình bày ở Mục~5.6.
 
 \end{document}

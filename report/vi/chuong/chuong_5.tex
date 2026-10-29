@@ -1,0 +1,222 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+
+\textit{Hệ thống được xây dựng với sự hỗ trợ của các agent lập trình AI. Chương này mô tả cách tổ
+chức các agent để chúng làm việc như một nhà máy phần mềm nhỏ thay vì một trợ lý tự do: ngữ cảnh
+được cung cấp, các trạm của dây chuyền, các rào chắn buộc agent tuân thủ quy tắc của dự án, các
+mức kiểm thử phải vượt qua, và cách sản phẩm được đóng gói, vận hành và theo dõi.}
+
+\section{Từ trợ lý đến nhà máy}
+Một agent lập trình AI tự làm việc có hai điểm yếu. Nó không biết dự án nên phải đoán; và nó không
+biết giới hạn của mình nên có thể ``sửa'' một quy tắc bảo mật dễ dàng như sửa lỗi chính tả. Một số
+lỗi trong Bảng~\ref{tab:defects} cho thấy cả hai: lệnh triển khai suýt đưa cấu hình phát triển lên
+production (F-37), và thay đổi đề xuất giả lập vai trò PM ngay trên trình duyệt (F-53). Lời giải gồm
+bốn phần, mỗi phần là một mục dưới đây:
+\begin{enumerate}
+  \item \textbf{Kỹ thuật ngữ cảnh (context engineering)}---agent đọc đúng tài liệu trước khi hành động.
+  \item \textbf{Nhà máy (factory)}---công việc đi qua các trạm riêng biệt với quyền hạn riêng.
+  \item \textbf{Rào chắn (guardrails)}---quy tắc được thực thi bằng mã, không chỉ viết thành lời khuyên.
+  \item \textbf{Kiểm chứng}---kiểm thử đơn vị, tích hợp, đầu-cuối, và kiểm thử chính các bài test.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{\begin{tikzpicture}[
+  st/.style={draw, rounded corners, fill=blue!6, minimum width=2.15cm, minimum height=1.25cm, align=center, font=\footnotesize},
+  gate/.style={draw, fill=orange!15, minimum width=13.6cm, minimum height=0.7cm, font=\footnotesize, align=center},
+  ctx/.style={draw, fill=green!8, minimum width=13.6cm, minimum height=0.7cm, font=\footnotesize, align=center},
+  >=Stealth]
+\node[ctx] (ctx) at (6.8,2.0) {Ngữ cảnh: CLAUDE.md + D1--D8 (yêu cầu, module, kiến trúc, hợp đồng, kiểm thử, chính sách, quyết định, RTM)};
+\node[st] (s1) at (0.0,0) {1. Phân tích\\yêu cầu};
+\node[st] (s2) at (2.27,0) {2. Kiến trúc\\sư};
+\node[st] (s3) at (4.54,0) {3. Kỹ sư\\kiểm thử\\(đỏ)};
+\node[st] (s4) at (6.81,0) {4. Lập trình\\(xanh)};
+\node[st] (s5) at (9.08,0) {5. Kỹ sư KT\\(đột biến)};
+\node[st] (s6) at (11.35,0) {6. Người\\review};
+\node[st] (s7) at (13.62,0) {7. Kỹ sư\\phát hành};
+\foreach \a/\b in {s1/s2,s2/s3,s3/s4,s4/s5,s5/s6,s6/s7} \draw[->] (\a) -- (\b);
+\draw[->, dashed] (s6.south) to[bend left=25] node[below, font=\scriptsize]{có lỗi: quay lại lập trình} (s4.south);
+\node[gate] (g) at (6.8,-2.3) {Rào chắn trên mọi lần sửa file và lệnh (cấm / hỏi người / cho phép) \quad + \quad cổng Definition of Done khi kết thúc};
+\draw[->] (ctx.south) -- (6.8,0.75);
+\draw[->] (g.north) -- (6.8,-1.6);
+\end{tikzpicture}}
+\caption{Nhà máy agent AI: ngữ cảnh đầu vào, các trạm nối tiếp, rào chắn quanh mọi bước}\label{fig:factory}
+\end{figure}
+
+\section{Kỹ thuật ngữ cảnh}
+Kho mã có một lớp tài liệu điều hướng viết cho agent trước, cho người sau. Khi bắt đầu bất kỳ việc
+gì, agent tự động nạp \code{CLAUDE.md}; tệp này liệt kê các lệnh kiểm chứng, các bất biến không được
+phá vỡ, và thứ tự đọc tám tài liệu:
+
+\begin{table}[H]
+\centering
+\caption{Các tài liệu agent đọc và câu hỏi mỗi tài liệu trả lời}\label{tab:context}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{1.2cm}|p{4.2cm}|p{8.6cm}|}
+\hline
+\textbf{TL} & \textbf{Nội dung} & \textbf{Câu hỏi được trả lời cho agent} \\ \hline
+D1 & Yêu cầu & Hệ thống phải làm gì? (mã FR, NFR) \\ \hline
+D2 & Bản đồ module & File nào cài đặt việc này, cái gì phụ thuộc vào nó? \\ \hline
+D3 & Kiến trúc & Thay đổi của tôi phải giữ quy tắc thứ tự hay phân lớp nào? \\ \hline
+D4 & Hợp đồng API và dữ liệu & Đây có phải thay đổi hợp đồng? (nếu có: dừng và hỏi) \\ \hline
+D5 & Kiểm thử và nghiệm thu & Điều gì chứng minh nó chạy đúng; thế nào là ``xong''? \\ \hline
+D6 & Rủi ro, phân quyền, chính sách & Tôi được tự làm, làm rồi báo cáo, hay phải hỏi? \\ \hline
+D7 & Sổ phát triển & Việc này đã được quyết định chưa, vì sao? Lỗi này từng gặp chưa? \\ \hline
+D8 & Ma trận truy vết & File tôi đang sửa phục vụ yêu cầu và test nào? \\ \hline
+\end{tabular}
+\end{table}
+
+Hai nguyên tắc giữ cho ngữ cảnh đáng tin. Thứ nhất, mọi tài liệu được viết \emph{dựa trên mã thật}
+và cập nhật trong cùng commit với mã nó mô tả; bộ tài liệu cũ từng mô tả những hành vi mà mã không có,
+và một agent tin vào tài liệu lỗi thời còn tệ hơn agent không có tài liệu. Thứ hai, mỗi trạm chỉ nạp
+những gì cần (người phân tích đọc D1, D6, D8; kiến trúc sư đọc D2, D3, D4, D6, D7), giữ ngữ cảnh gọn
+và tập trung.
+
+\section{Nhà máy: các trạm và trách nhiệm}
+Mỗi trạm là một định nghĩa agent riêng trong \code{.claude/agents/}, có chỉ dẫn, quyền dùng công cụ
+và mô hình riêng. Lệnh \code{/feature <mô tả>} đưa một yêu cầu đi qua mọi trạm theo thứ tự;
+\code{/verify} chạy mọi cổng chất lượng; \code{/release-check} đóng gói và chạy thử sản phẩm.
+
+\begin{longtable}{|p{2.6cm}|p{6.4cm}|p{4.9cm}|}
+\caption{Các trạm của nhà máy}\label{tab:stations}\\
+\hline
+\textbf{Trạm} & \textbf{Sản phẩm đầu ra} & \textbf{Không được phép} \\ \hline
+\endfirsthead
+\hline
+\textbf{Trạm} & \textbf{Sản phẩm đầu ra} & \textbf{Không được phép} \\ \hline
+\endhead
+Phân tích yêu cầu & Yêu cầu có mã trong D1, tiêu chí nghiệm thu Given/When/Then trong D5, dòng mới trong D8. & Sửa mã nguồn. \\ \hline
+Kiến trúc sư & Kế hoạch tác động: file kèm vùng tự chủ, ảnh hưởng hợp đồng, bất biến có rủi ro, danh sách test; một bản ghi quyết định trong D7. & Sửa mã nguồn; tiếp tục khi gặp mục vùng đỏ. \\ \hline
+Kỹ sư kiểm thử & Viết test đơn vị và tích hợp \emph{trước} (phải thất bại); sau khi cài đặt, gieo một lỗi cho mỗi test để chứng minh test bắt được. & Nới lỏng hoặc xoá assertion cũ. \\ \hline
+Lập trình & Thay đổi nhỏ nhất để test qua, rồi build production. & Sửa file ngoài kế hoạch. \\ \hline
+Người review & PASS, hoặc danh sách lỗi kèm kịch bản: phân quyền, hợp đồng, bí mật, injection, chính sách ngoại tuyến, dịch thuật, test, tài liệu. & Sửa bất cứ thứ gì (chỉ đọc). \\ \hline
+Kỹ sư phát hành & Bảng cổng: bộ test đơn vị và tích hợp, test rào chắn, build, stack cấu hình production, smoke test, health và metrics. & Triển khai hoặc push khi chưa có người duyệt. \\ \hline
+\end{longtable}
+
+Sự tách biệt chính là cơ chế kiểm soát: người review đã tự viết mã thì không còn là người review, và
+người phân tích không sửa được mã thì không thể ``giải quyết'' yêu cầu bằng cách lặng lẽ đổi hành vi.
+
+\section{Rào chắn và bảo mật}
+Chỉ dẫn có thể bị bỏ qua; mã thì không. Vì vậy các vùng tự chủ trong D6 còn được cài đặt thành
+\emph{hook} mà môi trường chạy agent gọi trước mọi lần sửa file, mọi lệnh shell, và khi agent định
+kết thúc (Hình~\ref{fig:guard}). Chính sách là tập hàm thuần (\code{.claude/hooks/policy.py}); script
+hook chỉ chuyển đổi giữa giao thức JSON của môi trường và chính sách. Nếu chính script lỗi, nó từ
+chối---rào chắn hỏng không được biến thành cửa mở.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  b/.style={draw, rounded corners, minimum height=0.9cm, align=center, font=\footnotesize},
+  >=Stealth]
+\node[b, fill=blue!6, minimum width=2.6cm] (a) at (0,0) {Agent muốn\\sửa / chạy};
+\node[b, fill=gray!10, minimum width=2.8cm] (h) at (4.0,0) {Hook\\\code{guard.py}};
+\node[b, fill=gray!10, minimum width=2.8cm] (p) at (8.0,0) {Chính sách\\\code{policy.py}};
+\node[b, fill=red!12, minimum width=2.6cm] (d) at (12.2,1.4) {CẤM\\(không bao giờ)};
+\node[b, fill=orange!15, minimum width=2.6cm] (q) at (12.2,0) {HỎI\\(người quyết)};
+\node[b, fill=green!12, minimum width=2.6cm] (o) at (12.2,-1.4) {CHO PHÉP\\(+ nhắc nhở)};
+\draw[->] (a) -- node[above, font=\scriptsize]{JSON} (h);
+\draw[->] (h) -- (p);
+\draw[->] (p.east) -- (d.west); \draw[->] (p.east) -- (q.west); \draw[->] (p.east) -- (o.west);
+\end{tikzpicture}
+\caption{Mọi lần sửa file và mọi lệnh đều qua chính sách trước khi thực hiện}\label{fig:guard}
+\end{figure}
+
+\begin{longtable}{|p{1.9cm}|p{7.4cm}|p{4.6cm}|}
+\caption{Một số quy tắc rào chắn}\label{tab:guardrules}\\
+\hline
+\textbf{Quyết định} & \textbf{Quy tắc} & \textbf{Lý do} \\ \hline
+\endfirsthead
+\hline
+\textbf{Quyết định} & \textbf{Quy tắc} & \textbf{Lý do} \\ \hline
+\endhead
+Cấm & Mọi nội dung sửa có chứa API key, khoá riêng tư hoặc khoá ký JWT từng bị lộ. & Bí mật không bao giờ vào kho mã. \\ \hline
+Cấm & Đọc hoặc in \code{.env}; sửa \code{.env}, thư mục nộp bài đã đóng băng hoặc thư mục sinh tự động. & Bí mật; sản phẩm bất biến. \\ \hline
+Cấm & Sửa một migration đã commit. & Migration đã áp dụng là bất biến; phải thêm migration mới. \\ \hline
+Cấm & \code{git push --force}; xoá đệ quy \code{/} hoặc \code{\textasciitilde}; lệnh triển khai tar-qua-ssh cũ. & Không thể khôi phục; F-37. \\ \hline
+Hỏi & Sửa xác thực, mô hình dữ liệu, schema API, danh sách định dạng upload, cấu hình, CI hoặc chính rào chắn. & Vùng đỏ trong D6: bảo mật và hợp đồng. \\ \hline
+Hỏi & \code{git push}, script triển khai, hạ cấp CSDL, xoá volume Docker. & Ảnh hưởng người khác hoặc xoá dữ liệu. \\ \hline
+Cho phép + nhắc & Store, router, bản dịch, prompt AI, trang giới thiệu. & Vùng vàng: báo cáo và cập nhật tài liệu. \\ \hline
+Chặn kết thúc & \code{source/} thay đổi mà không có tài liệu nào thay đổi, hoặc mã backend/frontend đổi mà không có test, hoặc model đổi mà không có migration. & Definition of Done (D5 \S4). \\ \hline
+\end{longtable}
+
+\textbf{Lần chặn đầu tiên là chính tác giả.} Vài phút sau khi bật hook, rào chắn đã từ chối một lệnh
+do chính agent đang viết chương này gửi: một script \emph{ghi tài liệu} có nhắc tới lệnh triển khai
+tar-qua-ssh cũ bị nhầm là đang chạy lệnh đó. Quy tắc được sửa để nội dung đang ghi vào file
+(``heredoc'') được coi là dữ liệu, có thêm test cho đúng trường hợp này, và một test nữa kiểm tra lệnh
+nguy hiểm đặt \emph{sau} đoạn nội dung đó vẫn bị chặn.
+
+\textbf{Bảo mật trong chính sản phẩm.} Rào chắn bảo vệ kho mã; ứng dụng có lớp phòng thủ riêng, mô tả
+ở Chương~3 và kiểm thử ở Chương~4: phân quyền phía server cho mọi route dự án, trả 404 thay vì 403
+cho người ngoài, kiểm tra khi khởi động từ chối khoá yếu, CORS wildcard hay tài khoản demo trên
+production, upload giới hạn theo danh sách cho phép với tên file do server sinh, và bình luận được
+hiển thị dạng văn bản, không bao giờ dạng HTML.
+
+\section{Kiểm thử đơn vị và kiểm thử tích hợp}
+\begin{table}[H]
+\centering
+\caption{Các mức kiểm thử}\label{tab:levels}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{2.6cm}|p{7.5cm}|p{2.0cm}|p{1.5cm}|}
+\hline
+\textbf{Mức} & \textbf{Nội dung kiểm thử} & \textbf{Công cụ} & \textbf{Số lượng} \\ \hline
+Đơn vị (frontend) & Module thuần---sắp xếp phụ thuộc, đường găng, thứ tự khẩn cấp, bộ điều phối bàn phím, bộ phân tích mention---và hai store riêng lẻ. & Vitest & 442 \\ \hline
+Đơn vị (rào chắn) & Mọi quy tắc chính sách, giao thức JSON của hook, hành vi từ chối khi lỗi. & pytest & 56 \\ \hline
+Tích hợp (backend) & Router, phiên CSDL và xác thực thật qua HTTP test client; từng tầng AI giả lập ở biên HTTP; migration từ CSDL rỗng. & pytest & 185 \\ \hline
+Tích hợp (giao diện) & Component gắn vào DOM giả lập cùng store. & Vitest & (trong 442) \\ \hline
+Đầu-cuối & Instance công khai đã seed, mọi chức năng qua API, AI với mô hình thật. & script & 32 bước \\ \hline
+\end{tabular}
+\end{table}
+Chính các bài test cũng được kiểm thử. Với rào chắn, bỏ quy tắc chặn force-push và quy tắc
+migration làm năm test thất bại; khôi phục lại thì tất cả đạt. Tích hợp liên tục chạy ba job mỗi lần
+push---frontend, backend và rào chắn---nên thay đổi làm hỏng bất kỳ phần nào cũng không thể lọt qua.
+
+\section{Đóng gói, vận hành và theo dõi sản phẩm}
+\subsection{Đóng gói}
+Sản phẩm gồm bốn container mô tả bằng Docker Compose: MySQL, backend FastAPI, nginx phục vụ frontend
+đã build, và \code{cloudflared} cho tunnel công khai. Image không chứa bí mật nào: \code{.dockerignore}
+loại \code{.env} và CSDL, và script triển khai kiểm tra lại image đã build. Bí mật được sinh riêng cho
+từng máy bằng \code{scripts/dev-env.sh}.
+
+\subsection{Vận hành}
+\code{scripts/local-prod.sh up} chạy migration ở một bước riêng, khởi động stack với cơ chế kiểm tra
+an toàn production được bật, và xác minh tư thế (khoá không mặc định, không tài khoản demo, CORS cố
+định, lược đồ ở phiên bản mới nhất). Docker tự khởi động lại container bị dừng, và file log được giới
+hạn 5$\times$10\,MB mỗi container.
+
+\subsection{Theo dõi}
+Giai đoạn này bổ sung ba tín hiệu:
+\begin{itemize}
+  \item \textbf{Health có kiểm tra CSDL.} Trước đây \code{/api/health} vẫn báo ``healthy'' kể cả khi
+        CSDL ngừng. Giờ nó chạy một truy vấn và trả HTTP 503 khi không kết nối được CSDL; healthcheck
+        của Docker dùng endpoint này nên \code{docker ps} hiển thị đúng trạng thái.
+  \item \textbf{Mã yêu cầu và log truy cập.} Mỗi phản hồi có \code{X-Request-ID}; mỗi yêu cầu ghi một
+        dòng log gồm phương thức, route, mã trạng thái và thời gian. Log ghi \emph{mẫu} route
+        (\code{/api/tasks/\{task\_id\}}) nên không id, token hay query string nào lọt vào log.
+  \item \textbf{Metrics.} \code{/api/metrics} công bố theo định dạng Prometheus: số yêu cầu theo route
+        và trạng thái, histogram độ trễ và \textbf{số câu trả lời AI theo tầng dự phòng}. Chỉ số cuối
+        quan trọng nhất: khi nhà cung cấp AI lỗi, mọi endpoint vẫn trả lời (theo thiết kế), nên chỉ bộ
+        đếm này cho biết người dùng đang nhận câu trả lời dự phòng thay vì mô hình. Trên production,
+        metrics bị ẩn (404) trừ khi gửi kèm token bí mật.
+\end{itemize}
+\code{scripts/monitor.sh} gộp các tín hiệu thành một bản tóm tắt và cảnh báo khi có lỗi server hoặc
+khi hơn một nửa câu trả lời AI đến từ tầng dự phòng. Kết quả trên instance công khai sau khi chạy
+kiểm thử đầu-cuối:
+\begin{verbatim}
+health      HTTP 200  (0.0026s)
+container   koshi-backend-prod-local   Up (healthy)
+container   koshi-db-prod-local        Up 2 days (healthy)
+requests    48 total, 0 server errors
+AI answers  5, 0 from the offline fallback (0%)
+\end{verbatim}
+Tám test tích hợp bao phủ phần này, gồm: metrics bị ẩn khi thiếu token, mã yêu cầu độc hại bị thay
+thế, và id của task không bao giờ xuất hiện trong nhãn metric.
+
+\section{Đánh giá}
+Nhà máy không làm agent trở nên không bao giờ sai. Cổng kết thúc chỉ kiểm tra tài liệu và test
+\emph{có thay đổi}, không kiểm tra chúng đúng; việc đánh giá đó thuộc về trạm review và cuối cùng là
+con người. Hook chỉ ràng buộc agent lập trình, vì vậy tích hợp liên tục chạy lại mọi bộ test một cách
+độc lập. Trong giới hạn đó, những quy tắc trước đây phụ thuộc vào việc agent có chịu đọc tài liệu
+chính sách hay không giờ được thực thi trên mọi hành động, và mỗi quy tắc đều có test đã được chứng
+minh là thất bại khi quy tắc bị gỡ bỏ.
+
+\end{document}

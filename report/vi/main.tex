@@ -169,6 +169,8 @@ citestyle = numeric
 \newcommand{\mychapter}[2]{
     \setcounter{chapter}{#1}
     \setcounter{section}{0}
+    \setcounter{figure}{0}
+    \setcounter{table}{0}
     \chapter*{#2}
     % \addcontentsline{toc}{chapter}{#2}
 }
@@ -275,6 +277,10 @@ citestyle = numeric
 \mychapter{4}{CHƯƠNG 4: TRIỂN KHAI VÀ KIỂM THỬ}
 \addcontentsline{toc}{chapter}{CHƯƠNG 4: TRIỂN KHAI VÀ KIỂM THỬ}
 \subfile{chuong/chuong_4}
+
+\mychapter{5}{CHƯƠNG 5: AGENT AI CHO QUY TRÌNH PHÁT TRIỂN PHẦN MỀM}
+
+\subfile{chuong/chuong_5}
 
 \clearpage
 \chapter*{KẾT LUẬN}

@@ -2,7 +2,7 @@
 \begin{document}
 
 \textit{This chapter analyses existing tools, identifies the actors and states the functional and
-non-functional requirements. The full register (89 functional and 10 non-functional requirements; the group counts below sum to 89)
+non-functional requirements. The full register (89 functional and 12 non-functional requirements; the group counts below sum to 89)
 is kept in document D1; the most important ones are summarised here.}
 
 \section{Survey of existing tools}
@@ -67,6 +67,81 @@ Registration never asks for a role.
 \end{tikzpicture}
 \caption{Main use cases (a PM can do everything a Member can)}\label{fig:usecase}
 \end{figure}
+
+\section{Business process analysis}
+\subsection{Current process and its problems}
+A student team often coordinates through a chat group and a shared spreadsheet. This
+process has four recurring problems:
+\begin{itemize}
+  \item \textbf{No single source of truth.} Work is agreed in chat and copied into a sheet by hand;
+        the two drift apart, and nobody knows which is current.
+  \item \textbf{Invisible blockage.} A member who is stuck says so in a message that scrolls away;
+        the leader finds out at the deadline.
+  \item \textbf{No notion of order.} Tasks that depend on each other are listed side by side, so
+        people start work whose prerequisite is not done.
+  \item \textbf{Reporting by hand.} The weekly report to the lecturer and the meeting minutes are
+        written from memory, and assignments follow habit rather than skills or load.
+\end{itemize}
+
+\subsection{Target process}
+The system supports the Scrum-style cycle in Figure~\ref{fig:bizflow}. Each step is a business
+activity performed by a role, and each produces data the next step uses.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  s/.style={draw, rounded corners, fill=blue!6, minimum width=2.7cm, minimum height=1.15cm, align=center, font=\footnotesize},
+  >=Stealth]
+\node[s] (a) at (0,0)    {1. Create project,\\invite members\\\scriptsize(PM)};
+\node[s] (b) at (3.6,0)  {2. Build backlog,\\set dependencies\\\scriptsize(PM, Member)};
+\node[s] (c) at (7.2,0)  {3. Plan sprint,\\assign by skills\\\scriptsize(PM + AI)};
+\node[s] (d) at (10.8,0) {4. Start sprint\\(commitment\\recorded)\\\scriptsize(PM)};
+\node[s] (e) at (10.8,-2.5) {5. Daily work:\\status, comments,\\evidence\\\scriptsize(Member)};
+\node[s] (f) at (7.2,-2.5) {6. Track: burndown,\\blocked, overdue\\\scriptsize(PM)};
+\node[s] (g) at (3.6,-2.5) {7. Complete sprint,\\carry over work\\\scriptsize(PM)};
+\node[s] (h) at (0,-2.5) {8. Retrospective,\\weekly report\\\scriptsize(PM + AI)};
+\draw[->] (a)--(b); \draw[->] (b)--(c); \draw[->] (c)--(d); \draw[->] (d)--(e);
+\draw[->] (e)--(f); \draw[->] (f)--(g); \draw[->] (g)--(h);
+\draw[->, dashed] (h.north) to[bend left=12] node[left, font=\scriptsize]{next sprint} (b.south west);
+\end{tikzpicture}
+\caption{Target business process of a project team}\label{fig:bizflow}
+\end{figure}
+
+\subsection{Task life cycle}
+A task moves through four states. The order is fixed and the same on the client and the server:
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[st/.style={draw, rounded corners, minimum width=2.6cm, minimum height=0.85cm, font=\small}, >=Stealth]
+\node[st, fill=gray!10] (t) at (0,0) {TODO};
+\node[st, fill=blue!8] (i) at (3.8,0) {IN\_PROGRESS};
+\node[st, fill=red!10] (b) at (7.6,0) {BLOCKED};
+\node[st, fill=green!12] (d) at (11.4,0) {DONE};
+\draw[->] (t)--(i); \draw[->] (i)--(b); \draw[->] (b)--(d);
+\draw[->] (d.south) to[bend left=18] node[below, font=\scriptsize]{reopen} (t.south);
+\end{tikzpicture}
+\caption{Task status cycle (Space key advances one step)}\label{fig:taskcycle}
+\end{figure}
+
+\subsection{Business rules}
+\begin{longtable}{|p{1.3cm}|p{12.4cm}|}
+\caption{Main business rules}\label{tab:rules}\\
+\hline
+\textbf{ID} & \textbf{Rule} \\ \hline
+\endfirsthead
+\hline
+\textbf{ID} & \textbf{Rule} \\ \hline
+\endhead
+BR-01 & Authority belongs to a role \emph{in a project}; an account has none by itself. The creator of a project is its PM. \\ \hline
+BR-02 & An invited person gains access only after accepting; a pending invitation grants nothing. \\ \hline
+BR-03 & Only members see a project; to anyone else it does not exist (404). \\ \hline
+BR-04 & Only a PM manages members, roles and sprints. \\ \hline
+BR-05 & At most one sprint per project is active; its commitment (story points) is frozen when it starts. \\ \hline
+BR-06 & Completing a sprint moves unfinished tasks to the next sprint or the backlog; work is never deleted with a sprint. \\ \hline
+BR-07 & A blocked task should state why; a finished task is never shown as overdue. \\ \hline
+BR-08 & Every assignee must be an accepted member of the project; dependencies stay within one project. \\ \hline
+BR-09 & Order on the board: missed deadlines first, then nearer deadlines, then priority. \\ \hline
+BR-10 & A personal project is editable offline; a shared project is read-only offline, to avoid conflicting edits. \\ \hline
+BR-11 & Nobody is notified of their own action. \\ \hline
+\end{longtable}
 
 \section{Functional requirements}
 \begin{longtable}{|p{2.3cm}|p{9.2cm}|p{2.0cm}|}

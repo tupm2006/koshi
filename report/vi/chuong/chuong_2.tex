@@ -2,7 +2,7 @@
 \begin{document}
 
 \textit{Chương này khảo sát các công cụ hiện có, xác định tác nhân và nêu các yêu cầu chức năng,
-phi chức năng. Danh sách đầy đủ (89 yêu cầu chức năng và 10 yêu cầu phi chức năng; tổng số theo
+phi chức năng. Danh sách đầy đủ (89 yêu cầu chức năng và 12 yêu cầu phi chức năng; tổng số theo
 nhóm dưới đây bằng 89) nằm trong tài liệu D1; ở đây chỉ tóm tắt các yêu cầu quan trọng nhất.}
 
 \section{Khảo sát các công cụ hiện có}
@@ -67,6 +67,81 @@ Thành viên ở dự án khác. Khi đăng ký, hệ thống không bao giờ h
 \end{tikzpicture}
 \caption{Các ca sử dụng chính (PM làm được mọi việc của Thành viên)}\label{fig:usecase}
 \end{figure}
+
+\section{Phân tích nghiệp vụ}
+\subsection{Quy trình hiện tại và các vấn đề}
+Một nhóm sinh viên thường phối hợp qua nhóm chat và một bảng tính dùng chung. Quy trình này có bốn
+vấn đề lặp lại:
+\begin{itemize}
+  \item \textbf{Không có một nguồn sự thật duy nhất.} Việc được thống nhất trong chat rồi chép tay
+        sang bảng tính; hai nơi lệch nhau và không ai biết bản nào mới nhất.
+  \item \textbf{Vướng mắc không ai thấy.} Thành viên bị kẹt nhắn một tin rồi tin bị trôi; trưởng
+        nhóm chỉ biết khi đến hạn.
+  \item \textbf{Không có thứ tự.} Các việc phụ thuộc nhau được liệt kê ngang hàng, nên có người bắt
+        đầu việc khi việc tiên quyết chưa xong.
+  \item \textbf{Báo cáo thủ công.} Báo cáo tuần và biên bản họp viết theo trí nhớ; việc giao nhiệm vụ
+        theo thói quen chứ không theo kỹ năng hay khối lượng.
+\end{itemize}
+
+\subsection{Quy trình mục tiêu}
+Hệ thống hỗ trợ chu trình theo kiểu Scrum ở Hình~\ref{fig:bizflow}. Mỗi bước là một hoạt động nghiệp
+vụ do một vai trò thực hiện, và tạo ra dữ liệu cho bước sau.
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  s/.style={draw, rounded corners, fill=blue!6, minimum width=2.7cm, minimum height=1.15cm, align=center, font=\footnotesize},
+  >=Stealth]
+\node[s] (a) at (0,0)    {1. Tạo dự án,\\mời thành viên\\\scriptsize(PM)};
+\node[s] (b) at (3.6,0)  {2. Lập backlog,\\đặt phụ thuộc\\\scriptsize(PM, Thành viên)};
+\node[s] (c) at (7.2,0)  {3. Lập kế hoạch\\sprint, giao việc\\\scriptsize(PM + AI)};
+\node[s] (d) at (10.8,0) {4. Bắt đầu sprint\\(ghi nhận\\cam kết)\\\scriptsize(PM)};
+\node[s] (e) at (10.8,-2.5) {5. Làm việc hằng\\ngày: trạng thái,\\bình luận, minh chứng\\\scriptsize(Thành viên)};
+\node[s] (f) at (7.2,-2.5) {6. Theo dõi:\\burndown, bị chặn,\\quá hạn\\\scriptsize(PM)};
+\node[s] (g) at (3.6,-2.5) {7. Kết thúc sprint,\\chuyển việc dở\\\scriptsize(PM)};
+\node[s] (h) at (0,-2.5) {8. Retrospective,\\báo cáo tuần\\\scriptsize(PM + AI)};
+\draw[->] (a)--(b); \draw[->] (b)--(c); \draw[->] (c)--(d); \draw[->] (d)--(e);
+\draw[->] (e)--(f); \draw[->] (f)--(g); \draw[->] (g)--(h);
+\draw[->, dashed] (h.north) to[bend left=12] node[left, font=\scriptsize]{sprint sau} (b.south west);
+\end{tikzpicture}
+\caption{Quy trình nghiệp vụ mục tiêu của một nhóm dự án}\label{fig:bizflow}
+\end{figure}
+
+\subsection{Vòng đời của task}
+Một task đi qua bốn trạng thái. Thứ tự cố định và giống nhau ở client và server:
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[st/.style={draw, rounded corners, minimum width=2.6cm, minimum height=0.85cm, font=\small}, >=Stealth]
+\node[st, fill=gray!10] (t) at (0,0) {TODO};
+\node[st, fill=blue!8] (i) at (3.8,0) {IN\_PROGRESS};
+\node[st, fill=red!10] (b) at (7.6,0) {BLOCKED};
+\node[st, fill=green!12] (d) at (11.4,0) {DONE};
+\draw[->] (t)--(i); \draw[->] (i)--(b); \draw[->] (b)--(d);
+\draw[->] (d.south) to[bend left=18] node[below, font=\scriptsize]{mở lại} (t.south);
+\end{tikzpicture}
+\caption{Vòng trạng thái task (phím Space chuyển một bước)}\label{fig:taskcycle}
+\end{figure}
+
+\subsection{Quy tắc nghiệp vụ}
+\begin{longtable}{|p{1.3cm}|p{12.4cm}|}
+\caption{Các quy tắc nghiệp vụ chính}\label{tab:rules}\\
+\hline
+\textbf{Mã} & \textbf{Quy tắc} \\ \hline
+\endfirsthead
+\hline
+\textbf{Mã} & \textbf{Quy tắc} \\ \hline
+\endhead
+BR-01 & Quyền hạn thuộc về vai trò \emph{trong một dự án}; tài khoản tự thân không có quyền gì. Người tạo dự án là PM của dự án đó. \\ \hline
+BR-02 & Người được mời chỉ có quyền truy cập sau khi chấp nhận; lời mời đang chờ không cấp quyền gì. \\ \hline
+BR-03 & Chỉ thành viên thấy dự án; với người khác, dự án như không tồn tại (404). \\ \hline
+BR-04 & Chỉ PM quản lý thành viên, vai trò và sprint. \\ \hline
+BR-05 & Mỗi dự án có tối đa một sprint đang chạy; cam kết (story point) được chốt khi sprint bắt đầu. \\ \hline
+BR-06 & Khi kết thúc sprint, task chưa xong chuyển sang sprint sau hoặc backlog; xoá sprint không bao giờ xoá công việc. \\ \hline
+BR-07 & Task bị chặn nên ghi rõ lý do; task đã xong không bao giờ hiển thị là quá hạn. \\ \hline
+BR-08 & Mọi người được giao phải là thành viên đã chấp nhận của dự án; phụ thuộc chỉ trong cùng một dự án. \\ \hline
+BR-09 & Thứ tự trên bảng: trễ hạn trước, rồi hạn gần hơn, rồi đến độ ưu tiên. \\ \hline
+BR-10 & Dự án cá nhân sửa được khi mất mạng; dự án nhóm chỉ xem khi mất mạng để tránh ghi đè lẫn nhau. \\ \hline
+BR-11 & Không ai nhận thông báo về hành động của chính mình. \\ \hline
+\end{longtable}
 
 \section{Yêu cầu chức năng}
 \begin{longtable}{|p{2.3cm}|p{9.2cm}|p{2.0cm}|}

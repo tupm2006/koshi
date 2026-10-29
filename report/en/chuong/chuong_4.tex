@@ -106,7 +106,7 @@ edits the name, skills (used by the assignment recommender) and avatar (Figure~\
 
 \section{Testing}
 \subsection{Strategy}
-Testing had four layers:
+Testing had four layers (Chapter~5 classifies them into unit and integration levels):
 \begin{enumerate}
   \item \textbf{Backend tests} (pytest, 13 files) exercise the API through a test client: every
         role and permission rule (including the negative cases---a member receiving 403, an outsider
@@ -135,7 +135,8 @@ assignment test fail.
 \begin{tabular}{|p{6cm}|c|c|}
 \hline
 \textbf{Suite} & \textbf{Tests} & \textbf{Result} \\ \hline
-Backend (pytest, SQLite) & 177 & all passed \\ \hline
+Backend (pytest, SQLite) & 185 & all passed \\ \hline
+Agent guardrails (pytest) & 56 & all passed \\ \hline
 Frontend (Vitest) & 442 & all passed \\ \hline
 TypeScript type check and production build & -- & passed \\ \hline
 End-to-end smoke test on the public instance & 32 checks & 0 failed \\ \hline
@@ -172,6 +173,6 @@ secret or database is inside them, backs up the database, applies migrations in 
 starts the services and checks that the instance is healthy, at the latest schema revision and in
 a production posture (no demo accounts, no wildcard CORS, a non-default secret). The tunnel
 publishes the instance at \url{https://koshi.huynhca.com}, where the team tested it with three
-seeded accounts. Continuous integration on GitHub Actions runs both test suites on every push to the main and development branches.
+seeded accounts. Continuous integration on GitHub Actions runs the frontend, backend and guardrail suites on every push to the main and development branches. Operation and monitoring are described in Section~5.6.
 
 \end{document}

@@ -1,0 +1,227 @@
+\documentclass[../main.tex]{subfiles}
+\begin{document}
+
+\textit{The system was built with AI coding agents. This chapter describes how the agents were
+organised so that they behave like a small software factory rather than a free-form assistant:
+the context they are given, the stations of the production line, the guardrails that hold them to
+the project's rules, the testing they must pass, and how the product is packaged, operated and
+monitored.}
+
+\section{From an assistant to a factory}
+An AI coding agent left to itself has two weaknesses. It does not know the project, so it guesses;
+and it does not know its limits, so it will ``fix'' a security rule as readily as a typo. Several
+defects in Table~\ref{tab:defects} show both: the deploy command that would have shipped
+development settings to production (F-37), and the proposed change that faked the PM role in the
+browser (F-53). The design answer has four parts, each covered by a section below:
+\begin{enumerate}
+  \item \textbf{Context engineering}---the agent reads the right documents before acting, not after.
+  \item \textbf{Factory}---the work passes through separate stations with separate permissions.
+  \item \textbf{Guardrails}---the rules are executed as code, not only written as advice.
+  \item \textbf{Verification}---unit, integration and end-to-end tests, and tests of the tests.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{\begin{tikzpicture}[
+  st/.style={draw, rounded corners, fill=blue!6, minimum width=2.15cm, minimum height=1.25cm, align=center, font=\footnotesize},
+  gate/.style={draw, fill=orange!15, minimum width=13.6cm, minimum height=0.7cm, font=\footnotesize, align=center},
+  ctx/.style={draw, fill=green!8, minimum width=13.6cm, minimum height=0.7cm, font=\footnotesize, align=center},
+  >=Stealth]
+\node[ctx] (ctx) at (6.8,2.0) {Context: CLAUDE.md + D1--D8 (requirements, modules, architecture, contracts, tests, policies, decisions, RTM)};
+\node[st] (s1) at (0.0,0) {1. Require-\\ments analyst};
+\node[st] (s2) at (2.27,0) {2. Architect};
+\node[st] (s3) at (4.54,0) {3. Test\\engineer\\(red)};
+\node[st] (s4) at (6.81,0) {4. Imple-\\menter\\(green)};
+\node[st] (s5) at (9.08,0) {5. Test eng.\\(mutation)};
+\node[st] (s6) at (11.35,0) {6. Reviewer};
+\node[st] (s7) at (13.62,0) {7. Release\\engineer};
+\foreach \a/\b in {s1/s2,s2/s3,s3/s4,s4/s5,s5/s6,s6/s7} \draw[->] (\a) -- (\b);
+\draw[->, dashed] (s6.south) to[bend left=25] node[below, font=\scriptsize]{findings: back to implementer} (s4.south);
+\node[gate] (g) at (6.8,-2.3) {Guardrails on every edit and command (deny / ask a human / allow) \quad + \quad Definition-of-Done gate on stop};
+\foreach \s in {ctx} \draw[->] (ctx.south) -- (6.8,0.75);
+\draw[->] (g.north) -- (6.8,-1.6);
+\end{tikzpicture}}
+\caption{The AI agent factory: context in, stations in sequence, guardrails around every step}\label{fig:factory}
+\end{figure}
+
+\section{Context engineering}
+The repository contains a navigation layer written for agents first and people second. An agent
+starting any task loads \code{CLAUDE.md} automatically; it lists the verification commands, the
+invariants that must not be broken, and the order in which to read the eight documents:
+
+\begin{table}[H]
+\centering
+\caption{The documents an agent reads, and the question each answers}\label{tab:context}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{1.2cm}|p{4.2cm}|p{8.6cm}|}
+\hline
+\textbf{Doc} & \textbf{Content} & \textbf{Question it answers for the agent} \\ \hline
+D1 & Requirements & What must the system do? (FR and NFR ids) \\ \hline
+D2 & Module map & Which file implements this, and what depends on it? \\ \hline
+D3 & Architecture & Which ordering or layering rule must my change keep? \\ \hline
+D4 & API and data contracts & Is this a contract change? (if so: stop and escalate) \\ \hline
+D5 & Tests and acceptance & What proves it works; what is the Definition of Done? \\ \hline
+D6 & Risks, delegation, policies & May I do this alone, do it and report, or must I ask? \\ \hline
+D7 & Development book & Was this already decided, and why? Has this bug been seen before? \\ \hline
+D8 & Traceability matrix & Which requirements and tests does the file I am editing serve? \\ \hline
+\end{tabular}
+\end{table}
+
+Two practices keep this context trustworthy. First, every document was written \emph{against the
+code} and is updated in the same commit as the code it describes; the previous documentation had
+described behaviour the code did not have, and an agent that trusts stale documents is worse than
+one with none. Second, each station loads only what it needs (the analyst reads D1, D6, D8; the
+architect reads D2, D3, D4, D6, D7), which keeps the context small and focused.
+
+\section{The factory: stations and responsibilities}
+Each station is a separate agent definition in \code{.claude/agents/} with its own instructions,
+tool permissions and model. The command \code{/feature <description>} runs a request through all
+stations in order; \code{/verify} runs every quality gate; \code{/release-check} packages and
+smoke-tests the product.
+
+\begin{longtable}{|p{2.6cm}|p{6.4cm}|p{4.9cm}|}
+\caption{Factory stations}\label{tab:stations}\\
+\hline
+\textbf{Station} & \textbf{Produces} & \textbf{May not} \\ \hline
+\endfirsthead
+\hline
+\textbf{Station} & \textbf{Produces} & \textbf{May not} \\ \hline
+\endhead
+Requirements analyst & Numbered requirements in D1, Given/When/Then acceptance criteria in D5, rows in D8. & Edit source code. \\ \hline
+Architect & Impact plan: files with their autonomy zone, contract impact, invariants at risk, test list; a decision record in D7. & Edit source code; continue past a red-zone item. \\ \hline
+Test engineer & Failing unit and integration tests first; after implementation, one seeded defect per test to prove it can fail. & Weaken or delete an existing assertion. \\ \hline
+Implementer & The smallest change that makes the tests pass, then a production build. & Touch files outside the plan. \\ \hline
+Reviewer & PASS, or numbered findings with a failure scenario: authorisation, contracts, secrets, injection, offline policy, translation, tests, docs. & Edit anything (read-only). \\ \hline
+Release engineer & Gate table: unit and integration suites, guardrail tests, build, production-settings stack, smoke test, health and metrics. & Deploy or push without a human. \\ \hline
+\end{longtable}
+
+The separation is the control: a reviewer that wrote the code is not a reviewer, and an analyst
+that cannot edit code cannot ``solve'' a requirement by quietly changing behaviour.
+
+\section{Guardrails and security}
+Instructions can be ignored; code cannot. The autonomy zones of D6 are therefore also implemented
+as hooks that the agent runtime calls before every file edit and every shell command, and when the
+agent tries to finish (Figure~\ref{fig:guard}). The policy is a set of pure functions
+(\code{.claude/hooks/policy.py}); the hook script only translates between the runtime's JSON
+protocol and the policy. If the script itself fails, it denies---a broken guard must not become an
+open door.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  b/.style={draw, rounded corners, minimum height=0.9cm, align=center, font=\footnotesize},
+  >=Stealth]
+\node[b, fill=blue!6, minimum width=2.6cm] (a) at (0,0) {Agent wants to\\edit / run};
+\node[b, fill=gray!10, minimum width=2.8cm] (h) at (4.0,0) {Hook\\\code{guard.py}};
+\node[b, fill=gray!10, minimum width=2.8cm] (p) at (8.0,0) {Policy\\\code{policy.py}};
+\node[b, fill=red!12, minimum width=2.6cm] (d) at (12.2,1.4) {DENY\\(never)};
+\node[b, fill=orange!15, minimum width=2.6cm] (q) at (12.2,0) {ASK\\(human decides)};
+\node[b, fill=green!12, minimum width=2.6cm] (o) at (12.2,-1.4) {ALLOW\\(+ reminder)};
+\draw[->] (a) -- node[above, font=\scriptsize]{JSON} (h);
+\draw[->] (h) -- (p);
+\draw[->] (p.east) -- (d.west); \draw[->] (p.east) -- (q.west); \draw[->] (p.east) -- (o.west);
+\end{tikzpicture}
+\caption{Every edit and command passes the policy before it happens}\label{fig:guard}
+\end{figure}
+
+\begin{longtable}{|p{1.6cm}|p{7.6cm}|p{4.7cm}|}
+\caption{Guardrail rules (a selection)}\label{tab:guardrules}\\
+\hline
+\textbf{Decision} & \textbf{Rule} & \textbf{Reason} \\ \hline
+\endfirsthead
+\hline
+\textbf{Decision} & \textbf{Rule} & \textbf{Reason} \\ \hline
+\endhead
+Deny & Any edit whose content contains an API key, a private key or the previously leaked signing secret. & Secrets never enter the repository. \\ \hline
+Deny & Reading or printing \code{.env}; editing \code{.env}, the frozen submission folder or generated folders. & Secrets; immutable artefacts. \\ \hline
+Deny & Editing a migration that is already committed. & Applied migrations are immutable; add a new one. \\ \hline
+Deny & \code{git push --force}; recursive delete of \code{/} or \code{\textasciitilde}; the old tar-over-ssh deploy. & Irrecoverable; F-37. \\ \hline
+Ask & Editing authentication, the data model, API schemas, the upload allowlist, configuration, CI or the guardrails themselves. & Red zone in D6: security and contracts. \\ \hline
+Ask & \code{git push}, the deploy script, database downgrade, removing a Docker volume. & Affects other people or deletes data. \\ \hline
+Allow + reminder & Store, routers, translations, AI prompts, landing page. & Yellow zone: report and update docs. \\ \hline
+Block stop & \code{source/} changed but no document, or backend/frontend code changed without a test, or a model changed without a migration. & Definition of Done (D5 \S4). \\ \hline
+\end{longtable}
+
+\textbf{The guard's first catch was its author.} Minutes after the hooks were enabled, they
+refused a command written by the agent building this chapter: a script that \emph{wrote
+documentation} mentioning the old tar-over-ssh deploy was mistaken for running it. The rule was
+corrected so that text being written into a file (a ``heredoc'') is treated as data, a test was
+added for exactly that case, and a second test checks that a dangerous command placed \emph{after}
+such text is still caught.
+
+\textbf{Security in the product itself.} The guardrails protect the code base; the application
+has its own defences, described in Chapter~3 and tested in Chapter~4: authorisation on the server
+for every project route, 404 rather than 403 for outsiders, a startup check that refuses weak
+secrets, wildcard CORS or demo accounts in production, uploads restricted to an allowlist with
+server-generated file names, and comments rendered as text, never as HTML.
+
+\section{Unit and integration testing}
+\begin{table}[H]
+\centering
+\caption{Test levels}\label{tab:levels}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{|p{2.5cm}|p{7.6cm}|p{2.0cm}|p{1.5cm}|}
+\hline
+\textbf{Level} & \textbf{What is exercised} & \textbf{Tool} & \textbf{Count} \\ \hline
+Unit (frontend) & Pure modules---dependency sort, critical path, urgency order, keyboard dispatcher, mention parser---and the two stores in isolation. & Vitest & 442 \\ \hline
+Unit (guardrails) & Every policy rule, the hook's JSON protocol, fail-closed behaviour. & pytest & 56 \\ \hline
+Integration (backend) & The real routers, database session and authentication through an HTTP test client; each AI tier simulated at the HTTP boundary; migrations from an empty database. & pytest & 185 \\ \hline
+Integration (UI) & Components mounted in a simulated DOM with their store. & Vitest & (in 442) \\ \hline
+End-to-end & Seeded public instance, every feature through the API, AI against the real model. & script & 32 checks \\ \hline
+\end{tabular}
+\end{table}
+Tests are themselves tested. For the guardrails, removing the force-push rule and the migration
+rule made five tests fail; restoring them made all pass. Continuous integration runs three jobs on
+every push---frontend, backend and guardrails---so a change that breaks any of them cannot pass
+unnoticed.
+
+\section{Packaging, operation and monitoring}
+\subsection{Packaging}
+The product ships as four containers described by Docker Compose: MySQL, the FastAPI backend, nginx
+serving the built frontend, and \code{cloudflared} for the public tunnel. The images contain no
+secret: a \code{.dockerignore} keeps \code{.env} and databases out, and the deploy script checks
+the built image to confirm it. Secrets are generated per machine by \code{scripts/dev-env.sh}.
+
+\subsection{Operation}
+\code{scripts/local-prod.sh up} applies migrations as a separate step, starts the stack with the
+production safety check armed, and verifies the posture (non-default secret, no demo accounts,
+pinned CORS, schema at the latest revision). Docker restarts a container that stops, and log files
+are capped at 5$\times$10\,MB per container.
+
+\subsection{Monitoring}
+Three signals were added for this stage:
+\begin{itemize}
+  \item \textbf{Health with a database check.} \code{/api/health} previously answered ``healthy''
+        even when the database was down. It now runs a query and returns HTTP 503 when the database
+        is unreachable; Docker's healthcheck uses it, so \code{docker ps} shows the real state.
+  \item \textbf{Request id and access log.} Every response carries an \code{X-Request-ID}; one log
+        line per request records method, route, status and duration. The route \emph{template} is
+        logged (\code{/api/tasks/\{task\_id\}}), so no id, token or query string reaches a log.
+  \item \textbf{Metrics.} \code{/api/metrics} publishes, in the Prometheus text format, request
+        counts by route and status, a latency histogram and \textbf{AI answers by fallback tier}.
+        The last one matters most: when the AI provider fails, every endpoint still answers (by
+        design), so only this counter reveals that users are receiving the offline fallback instead
+        of the model. Metrics are hidden (404) in production unless a secret token is presented.
+\end{itemize}
+\code{scripts/monitor.sh} combines them into a snapshot and prints a warning when server errors
+appear or when more than half of the AI answers come from the fallback. Its output on the public
+instance after the end-to-end test:
+\begin{verbatim}
+health      HTTP 200  (0.0026s)
+container   koshi-backend-prod-local   Up (healthy)
+container   koshi-db-prod-local        Up 2 days (healthy)
+requests    48 total, 0 server errors
+AI answers  5, 0 from the offline fallback (0%)
+\end{verbatim}
+Eight integration tests cover this surface, including that the metrics endpoint is hidden without
+the token, that a hostile request id is replaced, and that a task id never appears in a metric label.
+
+\section{Assessment}
+The factory does not make the agents infallible. The stop gate verifies that documents and tests
+\emph{changed}, not that they are correct; that judgement belongs to the reviewer station and,
+finally, to people. The hooks bind the coding agent only, which is why continuous integration
+re-runs every suite independently. Within those limits, the rules that previously depended on an
+agent choosing to read a policy document are now enforced on every action, and each rule is
+covered by a test that has been shown to fail when the rule is removed.
+
+\end{document}
