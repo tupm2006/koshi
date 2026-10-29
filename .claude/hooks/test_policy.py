@@ -83,6 +83,11 @@ def test_heredoc_prose_is_not_a_command():
     assert policy.check_bash(cmd).action == "allow"
 
 
+def test_a_later_commands_flag_is_not_a_push_flag():
+    d = policy.check_bash("git push -q; pdftotext -f 3 -l 8 x.pdf -")
+    assert d.action == "ask"  # the push itself still needs a human, but it is not a force-push
+
+
 def test_command_after_a_heredoc_is_still_checked():
     assert policy.check_bash("cat > x <<EOF\nhi\nEOF\ngit push --force").action == "deny"
 

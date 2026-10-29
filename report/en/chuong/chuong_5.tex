@@ -164,7 +164,7 @@ server-generated file names, and comments rendered as text, never as HTML.
 \hline
 \textbf{Level} & \textbf{What is exercised} & \textbf{Tool} & \textbf{Count} \\ \hline
 Unit (frontend) & Pure modules---dependency sort, critical path, urgency order, keyboard dispatcher, mention parser---and the two stores in isolation. & Vitest & 442 \\ \hline
-Unit (guardrails) & Every policy rule, the hook's JSON protocol, fail-closed behaviour. & pytest & 56 \\ \hline
+Unit (guardrails) & Every policy rule, the hook's JSON protocol, fail-closed behaviour. & pytest & 57 \\ \hline
 Integration (backend) & The real routers, database session and authentication through an HTTP test client; each AI tier simulated at the HTTP boundary; migrations from an empty database. & pytest & 185 \\ \hline
 Integration (UI) & Components mounted in a simulated DOM with their store. & Vitest & (in 442) \\ \hline
 End-to-end & Seeded public instance, every feature through the API, AI against the real model. & script & 32 checks \\ \hline

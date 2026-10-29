@@ -1527,11 +1527,13 @@ edits, a pasted API key) was preventable only by the agent choosing to read D6.
   documentation. `/feature` (`.claude/commands/`) runs the line; `/verify` and `/release-check` run
   the gates. Separation is the control — a reviewer that wrote the code is not a reviewer.
 - **Guardrails as code** (`.claude/hooks/policy.py`, wired by `settings.json`): PreToolUse on every
-  edit and shell command; Stop gated on D5 §4. Pure functions, 56 unit + protocol tests, rules
+  edit and shell command; Stop gated on D5 §4. Pure functions, 57 unit + protocol tests, rules
   mutation-checked, run in CI as a third job. The hook fails closed: a crash denies.
 - **First catch was its author.** Minutes after it was enabled the guard refused a command whose
   heredoc *documented* the old deploy one-liner. Heredoc bodies are now treated as data (with a
   test), and the command after a heredoc is still checked.
+  A second false positive followed: `pdftotext -f` later on the same line as `git push` read as
+  `git push -f`. The push rule now stops at the next command separator (test added).
 - **Rejected:** `permissions` in `settings.json` alone. Glob rules cannot see an API key inside an
   edit, cannot tell an applied migration (tracked in git) from a new one, and cannot gate completion.
 - **Limits, stated:** the Stop gate checks that docs and tests *changed*, not that they are right;
@@ -1589,7 +1591,7 @@ and cardinality is bounded. Metrics reveal traffic shape, so they are 404 outsid
 | **2026-10-24** | `origin/main` reviewed, partly taken (DEC-030). Groq adopted; decomposer made model-backed; F-50–F-52 (DEC-029). Scrum lifecycle, burndown, velocity (DEC-028, migration 0008). Seed + end-to-end smoke scripts; real screen-recorded landing video. Backend → 170, frontend → 410. |
 | **2026-10-24** | Full UI localisation with a coverage test; AI follows UI language (DEC-032). |
 | **2026-10-24** | Task history (migration 0009) and AI sprint retrospective; Cloudflare Tunnel publishing (DEC-031). |
-| **2026-10-29** | AI agent factory with executable guardrails (DEC-033); health/metrics/request ids and `monitor.sh` (DEC-034). Backend → 185, guardrails 56. |
+| **2026-10-29** | AI agent factory with executable guardrails (DEC-033); health/metrics/request ids and `monitor.sh` (DEC-034). Backend → 185, guardrails 57. |
 
 ## Part IV — Open questions
 

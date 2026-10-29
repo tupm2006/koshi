@@ -217,7 +217,7 @@ generator. No endpoint may return free-form text where a schema is declared.
 | NFR-09 | The service refuses to start in a non-development environment while any insecure default is in force. | — | Implemented & tested — `main.py::_check_production_safety` |
 | NFR-10 | Schema changes are delivered by versioned, reversible migrations; outside development the app refuses to start against a database that is not at head. | — | Implemented & tested — Alembic + `main.py::_check_migrations_current` |
 | NFR-11 | The running service is observable: `/api/health` checks the database (503 when it is unreachable); every response carries an `X-Request-ID`; one access-log line per request keyed by route template; `/api/metrics` (Prometheus text) counts requests, latency and AI answers by cascade tier. Metrics are 404 in production unless `METRICS_TOKEN` is presented. | — | Implemented & tested — `services/monitoring.py`, `test_monitoring.py` (DEC-034) |
-| NFR-12 | AI coding agents working on this repository are held to D6 mechanically: forbidden paths and secrets are refused, 🔴 paths and irreversible commands need a human, and a change set without docs/tests cannot be reported done. | — | Implemented & tested — `.claude/hooks/policy.py`, 56 tests in `.claude/hooks/test_policy.py` (DEC-033) |
+| NFR-12 | AI coding agents working on this repository are held to D6 mechanically: forbidden paths and secrets are refused, 🔴 paths and irreversible commands need a human, and a change set without docs/tests cannot be reported done. | — | Implemented & tested — `.claude/hooks/policy.py`, 57 tests in `.claude/hooks/test_policy.py` (DEC-033) |
 
 ## 4. Explicit non-goals
 

@@ -57,7 +57,7 @@ the directory-derived project name and `up` on one deletes the others (F-38).
   and shell command. Secrets in content, `.env`, `submission/`, generated trees and applied migrations
   are refused; 🔴 paths, `git push`, `deploy.sh` and volume removal ask the human; YELLOW files come
   back with a reminder. Your Stop is refused while `source/` changed without docs or tests. A
-  refusal is policy, not a bug to route around. `python -m pytest -q .claude/hooks` → 56 passed.
+  refusal is policy, not a bug to route around. `python -m pytest -q .claude/hooks` → 57 passed.
 - **Stations** (`.claude/agents/`): requirements-analyst, architect, test-engineer, implementer,
   reviewer, release-engineer. `/feature <description>` runs them in order; `/verify` runs every
   gate; `/release-check` packages, runs, smoke-tests and reads metrics.

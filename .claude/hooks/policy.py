@@ -136,7 +136,9 @@ def check_bash(command: str) -> Decision:
 
     if re.search(r"(^|[\s/])\.env(\s|$)", " " + text + " ") and re.search(r"\b(cat|less|more|head|tail|grep|sed|awk|cp|scp|curl)\b", text):
         return Decision("deny", "P9: do not print or copy .env; refer to variables by name")
-    if re.search(r"git\s+push\b.*(--force\b|--force-with-lease\b|\s-f\b)", text):
+    # Only flags of the push itself: stop at the next command separator, so a
+    # later `pdftotext -f 3` is not read as `git push -f`.
+    if re.search(r"git\s+push\b[^;&|\n]*(--force\b|--force-with-lease\b|\s-f\b)", text):
         return Decision("deny", "Force-push rewrites shared history (D6 RED); never by an agent")
     if re.search(r"git\s+(reset\s+--hard|clean\s+-[a-z]*f|branch\s+-D)", text):
         return Decision("ask", "Destroys uncommitted or branch work; a human confirms")

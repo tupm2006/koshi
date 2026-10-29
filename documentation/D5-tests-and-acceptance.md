@@ -233,7 +233,7 @@ Legend: **A** = automated · **M** = manual · **✗** = unverified
 | NFR-10 | `alembic upgrade head` builds the current schema from empty; a populated pre-roles DB upgrades with roles backfilled and no user losing access; downgrade restores the old shape. | **A** `test_migrations.py` |
 | NFR-09 | Startup aborts with dev defaults when `ENVIRONMENT` is not development; development is exempt. | **A** `test_startup_safety.py` |
 | NFR-11 | Health reports `database: ok`; responses carry `X-Request-ID`, a hostile supplied id is replaced; `/api/metrics` is 404 in production without the token and 200 with it; route labels contain `{task_id}`, never the id; AI answers are counted by tier. | **A** `test_monitoring.py` (8) |
-| NFR-12 | Force-push, `.env` reads, edits to `submission/` / `.env` / applied migrations, and any edit containing an API key are denied; 🔴 paths, `git push`, `deploy.sh`, volume removal ask a human; heredoc prose is not mistaken for a command; Stop is blocked when `source/` changed without docs or tests. Rules mutation-checked. | **A** `.claude/hooks/test_policy.py` (56) |
+| NFR-12 | Force-push, `.env` reads, edits to `submission/` / `.env` / applied migrations, and any edit containing an API key are denied; 🔴 paths, `git push`, `deploy.sh`, volume removal ask a human; heredoc prose is not mistaken for a command; Stop is blocked when `source/` changed without docs or tests. Rules mutation-checked. | **A** `.claude/hooks/test_policy.py` (57) |
 
 ---
 
